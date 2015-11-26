@@ -1,0 +1,59 @@
+Grade Oven
+
+What it is (from the top, down):
+  A web server where instructors create assignments and students submit code.
+  An assignment, abstractly speaking, specifies a container A and script/command to compile the students' assignment, a whitelist of compiled objects to copy out of container A into container B, and a script/command to test their code.
+  Instructors register students, make assignments, etc.
+  Students submit assignments.
+
+Web page layout:
+  login -> dashboard
+  * -> logout
+  dashboard -> settings, course[]
+  settings -> update_avatar
+  course -> assignment[]
+  assignment -> submit
+  logout -> login
+
+Containers:
+  Grade Oven uses Docker containers running Ubuntu.  Each container should only have the minimum capabilities and, permissions, and packages necesssary to perform it's job:
+  "preheat_build": build/compile assignment submissions.
+  "bake_test": run/test submissions.
+  "serve_web": run the web server and communicate with the server that runs all containers.
+
+Implementation:
+  Grade Oven (main.py):
+    - calls coordinator.py
+    - sets up logging
+  Grade Oven Coordinator (coordinator.py):
+    - Only component that doesn't run in a container, because it runs/communicates with them.
+  Docker Wrapper (containers.py):
+    - make subprocess calls to docker binary to interact with docker
+      - it'd use docker-py, but it doesn't work out of the box due to conflicting version numbers
+    - hides all docker details
+    - API in terms of what's required of containers at a high level (e.g. "build this", "run that")
+  Web Server (server.py):
+    - Uses flask, containers, database, ssl
+  Data Store (datastore.py):
+    - Simple tuple-of-byte-strings to bytes store
+    Possible API example (probably won't use this):
+      # The following code does not assert False
+      store = datastore.DataStore('filename.ds')
+      key1 = ('courses', 'c++',    'assignments', 'homework 1')
+      key2 = ('courses', 'c++',    'assignments', 'homework 2')
+      key3 = ('courses', 'python', 'assignments', 'homework 1')
+      store.put(key1, 'c++ 1')
+      store.put(key2, 'c++ 2')
+      store.put(key3, 'python 1')
+      assert set(store.get_all(('courses'))) == set(['c++', 'python'])
+      try:
+        store.get(('courses'))
+        assert False
+      except datastore.MultipleValuesError:
+        pass
+      assert store.get(key1) == 'c++ 1'
+      assert store.get(key3) == 'python 1'
+      store.remove(('courses', 'c++'))
+      assert set(store.get_all(('courses'))) == set(['python'])
+      assert store.get(('courses')) == 'python'  # generally usafe, but ok this time
+
