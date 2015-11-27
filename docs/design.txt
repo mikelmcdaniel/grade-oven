@@ -16,7 +16,10 @@ Web page layout:
   logout -> login
 
 Containers:
-  Grade Oven uses Docker containers running Ubuntu.  Each container should only have the minimum capabilities and, permissions, and packages necesssary to perform it's job:
+  Grade Oven uses Docker containers running Ubuntu.
+  Each container should only have the minimum capabilities and, permissions, and packages necesssary to perform it's job.
+  Each container has a user, grade_oven, which a home directory /grade_oven, which should typically correspond to a ram-based filesystem on the host with a finite size (tempfs).
+  Container's setups are located under grade_oven/setup/*.Dockerfile
   "preheat_build": build/compile assignment submissions.
   "bake_test": run/test submissions.
   "serve_web": run the web server and communicate with the server that runs all containers.
