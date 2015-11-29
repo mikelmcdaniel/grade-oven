@@ -30,11 +30,11 @@ Implementation:
     - sets up logging
   Grade Oven Coordinator (coordinator.py):
     - Only component that doesn't run in a container, because it runs/communicates with them.
-  Docker Wrapper (containers.py):
+  Executor (Docker Wrapper executor.py):
+    - exposes API in terms of what's required of containers at a high level (e.g. "build this", "run that")
     - make subprocess calls to docker binary to interact with docker
       - it'd use docker-py, but it doesn't work out of the box due to conflicting version numbers
-    - hides all docker details
-    - API in terms of what's required of containers at a high level (e.g. "build this", "run that")
+    - hides docker details when possible
   Web Server (server.py):
     - Uses flask, containers, database, ssl
   Data Store (datastore.py):

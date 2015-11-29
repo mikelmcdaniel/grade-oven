@@ -1,3 +1,0 @@
-class ContainersBase(object):
-  pass
-

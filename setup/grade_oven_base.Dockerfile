@@ -3,6 +3,7 @@ MAINTAINER Mikel Dmitri Mcdaniel
 CMD ["echo", "You must pass a command to run explicitly."]
 RUN ["apt-get", "--assume-yes", "update"]
 RUN ["apt-get", "--assume-yes", "upgrade"]
+RUN ["apt-get", "--assume-yes", "install", "unzip", "gzip", "tar"]
 # This is the volume that'll be used to interact with the host system
 RUN ["mkdir", "/grade_oven"]
 RUN ["useradd", "--comment", "Grade Oven", "--home", "/grade_oven", "--inactive", "-1", "--shell", "/bin/false", "grade_oven"]
