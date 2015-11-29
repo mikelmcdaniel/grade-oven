@@ -48,15 +48,15 @@ Implementation:
       store.put(key1, 'c++ 1')
       store.put(key2, 'c++ 2')
       store.put(key3, 'python 1')
-      assert set(store.get_all(('courses'))) == set(['c++', 'python'])
+      assert set(store.get_all(('courses',))) == set(['c++', 'python'])
       try:
-        store.get(('courses'))
+        store.get(('courses',))
         assert False
       except datastore.MultipleValuesError:
         pass
       assert store.get(key1) == 'c++ 1'
       assert store.get(key3) == 'python 1'
       store.remove(('courses', 'c++'))
-      assert set(store.get_all(('courses'))) == set(['python'])
-      assert store.get(('courses')) == 'python'  # generally usafe, but ok this time
+      assert set(store.get_all(('courses',))) == set(['python'])
+      assert store.get(('courses',)) == 'python'  # generally usafe, but ok this time
 
