@@ -31,9 +31,12 @@ class DataStore(object):
 
   def get(self, key):
     cur = self._data
-    for sub_key in key:
-      cur = cur[sub_key]
-    return cur
+    try:
+      for sub_key in key:
+        cur = cur[sub_key]
+      return cur
+    except KeyError:
+      return None
 
   def get_all(self, key):
     return tuple(self.get(key))
