@@ -96,14 +96,15 @@ class DockerExecutor(ExecutorBase):
       shutil.rmtree(os.path.join(self.host_dir, sub_dir))
       os.mkdir(os.path.join(self.host_dir, sub_dir))
 
-  def _popen_docker_run(self, docker_image_name, cmd, user=None):
+  def _docker_run(self, docker_image_name, cmd, user=None):
+    "Runs a command and returns the return code or None if it timed out."
     if user is None:
       user = 'grade_oven'
     assert user in ('grade_oven', 'root')
     docker_cmd = [
       'docker', 'run', '--hostname', 'grade_oven', '--memory', '256m',
       '--name', self.container_id, '--net', 'none', '--read-only=true',
-      '--restart=no', '--user', user, '--rm=true',
+      '--restart=no', '--user', user, '--detach',  # , '--rm=true'
       '--volume', '{}/grade_oven:/grade_oven'.format(self.host_dir),
       '--volume', '{}/tmp:/tmp'.format(self.host_dir),
       '--workdir', '/grade_oven', '--cpu-shares', '128']
@@ -114,14 +115,35 @@ class DockerExecutor(ExecutorBase):
     docker_cmd.extend(cmd)
     logging.info('Starting Docker container: %s', docker_cmd)
     proc = subprocess.Popen(
-      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env={})
-    return proc
-
-  def _docker_run(self, docker_image_name, cmd, user=None):
-    proc = self._popen_docker_run(docker_image_name, cmd, user)
+      docker_cmd, bufsize=-1, close_fds=True,cwd=self.host_dir, env={})
     proc.wait()
-    if proc.returncode:
-      raise Error('_docker_run failed in {}: {}'.format(docker_image_name, cmd))
+
+    logging.info('Waiting for Docker container : %s', self.container_id)
+    timeout_seconds = 30
+    docker_cmd = [
+      'timeout', str(timeout_seconds), 'docker', 'wait', self.container_id]
+    proc = subprocess.Popen(
+      docker_cmd, stdout=subprocess.PIPE, bufsize=-1, close_fds=True,
+      cwd=self.host_dir, env={})
+    return_code_raw, _ = proc.communicate()
+    try:
+      return_code = int(return_code_raw)
+    except ValueError:
+      return_code = None
+
+    logging.info('Stopping Docker container: %s', self.container_id)
+    docker_cmd = ['docker', 'stop', '--time', '1', self.container_id]
+    proc = subprocess.Popen(
+      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env={})
+    proc.wait()
+
+    logging.info('Removing Docker container: %s', self.container_id)
+    docker_cmd = ['docker', 'rm', '--force', self.container_id]
+    proc = subprocess.Popen(
+      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env={})
+    proc.wait()
+
+    return return_code
 
   def _extract_archive(self, archive_path, user=None):
     if user is None:

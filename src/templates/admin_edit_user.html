@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block body %}
+{% if errors %}
+  <ul class=errors>
+    {% for error in errors %}
+    <li class="error">{{ error }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+<form action="/admin/edit_user" method="post">
+<input autofocus="autofocus" autocapitalize="off" name="username" type="text" placeholder="username"/>
+<input name="password" type="password" placeholder="password"/>
+<input name="password2" type="password" placeholder="password (confirm)"/>
+<input type="submit" value="Add/Edit User" />
+</form>
+{% endblock %}
