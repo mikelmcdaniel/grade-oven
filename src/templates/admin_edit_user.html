@@ -1,16 +1,45 @@
 {% extends "base.html" %}
 {% block body %}
 {% if errors %}
-  <ul class=errors>
+  <ul class="errors">
     {% for error in errors %}
     <li class="error">{{ error }}</li>
     {% endfor %}
   </ul>
 {% endif %}
+{% if msgs %}
+  <ul class="msgs">
+    {% for msg in msgs %}
+    <li class="msg">{{ msg }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+<h2>Add and/or Edit a User</h2>
 <form action="/admin/edit_user" method="post">
-<input autofocus="autofocus" autocapitalize="off" name="username" type="text" placeholder="username"/>
-<input name="password" type="password" placeholder="password"/>
-<input name="password2" type="password" placeholder="password (confirm)"/>
-<input type="submit" value="Add/Edit User" />
+<input autofocus="autofocus" autocapitalize="off" name="username" type="text" placeholder="username">
+<input name="password" type="password" placeholder="password">
+<input name="password2" type="password" placeholder="password (confirm)">
+<select name="is_admin">
+  <option value=""/>
+  <option value="set">set</option>
+  <option value="unset">unset</option>
+</select> is admin
+<select name="is_instructor">
+  <option value=""/>
+  <option value="set">set</option>
+  <option value="unset">unset</option>
+</select> is instructor
+<input name="course" type="text" placeholder="course">
+<select name="instructs_course">
+  <option value=""/>
+  <option value="set">set</option>
+  <option value="unset">unset</option>
+</select> instructs course
+<select name="takes_course">
+  <option value=""/>
+  <option value="set">set</option>
+  <option value="unset">unset</option>
+</select> takes course
+<input type="submit" value="Add/Edit User">
 </form>
 {% endblock %}

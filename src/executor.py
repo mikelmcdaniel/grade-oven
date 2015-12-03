@@ -3,8 +3,8 @@
 archive: a tar, zip, gzip, or single file
 code: an archive of source code
 build script: a archive of files and a series of commands to run
-test: a set of 2 archives,
-  input files (test cases) and expected output files,
+(diff) test case: a set of 2 archives,
+  input files and expected output files,
   and a series of commands to run that take the input and produce output.
 
 A typical (error free), flow looks like:
@@ -19,11 +19,12 @@ A typical (error free), flow looks like:
 """
 
 import errno
+import fractions
+import json
 import logging
 import os
 import shutil
 import subprocess
-import fractions
 
 
 class Error(Exception):
@@ -38,8 +39,18 @@ class BuildScript(object):
     self.cmds = cmds
     self.expected_filenames = expected_filenames
 
+  def serialize(self):
+    return json.dumps({
+      'archive_path': self.archive_path,
+      'cmds': self.cmds,
+      'expected_filenames': self.expected_filenames})
 
-class TestScript(object):
+  @classmethod
+  def deserialize(cls, data):
+    return cls(**json.loads(data))
+
+
+class TestCase(object):
   def __init__(self, input_archive_path, output_archive_path, cmds):
     assert not isinstance(cmds[0], basestring)
     self.input_archive_path = input_archive_path
@@ -50,8 +61,18 @@ class TestScript(object):
     "Return a tuple of score in [0, 1] and a list of error strings."
     pass
 
+  def serialize(self):
+    return json.dumps({
+      'input_archive_path': self.input_archive_path,
+      'output_archive_path': self.output_archive_path,
+      'cmds': self.cmds})
 
-class DiffTestScript(TestScript):
+  @classmethod
+  def deserialize(cls, data):
+    return cls(**json.loads(data))
+
+
+class DiffTestCase(TestCase):
   def score(self, host_dir):
     total_score = 0
     errors = []
@@ -153,10 +174,11 @@ class DockerExecutor(ExecutorBase):
         '.tar': ['/bin/tar', '-xf', '--'],
         '.zip': ['/usr/bin/unzip', '--'],
         '.gz': ['/bin/gunzip', '--'],
-      }.get(os.path.splitext(code_path)[-1], ['/bin/true', '--'])
-      unarchive_cmd.append(
-        os.path.join('/grade_oven', os.path.split(archive_path)[-1]))
-      self._docker_run('grade_oven/grade_oven_base', unarchive_cmd, user=user)
+      }.get(os.path.splitext(code_path)[-1])
+      if unarchive_cmd is not None:
+        unarchive_cmd.append(
+          os.path.join('/grade_oven', os.path.split(archive_path)[-1]))
+        self._docker_run('grade_oven/grade_oven_base', unarchive_cmd, user=user)
 
   def _copy_and_extract_archive(self, archive_path, user=None):
     if user is None:
@@ -186,24 +208,28 @@ class DockerExecutor(ExecutorBase):
     cmd = ['/bin/bash', '-c', 'mv /root/* /grade_oven/']
     self._docker_run('grade_oven/preheat_build', cmd, user='root')
 
-  def test(self, test_script):
+  def test(self, test_case):
     # copy test input archive input to that mounted directory
-    self._copy_and_extract_archive(test_script.input_archive_path)
+    self._copy_and_extract_archive(test_case.input_archive_path)
     # run the test script commands with the test input
-    for cmd in test_script.cmds:
+    for cmd in test_case.cmds:
       self._docker_run('grade_oven/bake_test', cmd)
     # diff the test results against the expected test output
-    self._copy_and_extract_archive(test_script.output_archive_path, user='root')
-    score, errors = test_script.score(self.host_dir)
+    self._copy_and_extract_archive(test_case.output_archive_path, user='root')
+    score, errors = test_case.score(self.host_dir)
     return score, errors
 
   def cleanup(self):
     self.init()
 
   # TODO: implement timeouts
-  def build_test(self, code_path, build_script, test_script):
-    self.build(code_path, build_script)
-    return self.test(test_script)
+  def init_build_test_cleanup(self, code_path, build_script, test_case):
+    self.init()
+    try:
+      self.build(code_path, build_script)
+      return self.test(test_case)
+    finally:
+      self.cleanup()
 
 
 if __name__ == '__main__':
@@ -216,12 +242,12 @@ if __name__ == '__main__':
     [['clang', '-std=c++11', '-Wall', '-Wextra', '-lstdc++',
       '-o', 'hello_world', 'hello_world.cpp']],
     ['hello_world'])
-  ts = DiffTestScript(
+  ts = DiffTestCase(
     None, 'test_host_dir/test/hello_world.txt',
     [['/bin/bash', '-c', '/grade_oven/hello_world > hello_world.txt']])
-  c = DockerExecutor('mikel_test', os.path.abspath('test_host_dir'))
+  c = DockerExecutor('docker_executor_test', os.path.abspath('test_host_dir'))
   c.init()
   c.build(code_path, bs)
   score, errors = c.test(ts)
-  # c.cleanup()
+  c.cleanup()
   print 'SCORE', score, '\n\n'.join(errors)
