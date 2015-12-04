@@ -32,9 +32,11 @@ class Error(Exception):
 
 
 class BuildScript(object):
-  def __init__(self, archive_path, cmds, expected_filenames):
-    assert not isinstance(cmds[0], basestring)
-    assert not isinstance(expected_filenames, basestring)
+  def __init__(self, archive_path=None, cmds=None, expected_filenames=None):
+    if cmds is not None:
+      assert not isinstance(cmds[0], basestring)
+    if expected_filenames is not None:
+      assert not isinstance(expected_filenames, basestring)
     self.archive_path = archive_path
     self.cmds = cmds
     self.expected_filenames = expected_filenames
@@ -47,12 +49,15 @@ class BuildScript(object):
 
   @classmethod
   def deserialize(cls, data):
+    if data is None:
+      data = '{}'
     return cls(**json.loads(data))
 
 
 class TestCase(object):
-  def __init__(self, input_archive_path, output_archive_path, cmds):
-    assert not isinstance(cmds[0], basestring)
+  def __init__(self, input_archive_path=None, output_archive_path=None, cmds=None):
+    if cmds is not None:
+      assert not isinstance(cmds[0], basestring)
     self.input_archive_path = input_archive_path
     self.output_archive_path = output_archive_path
     self.cmds = cmds
@@ -69,6 +74,8 @@ class TestCase(object):
 
   @classmethod
   def deserialize(cls, data):
+    if data is None:
+      data = '{}'
     return cls(**json.loads(data))
 
 
@@ -103,7 +110,7 @@ class DockerExecutor(ExecutorBase):
 
   def __init__(self, container_id, host_dir):
     self.container_id = container_id
-    self.host_dir = host_dir
+    self.host_dir = os.path.abspath(host_dir)
 
   def init(self):
     for sub_dir in ('grade_oven', 'root', 'tmp'):
@@ -174,7 +181,7 @@ class DockerExecutor(ExecutorBase):
         '.tar': ['/bin/tar', '-xf', '--'],
         '.zip': ['/usr/bin/unzip', '--'],
         '.gz': ['/bin/gunzip', '--'],
-      }.get(os.path.splitext(code_path)[-1])
+      }.get(os.path.splitext(archive_path)[-1])
       if unarchive_cmd is not None:
         unarchive_cmd.append(
           os.path.join('/grade_oven', os.path.split(archive_path)[-1]))
@@ -185,9 +192,20 @@ class DockerExecutor(ExecutorBase):
       user = 'grade_oven'
     if archive_path is not None:
       dst_path = os.path.join(self.host_dir, user)
-      logging.info('Copying "%s" to "%s"', archive_path, dst_path)
-      shutil.copy(archive_path, dst_path)
-      self._extract_archive(archive_path, user=user)
+      if os.path.isfile(archive_path):
+        logging.info('Copying file "%s" to "%s"', archive_path, dst_path)
+        shutil.copy(archive_path, dst_path)
+        self._extract_archive(archive_path, user=user)
+      elif os.path.isdir(archive_path):
+        logging.info(
+          'Copying directory files "%s"/* to "%s"', archive_path, dst_path)
+        # TODO: Make this copy the contents of a directory properly
+        for f in os.listdir(archive_path):
+          shutil.copy(os.path.join(archive_path, f), dst_path)
+      else:
+        logging.error('archive_path is not a file or dir: "%s"', archive_path)
+        raise Error('archive_path is not a file/dir: "{}"'.format(archive_path))
+
 
   # TODO: add error checking and reporting
   # TODO: check for bad users (e.g. use os.path.isfile() on expected_filenames)
@@ -242,12 +260,12 @@ if __name__ == '__main__':
     [['clang', '-std=c++11', '-Wall', '-Wextra', '-lstdc++',
       '-o', 'hello_world', 'hello_world.cpp']],
     ['hello_world'])
-  ts = DiffTestCase(
+  tc = DiffTestCase(
     None, 'test_host_dir/test/hello_world.txt',
     [['/bin/bash', '-c', '/grade_oven/hello_world > hello_world.txt']])
-  c = DockerExecutor('docker_executor_test', os.path.abspath('test_host_dir'))
+  c = DockerExecutor('docker_executor_test', 'test_host_dir')
   c.init()
   c.build(code_path, bs)
-  score, errors = c.test(ts)
+  score, errors = c.test(tc)
   c.cleanup()
   print 'SCORE', score, '\n\n'.join(errors)

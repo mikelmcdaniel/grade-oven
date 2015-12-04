@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>Courses</h2>
+<ul class="courses">
+  {% for course in courses %}
+  <li class="course"><a href="/courses/{{ course|safe }}">{{ course|safe }}</a></li>
+  {% endfor %}
+</ul>
+{% endblock %}

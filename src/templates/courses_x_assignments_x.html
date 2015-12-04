@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>Course {{ course_name|safe }} Assignment {{ assignment_name|safe }}</h2>
+{% if takes_course %}
+SCORE {{ score }} <br>
+{% for error in errors %}
+ERROR {{ error }} <br>
+{% endfor %}
+<h3>Submit Solution</h3>
+<form action="/courses/{{ course_name|safe }}/assignments/{{ assignment_name|safe }}" method="post" enctype="multipart/form-data">
+  <input type="file" multiple="multiple" name="code_archive[]">
+  <input type="submit" value="Submit Code">
+</form>
+{% endif %}
+
+{% endblock %}

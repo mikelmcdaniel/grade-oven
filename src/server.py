@@ -1,14 +1,11 @@
-# login -> dashboard
-# * -> logout
-# dashboard -> settings, course[]
-# settings -> update_avatar
-# course -> assignment[]
-# assignment -> submit
-# logout -> login
-
+# TODO: Validate course and assignment names
+# TODO: Restrict which users can see which pages more
+#   e.g. onlyy admins, instructors, and enrolled students should see courses
+import errno
 import cgi
 import os
 import functools
+import shlex
 import time
 
 import bcrypt
@@ -17,10 +14,11 @@ from flask.ext import login
 from OpenSSL import SSL
 
 import datastore as datastore_lib
+import executor
 
 app = flask.Flask(__name__)
 app.config['SECRET_KEY'] = open('data/secret_key.txt').read()
-app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 login_manager = login.LoginManager()
 login_manager.init_app(app)
 data_store = datastore_lib.DataStore(os.path.abspath('data/db'))
@@ -126,20 +124,86 @@ class GradeOvenUser(object):
     return self.username
 
 
+class GradeOvenAssignment(object):
+  def __init__(self, data_store, course_name, assignment_name):
+    self.course_name = course_name
+    self.name = assignment_name
+    self._data_store = data_store
+
+  def get_build_script(self):
+    serialized = self._data_store.get(
+      ('courses', self.course_name, 'assignments', self.name, 'build_script'))
+    return executor.BuildScript.deserialize(serialized)
+
+  def set_build_script(self, build_script):
+    serialized = build_script.serialize()
+    self._data_store.put(
+      ('courses', self.course_name, 'assignments', self.name, 'build_script'),
+      serialized)
+
+  def get_test_case(self):
+    serialized = self._data_store.get(
+      ('courses', self.course_name, 'assignments', self.name, 'test_case'))
+    return executor.DiffTestCase.deserialize(serialized)
+
+  def set_test_case(self, test_case):
+    serialized = test_case.serialize()
+    self._data_store.put(
+      ('courses', self.course_name, 'assignments', self.name, 'test_case'),
+      serialized)
+
+  def root_dir(self):
+    return os.path.join(
+      'data/files/courses', self.course_name, 'assignments', self.name)
+
+  def build_script_archive_dir(self):
+    return os.path.join(self.root_dir(), 'build_script/archive')
+
+  def test_case_input_archive_dir(self):
+    return os.path.join(self.root_dir(), 'test_case/input')
+
+  def test_case_output_archive_dir(self):
+    return os.path.join(self.root_dir(), 'test_case/output')
+
+
 class GradeOvenCourse(object):
   "Represents a course"
   def __init__(self, data_store, course_name):
     self.name = course_name
     self._data_store = data_store
 
-  def students(self):
-    return data_store.get_all(('courses', self.name, 'students'))
+  def student_usernames(self):
+    return self._data_store.get_all(('courses', self.name, 'students'))
 
-  def instructors(self):
-    return data_store.get_all(('courses', self.name, 'instructors'))
+  def instructor_usernames(self):
+    return self._data_store.get_all(('courses', self.name, 'instructors'))
 
-  def assignments(self):
-    return data_store.get_all(('courses', self.name, 'assignments'))
+  def assignment_names(self):
+    return self._data_store.get_all(('courses', self.name, 'assignments'))
+
+  def assignment(self, assignment_name):
+    return GradeOvenAssignment(self._data_store, self.name, assignment_name)
+
+  def add_edit_assignment(self, assignment_name):
+    self._data_store.put(('courses', self.name, 'assignments', assignment_name))
+
+  def add_students(self, student_usernames):
+    for username in student_usernames:
+      self._data_store.put(('courses', self.name, 'students', username))
+
+  def remove_students(self, student_usernames):
+    for username in student_usernames:
+      self._data_store.remove(('courses', self.name, 'students', username))
+
+
+class GradeOven(object):
+  def __init__(self, data_store):
+    self._data_store = data_store
+
+  def course_names(self):
+    return self._data_store.get_all(('courses',))
+
+
 
 
 def admin_required(func):
@@ -221,9 +285,32 @@ def admin_db_get_all(key):
 @app.route('/debug/logged_in')
 @login.login_required
 def debug_logged_in():
-  return 'You are logged in as {}'.format(login.current_user.get_id())
+  return 'Logged in as {}.'.format(cgi.escape(login.current_user.get_id()))
 
-@app.route('/courses/<string:course_name>')
+@app.route('/courses')
+@login.login_required
+def courses():
+  return flask.render_template(
+    'courses.html', courses=GradeOven(data_store).course_names())
+
+BASE_FILENAME_CHARS = frozenset(
+  'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_.()')
+def base_filename_is_safe(filename):
+  return not (set(filename) - BASE_FILENAME_CHARS) and filename
+
+# TODO: handle/return errors
+def save_files_in_dir(dir_path, flask_files):
+  try:
+    os.makedirs(dir_path)
+  except OSError as e:
+    if e.errno != errno.EEXIST:  # If dir_path exists, ignore this error.
+      raise e
+  for f in flask_files:
+    base_filename = os.path.basename(f.filename)
+    if base_filename_is_safe(base_filename):
+      f.save(os.path.join(dir_path, base_filename))
+
+@app.route('/courses/<string:course_name>', methods=['GET', 'POST'])
 @login.login_required
 def courses_x(course_name):
   user = login.current_user
@@ -231,19 +318,92 @@ def courses_x(course_name):
   instructs_course = user.instructs_course(course.name)
   takes_course = user.takes_course(course.name)
   if instructs_course:
-    students = course.students()
+    form = flask.request.form
+    # Add/Edit assignment
+    assignment_name = form.get('assignment_name')
+    if assignment_name:
+      course.add_edit_assignment(assignment_name)
+      assignment = course.assignment(assignment_name)
+      # build_script
+      build_script = assignment.get_build_script()
+      # TODO (here and below): check if any files were uploaded
+      #   also remove old files
+      #   also have some way to garbage collect old files
+      #   also show the files that already exist
+      save_files_in_dir(
+        assignment.build_script_archive_dir(),
+        flask.request.files.getlist('build_archive[]'))
+      build_script.archive_path = assignment.build_script_archive_dir()
+      cmds = form.get('build_script_cmds')
+      if cmds:
+        build_script.cmds = map(shlex.split, cmds.split('\n'))
+      expected_filenames = form.get('expected_filenames')
+      if expected_filenames:
+        build_script.expected_filenames = expected_filenames.split('\n')
+      assignment.set_build_script(build_script)
+      # test_case
+      test_case = assignment.get_test_case()
+      save_files_in_dir(
+        assignment.test_case_input_archive_dir(),
+        flask.request.files.getlist('input_archive[]'))
+      test_case.input_archive_path = assignment.test_case_input_archive_dir()
+      save_files_in_dir(
+        assignment.test_case_output_archive_dir(),
+        flask.request.files.getlist('output_archive[]'))
+      test_case.output_archive_path = assignment.test_case_output_archive_dir()
+      cmds = form.get('test_case_cmds')
+      if cmds:
+        test_case.cmds = map(shlex.split, cmds.split('\n'))
+      assignment.set_test_case(test_case)
+    # Enroll students
+    add_students = form.get('add_students')
+    if add_students:
+      course.add_students(add_students.split())
+    # Unenroll students
+    remove_students = form.get('remove_students')
+    if remove_students:
+      course.remove_students(remove_students.split())
+    student_usernames = course.student_usernames()
   else:
-    students = None
-  assignments = course.assignments()
+    student_usernames = None
+  assignment_names = course.assignment_names()
   return flask.render_template(
     'courses_x.html', instructs_course=instructs_course,
-    takes_course=takes_course, students=students, assignments=assignments,
-    course_name=course.name)
+    takes_course=takes_course, students=student_usernames,
+    assignments=assignment_names, course_name=course.name)
 
-@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>')
+@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>', methods=['GET', 'POST'])
 @login.login_required
 def courses_x_assignment_x(course_name, assignment_name):
-  return cgi.escape('TODO: /courses/{}/assignments/{}'.format(course_name, assignment_name))
+  user = login.current_user
+  course = GradeOvenCourse(data_store, course_name)
+  assignment = course.assignment(assignment_name)
+  instructs_course = user.instructs_course(course.name)
+  takes_course = user.takes_course(course.name)
+  if takes_course:
+    temp_hack_dir = os.path.join(assignment.root_dir(), 'TEMPORARY_HACK')
+    save_files_in_dir(
+      temp_hack_dir,
+      flask.request.files.getlist('code_archive[]'))
+    bs = assignment.get_build_script()
+    tc = assignment.get_test_case()
+    # bs = executor.BuildScript(
+    #   None,
+    #   [['clang', '-std=c++11', '-Wall', '-Wextra', '-lstdc++',
+    #     '-o', 'hello_world', 'hello_world.cpp']],
+    #   ['hello_world'])
+    # tc = executor.DiffTestCase(
+    #   None, 'test_host_dir/test/hello_world.txt',
+    #   [['/bin/bash', '-c', '/grade_oven/hello_world > hello_world.txt']])
+    c = executor.DockerExecutor('temp_hack', 'test_host_dir')
+    c.init()
+    c.build(temp_hack_dir, bs)
+    score, errors = c.test(tc)
+    c.cleanup()
+  return flask.render_template(
+    'courses_x_assignments_x.html', instructs_course=instructs_course,
+    takes_course=takes_course, course_name=course.name,
+    assignment_name=assignment.name, score=score, errors=errors)
 
 @app.route('/')
 def index():

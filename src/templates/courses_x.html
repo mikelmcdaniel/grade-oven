@@ -1,26 +1,53 @@
 {% extends "base.html" %}
 {% block body %}
-{% if instructs_course %}
-<h2>Instructor View</h2>
-<h4>Students:</h4>
-<ul class="students">
-  {% for username in students %}
-  <li class="student">{{ username|safe }}</li>
-  {% endfor %}
-</ul>
-{% endif %}
-{% if takes_course %}
-<h2>Student View</h2>
-{% endif %}
-<h4>Assignments:<h4>
+<h2>Course {{course_name|safe }}</h2>
+<h3>Assignments:</h3>
 <ul class="assignments">
   {% for assignment in assignments %}
   <li class="assignment"><a href="/courses/{{ course_name|safe }}/assignments/{{ assignment|safe }}">{{ assignment }}</a></li>
   {% endfor %}
 </ul>
 {% if instructs_course %}
-<h4>Add assignment:</h4>
-TODO
+<h3>Add/Edit Assignment:</h3>
+<form action="/courses/{{ course_name|safe }}" method="post" enctype="multipart/form-data">
+  <input autofocus="autofocus" name="assignment_name" type="text" placeholder="assignment name">
+  <br>
+  <h4>Build:</h4>
+  <br>
+  build files <input type="file" multiple="multiple" name="build_archive[]">
+  <br>
+  commands <textarea name="build_script_cmds" rows="2" cols="80"></textarea>
+  <br>
+  expected filenames<textarea name="expected_filenames" rows="2" cols="80"></textarea>
+  <br>
+  <h4>Test Case:</h4>
+  <br>
+  input files <input type="file" multiple="multiple" name="input_archive[]">
+  <br>
+  expected output files <input type="file" multiple="multiple" name="output_archive[]">
+  <br>
+  commands <textarea name="test_case_cmds" rows="2" cols="80"></textarea>
+  <br>
+  <input type="submit" value="Add/Edit Assignment">
+</form>
+
+<h3>Students:</h3>
+<ul class="students">
+  {% for username in students %}
+  <li class="student">{{ username|safe }}</li>
+  {% endfor %}
+</ul>
+<h4>Add Students:</h4>
+<form action="/courses/{{ course_name|safe }}" method="post">
+  <input name="add_students" type="text" placeholder="space separated student usernames">
+  <input type="submit" value="Add Students">
+</form>
+<h4>Remove Students:</h4>
+<form action="/courses/{{ course_name|safe }}" method="post">
+  <input name="remove_students" type="text" placeholder="space separated student usernames">
+  <input type="submit" value="Remove Students">
+</form>
+
 {% endif %}
 
 {% endblock %}
