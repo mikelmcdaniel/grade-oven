@@ -1,15 +1,32 @@
 {% extends "base.html" %}
 {% block body %}
-<h2>Course {{ course_name|safe }} Assignment {{ assignment_name|safe }}</h2>
+<h2>Course {{ course_name|e }} Assignment {{ assignment_name|e }}</h2>
+{% if instructs_course %}
+<form method="post" enctype="multipart/form-data">
+  <input name="assignment_desc" type="text" placeholder="assignment description" value="{{ assignment_desc|e }}">
+  <h4>Build:</h4>
+  build files <input type="file" multiple="multiple" name="build_archive[]"><br>
+  commands <textarea name="build_script_cmds" rows="2" cols="80">{{ build_script_cmds|e }}</textarea><br>
+  expected filenames<textarea name="expected_filenames" rows="2" cols="80"></textarea><br>
+  <h4>Test Case:</h4>
+  input files <input type="file" multiple="multiple" name="input_archive[]"><br>
+  expected output files <input type="file" multiple="multiple" name="output_archive[]"><br>
+  commands <textarea name="test_case_cmds" rows="2" cols="80">{{ test_case_cmds|e }}</textarea><br>
+  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+  <input type="submit" value="Edit Assignment">
+</form>
+{% endif %}
+
 {% if takes_course %}
 SCORE {{ score }} <br>
 {% for error in errors %}
 ERROR {{ error }} <br>
 {% endfor %}
 <h3>Submit Solution</h3>
-<form action="/courses/{{ course_name|safe }}/assignments/{{ assignment_name|safe }}" method="post" enctype="multipart/form-data">
+<form method="post" enctype="multipart/form-data">
   <input type="file" multiple="multiple" name="code_archive[]">
   <input type="submit" value="Submit Code">
+  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
 </form>
 {% endif %}
 

@@ -30,13 +30,32 @@ import subprocess
 class Error(Exception):
   pass
 
+class SerializeError(Error):
+  pass
 
-class BuildScript(object):
+
+class JSONSerializable(object):
+  def serialize(self):
+    raise NotImplementedError()
+
+  @classmethod
+  def deserialize(cls, data):
+    if data is None:
+      data = '{}'
+    try:
+      return cls(**json.loads(data))
+    except TypeError as e:
+      raise SerializeError(e)
+
+
+class BuildScript(JSONSerializable):
   def __init__(self, archive_path=None, cmds=None, expected_filenames=None):
-    if cmds is not None:
-      assert not isinstance(cmds[0], basestring)
-    if expected_filenames is not None:
-      assert not isinstance(expected_filenames, basestring)
+    if cmds is None:
+      cmds = []
+    if expected_filenames is None:
+      expected_filenames = []
+    assert not cmds or not isinstance(cmds[0], basestring)
+    assert not isinstance(expected_filenames, basestring)
     self.archive_path = archive_path
     self.cmds = cmds
     self.expected_filenames = expected_filenames
@@ -47,17 +66,12 @@ class BuildScript(object):
       'cmds': self.cmds,
       'expected_filenames': self.expected_filenames})
 
-  @classmethod
-  def deserialize(cls, data):
-    if data is None:
-      data = '{}'
-    return cls(**json.loads(data))
 
-
-class TestCase(object):
+class TestCase(JSONSerializable):
   def __init__(self, input_archive_path=None, output_archive_path=None, cmds=None):
-    if cmds is not None:
-      assert not isinstance(cmds[0], basestring)
+    if cmds is None:
+      cmds = []
+    assert not cmds or not isinstance(cmds[0], basestring)
     self.input_archive_path = input_archive_path
     self.output_archive_path = output_archive_path
     self.cmds = cmds
@@ -71,12 +85,6 @@ class TestCase(object):
       'input_archive_path': self.input_archive_path,
       'output_archive_path': self.output_archive_path,
       'cmds': self.cmds})
-
-  @classmethod
-  def deserialize(cls, data):
-    if data is None:
-      data = '{}'
-    return cls(**json.loads(data))
 
 
 class DiffTestCase(TestCase):
@@ -101,11 +109,7 @@ class DiffTestCase(TestCase):
     return total_score, errors
 
 
-class ExecutorBase(object):
-  pass
-
-
-class DockerExecutor(ExecutorBase):
+class DockerExecutor(object):
   """Thin, Grade Oven specific, Docker wrapper."""
 
   def __init__(self, container_id, host_dir):
@@ -117,15 +121,14 @@ class DockerExecutor(ExecutorBase):
       try:
         os.mkdir(os.path.join(self.host_dir, sub_dir))
       except OSError as e:
-        if e.errno == errno.EEXIST:
-          pass
-        else:
+        if e.errno != errno.EEXIST:
           raise Error(e)
       shutil.rmtree(os.path.join(self.host_dir, sub_dir))
       os.mkdir(os.path.join(self.host_dir, sub_dir))
 
   def _docker_run(self, docker_image_name, cmd, user=None):
     "Runs a command and returns the return code or None if it timed out."
+    errors = []
     if user is None:
       user = 'grade_oven'
     assert user in ('grade_oven', 'root')
@@ -157,13 +160,23 @@ class DockerExecutor(ExecutorBase):
     try:
       return_code = int(return_code_raw)
     except ValueError:
+      errors.append(
+        'Command "{}" did not finish in {} seconds and timed out.'.format(
+          cmd, timeout_seconds))
       return_code = None
 
     logging.info('Stopping Docker container: %s', self.container_id)
-    docker_cmd = ['docker', 'stop', '--time', '1', self.container_id]
+    docker_cmd = ['docker', 'stop', '--time', '10', self.container_id]
     proc = subprocess.Popen(
       docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env={})
     proc.wait()
+
+    logging.info('Reading Docker logs from container: %s', self.container_id)
+    docker_cmd = ['docker', 'logs', '--tail', '100', self.container_id]
+    proc = subprocess.Popen(
+      docker_cmd, stdout=subprocess.PIPE, bufsize=-1, close_fds=True,
+      cwd=self.host_dir, env={})
+    stdout, _ = proc.communicate()
 
     logging.info('Removing Docker container: %s', self.container_id)
     docker_cmd = ['docker', 'rm', '--force', self.container_id]
@@ -171,9 +184,10 @@ class DockerExecutor(ExecutorBase):
       docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env={})
     proc.wait()
 
-    return return_code
+    return return_code, stdout, errors
 
   def _extract_archive(self, archive_path, user=None):
+    errors = []
     if user is None:
       user = 'grade_oven'
     if archive_path is not None:
@@ -185,9 +199,16 @@ class DockerExecutor(ExecutorBase):
       if unarchive_cmd is not None:
         unarchive_cmd.append(
           os.path.join('/grade_oven', os.path.split(archive_path)[-1]))
-        self._docker_run('grade_oven/grade_oven_base', unarchive_cmd, user=user)
+        return_code, stdout, errs = self._docker_run(
+          'grade_oven/grade_oven_base', unarchive_cmd, user=user)
+        errors.extend(errs)
+        if return_code:
+          errors.append('Unarchiving command failed: "{}"'.format(
+            stdout.rsplit('\n', 1)[-1]))
+    return errors
 
   def _copy_and_extract_archive(self, archive_path, user=None):
+    errors = []
     if user is None:
       user = 'grade_oven'
     if archive_path is not None:
@@ -204,37 +225,43 @@ class DockerExecutor(ExecutorBase):
           shutil.copy(os.path.join(archive_path, f), dst_path)
       else:
         logging.error('archive_path is not a file or dir: "%s"', archive_path)
-        raise Error('archive_path is not a file/dir: "{}"'.format(archive_path))
+        errors.append('archive_path is not a file/dir: "{}"'.format(archive_path))
+    return errors
 
 
   # TODO: add error checking and reporting
   # TODO: check for bad users (e.g. use os.path.isfile() on expected_filenames)
   def build(self, code_path, build_script):
+    errors = []
     # copy code archive to a special directory, that is mounted in a container
     # extract code archive in that special directory in that container
-    self._copy_and_extract_archive(code_path)
+    errors.extend(self._copy_and_extract_archive(code_path))
     # copy and extract build script archive to that mounted directory
-    self._copy_and_extract_archive(build_script.archive_path)
+    errors.extend(self._copy_and_extract_archive(build_script.archive_path))
     # run the build script
     for cmd in build_script.cmds:
-      self._docker_run('grade_oven/preheat_build', cmd)
+      _, _, errs = self._docker_run('grade_oven/preheat_build', cmd)
+      errors.extend(errs)
     # remove everything in the special directory, except expected_filenames
     cmd = ['mv'] + build_script.expected_filenames + ['/root/']
-    self._docker_run('grade_oven/preheat_build', cmd, user='root')
+    errors.extend(self._docker_run('grade_oven/preheat_build', cmd, user='root')[2])
     cmd = ['/bin/bash', '-c', 'rm -rf /grade_oven/*']
-    self._docker_run('grade_oven/preheat_build', cmd)
+    errors.extend(self._docker_run('grade_oven/preheat_build', cmd)[2])
     cmd = ['/bin/bash', '-c', 'mv /root/* /grade_oven/']
-    self._docker_run('grade_oven/preheat_build', cmd, user='root')
+    errors.extend(self._docker_run('grade_oven/preheat_build', cmd, user='root')[2])
+    return errors
 
   def test(self, test_case):
+    errors = []
     # copy test input archive input to that mounted directory
-    self._copy_and_extract_archive(test_case.input_archive_path)
+    errors.extend(self._copy_and_extract_archive(test_case.input_archive_path))
     # run the test script commands with the test input
     for cmd in test_case.cmds:
-      self._docker_run('grade_oven/bake_test', cmd)
+      errors.extend(self._docker_run('grade_oven/bake_test', cmd)[2])
     # diff the test results against the expected test output
-    self._copy_and_extract_archive(test_case.output_archive_path, user='root')
-    score, errors = test_case.score(self.host_dir)
+    errors.extend(self._copy_and_extract_archive(test_case.output_archive_path, user='root'))
+    score, errs = test_case.score(self.host_dir)
+    errors.extend(errs)
     return score, errors
 
   def cleanup(self):
@@ -242,12 +269,16 @@ class DockerExecutor(ExecutorBase):
 
   # TODO: implement timeouts
   def init_build_test_cleanup(self, code_path, build_script, test_case):
+    score = None
+    errors = []
     self.init()
     try:
-      self.build(code_path, build_script)
-      return self.test(test_case)
+      errors.extend(self.build(code_path, build_script))
+      score, errs = self.test(test_case)
+      errors.extend(errs)
     finally:
       self.cleanup()
+      return score, errors
 
 
 if __name__ == '__main__':

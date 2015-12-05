@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>Course {{course_name|e }} Assignments</h2>
+<h3>Assignments:</h3>
+<ul class="assignments">
+  {% for assignment in assignments %}
+  <li class="assignment"><a href="/courses/{{ course_name|e }}/assignments/{{ assignment|e }}">{{ assignment }}</a></li>
+  {% endfor %}
+</ul>
+{% if instructs_course %}
+<h3>Add Assignment:</h3>
+<form method="post" enctype="multipart/form-data">
+  <input autofocus="autofocus" name="assignment_name" type="text" placeholder="assignment name">
+  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+  <input type="submit" value="Add Assignment">
+</form>
+{% endif %}
+
+{% endblock %}

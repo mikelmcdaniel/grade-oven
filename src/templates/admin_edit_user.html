@@ -15,7 +15,7 @@
   </ul>
 {% endif %}
 <h2>Add and/or Edit a User</h2>
-<form action="/admin/edit_user" method="post">
+<form method="post">
 <input autofocus="autofocus" autocapitalize="off" name="username" type="text" placeholder="username">
 <input name="password" type="password" placeholder="password">
 <input name="password2" type="password" placeholder="password (confirm)">
@@ -40,6 +40,7 @@
   <option value="set">set</option>
   <option value="unset">unset</option>
 </select> takes course
+<input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
 <input type="submit" value="Add/Edit User">
 </form>
 {% endblock %}
