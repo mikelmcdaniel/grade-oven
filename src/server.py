@@ -239,15 +239,6 @@ def _edit_assignment(form, course_name, assignment_name):
     test_case.cmds = map(shlex.split, cmds.split('\n'))
   assignment.set_test_case(test_case)
 
-def _join_cmd_parts(cmd_parts):
-  escaped_parts = []
-  for part in cmd_parts:
-    if len(shlex.split(part)) > 1:
-      escaped_parts.append('"{}"'.format(part.replace('"', '\\"')))
-    else:
-      escaped_parts.append(part)
-  return ' '.join(escaped_parts)
-
 @app.route('/courses/<string:course_name>/assignments/<string:assignment_name>', methods=['GET', 'POST'])
 @login.login_required
 def courses_x_assignments_x(course_name, assignment_name):
@@ -261,9 +252,11 @@ def courses_x_assignments_x(course_name, assignment_name):
     form = flask.request.form
     _edit_assignment(form, course_name, assignment_name)
     build_script = assignment.get_build_script()
-    build_script_cmds = '\n'.join(_join_cmd_parts(c) for c in build_script.cmds)
+    build_script_cmds = '\n'.join(executor.join_cmd_parts(c)
+                                  for c in build_script.cmds)
     test_case = assignment.get_test_case()
-    test_case_cmds = '\n'.join(_join_cmd_parts(c) for c in test_case.cmds)
+    test_case_cmds = '\n'.join(executor.join_cmd_parts(c)
+                               for c in test_case.cmds)
   else:
     build_script_cmds = None
     test_case_cmds = None
