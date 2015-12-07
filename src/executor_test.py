@@ -122,6 +122,18 @@ class TestExecutor(unittest.TestCase):
       self.assertIn('990', filenames)
       self.assertNotIn('1001', filenames)
 
+  def test_failed_build(self):
+    host_dir = 'testdata/executor/failed_build'
+    expected_output_path = 'testdata/executor/empty.txt'
+    with EphemeralDir(host_dir):
+      build_script = executor.BuildScript(
+        None, [['echo', 'MIKEL'], ['false']], [])
+      c = executor.DockerExecutor('test_failed_build', host_dir)
+      c.init()
+      output, errors = c.build(None, build_script)
+      self.assertEqual(output, 'MIKEL\n')
+      self.assertIn('Build command failed: false', errors)
+
 
 if __name__ == '__main__':
   unittest.main()

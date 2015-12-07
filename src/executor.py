@@ -274,8 +274,11 @@ class DockerExecutor(object):
     outputs.extend(output)
     # run the build script
     for cmd in build_script.cmds:
-      _, output, errs = self._docker_run('grade_oven/preheat_build', cmd)
+      return_code, output, errs = self._docker_run(
+        'grade_oven/preheat_build', cmd)
       errors.extend(errs)
+      if return_code:
+        errors.append('Build command failed: {}'.format(join_cmd_parts(cmd)))
       outputs.append(output)
     # remove everything in the special directory, except expected_filenames
     cmd = ['mv'] + build_script.expected_filenames + ['/root/']
@@ -284,7 +287,7 @@ class DockerExecutor(object):
     errors.extend(self._docker_run('grade_oven/preheat_build', cmd)[2])
     cmd = ['/bin/bash', '-c', 'mv /root/* /grade_oven/']
     errors.extend(self._docker_run('grade_oven/preheat_build', cmd, user='root')[2])
-    return '\n'.join(outputs), errors
+    return '\n'.join(output for output in outputs if output), errors
 
   def test(self, test_case):
     outputs = []
