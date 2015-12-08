@@ -6,6 +6,7 @@ import cgi
 import os
 import functools
 import shlex
+import shutil
 import time
 
 import bcrypt
@@ -266,6 +267,8 @@ def courses_x_assignments_x(course_name, assignment_name):
     temp_hack_dir = os.path.join(assignment.root_dir(), 'TEMPORARY_HACK')
     files = flask.request.files.getlist('code_archive[]')
     if files:
+      shutil.rmtree(temp_hack_dir, ignore_errors=True)
+      os.makedirs(temp_hack_dir)
       save_files_in_dir(temp_hack_dir, files)
       build_script = assignment.get_build_script()
       test_case = assignment.get_test_case()
