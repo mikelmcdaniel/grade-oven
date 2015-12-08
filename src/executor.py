@@ -249,7 +249,7 @@ class DockerExecutor(object):
     return output, errors
 
   def init(self):
-    for sub_dir in ('grade_oven', 'root', 'tmp'):
+    for sub_dir in ('tmp', 'root', 'grade_oven'):
       try:
         os.mkdir(os.path.join(self.host_dir, sub_dir))
       except OSError as e:
@@ -310,25 +310,5 @@ class DockerExecutor(object):
     return score, '\n'.join(output), errors
 
   def cleanup(self):
-    shutil.rmtree(self.host_dir)
-
-
-if __name__ == '__main__':
-  logging.basicConfig(
-    filename='/dev/stderr',level=logging.INFO,
-    format='%(levelname)s %(asctime)s %(message)s')
-  code_path = 'test_host_dir/test/hello_world.cpp'
-  bs = BuildScript(
-    None,
-    [['clang', '-std=c++11', '-Wall', '-Wextra', '-lstdc++',
-      '-o', 'hello_world', 'hello_world.cpp']],
-    ['hello_world'])
-  tc = DiffTestCase(
-    None, 'test_host_dir/test/hello_world.txt',
-    [['/bin/bash', '-c', '/grade_oven/hello_world > hello_world.txt']])
-  c = DockerExecutor('docker_executor_test', 'test_host_dir')
-  c.init()
-  c.build(code_path, bs)
-  score, errors = c.test(tc)
-  c.cleanup()
-  print 'SCORE', score, '\n\n'.join(errors)
+    for sub_dir in ('tmp', 'root', 'grade_oven'):
+      shutil.rmtree(os.path.join(self.host_dir, sub_dir))

@@ -18,6 +18,16 @@
 {% endif %}
 
 {% if takes_course %}
+{% if build_output %}
+<h4>Build Output:</h4>
+{{ build_output|e }}
+<br>
+{% endif %}
+{% if test_output %}
+<h4>Test Output:</h4>
+{{ test_output|e }}
+<br>
+{% endif %}
 SCORE {{ score }} <br>
 {% for error in errors %}
 ERROR {{ error }} <br>

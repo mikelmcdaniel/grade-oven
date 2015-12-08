@@ -248,6 +248,11 @@ def courses_x_assignments_x(course_name, assignment_name):
   assignment = course.assignment(assignment_name)
   instructs_course = user.instructs_course(course.name)
   takes_course = user.takes_course(course.name)
+  build_script_cmds = None
+  test_case_cmds = None
+  score = None
+  build_output = None
+  test_output = None
   if instructs_course:
     form = flask.request.form
     _edit_assignment(form, course_name, assignment_name)
@@ -257,33 +262,28 @@ def courses_x_assignments_x(course_name, assignment_name):
     test_case = assignment.get_test_case()
     test_case_cmds = '\n'.join(executor.join_cmd_parts(c)
                                for c in test_case.cmds)
-  else:
-    build_script_cmds = None
-    test_case_cmds = None
   if takes_course:
     temp_hack_dir = os.path.join(assignment.root_dir(), 'TEMPORARY_HACK')
     files = flask.request.files.getlist('code_archive[]')
     if files:
       save_files_in_dir(temp_hack_dir, files)
-      bs = assignment.get_build_script()
-      tc = assignment.get_test_case()
+      build_script = assignment.get_build_script()
+      test_case = assignment.get_test_case()
       c = executor.DockerExecutor('temp_hack', 'test_host_dir')
       c.init()
-      errors.extend(c.build(temp_hack_dir, bs))
-      score, errs = c.test(tc)
+      build_output, errs = c.build(temp_hack_dir, build_script)
+      errors.extend(errs)
+      score, test_output, errs = c.test(test_case)
       errors.extend(errs)
       c.cleanup()
-    else:
-      score = None
-  else:
-    score = None
   assignment_desc = assignment.description()
   return flask.render_template(
     'courses_x_assignments_x.html', instructs_course=instructs_course,
     takes_course=takes_course, course_name=course.name,
     assignment_name=assignment.name, score=score, errors=errors,
     build_script_cmds=build_script_cmds, test_case_cmds=test_case_cmds,
-    assignment_desc=assignment_desc)
+    assignment_desc=assignment_desc, build_output=build_output,
+    test_output=test_output)
 
 @app.route('/')
 def index():
