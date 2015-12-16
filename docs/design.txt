@@ -2,7 +2,7 @@ Grade Oven
 
 What it is (from the top, down):
   A web server where instructors create assignments and students submit code.
-  An assignment, abstractly speaking, specifies a container A and script/command to compile the students' assignment, a whitelist of compiled objects to copy out of container A into container B, and a script/command to test their code.
+  An assignment is a collection of directories, known as "stages", with arbitrary names and a plain text file called "stages" that lists the order the directory names should run in.
   Instructors register students, make assignments, etc.
   Students submit assignments.
 
@@ -15,16 +15,20 @@ Web page layout:
   assignment -> submit
   logout -> login
 
-Containers:
-  Grade Oven uses Docker containers running Ubuntu.
-  Each container should only have the minimum capabilities and, permissions, and packages necesssary to perform it's job.
-  Each container has a user, grade_oven, which a home directory /grade_oven, which should typically correspond to a ram-based filesystem on the host with a finite size (tempfs).
-  Container's setups are located under grade_oven/setup/*.Dockerfile
-  "preheat_build": build/compile assignment submissions.
-  "bake_test": run/test submissions.
-  "serve_web": run the web server and communicate with the server that runs all containers.
+Containers and Stages:
+  Grade Oven uses a single Docker image to run every operation involved with an assignment (running the stages).
+  When stages are run against a submitted assignment ("code"), the code unpacked in /grade_oven/submission
+  Each stage has a main executable (such as a bash script) that "runs" the stage.
+  Each stage is run in sequence inside the container.
+  Each stage's directory is mounted under /grade_oven (e.g. "stage1" is under "/grade_oven/stage1") and is read-writable.  When the first stage is run, only the first stage directory is mounted.  When the Nth stage is run all stage directories up to and including N are mounted.
+  Output is done during each stage by writing to /grade_oven/output/<filename>.
+  /grade_oven/output/score should contain a score of the form "X/Y" (e.g. "99/100") to indicate that the submission scored X out of Y points.
+  /grade_oven/output/status should contain a running log of logical steps that have happened and each line should be self-contained (e.g. if a stage represents a test-case, then "Test Case 3" would be a sensible status line)
+  /grade_oven/output/progress should contain a progress of the form "X/Y" where X units of Y total units of work have been done.  (This is to show progress on the web page.)
+  /grade_oven/output/errors should contain new-line separated errors that the students can see
+  /grade_oven/output/debug should be used as a debugging log that is only readable/displayed_for the instructor.
 
-Implementation:
+Implementation (Outdated):
   Grade Oven (main.py):
     - calls coordinator.py
     - sets up logging
