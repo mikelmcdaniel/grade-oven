@@ -1,0 +1,4 @@
+#!/bin/bash
+clang -std=c++11 -Wall -Wextra -lstdc++ -o many_open_files /grade_oven/many_open_files/many_open_files.cpp
+./many_open_files
+

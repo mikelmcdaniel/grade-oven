@@ -18,11 +18,13 @@ A typical (error free), flow looks like:
  - diff the test results against the expected test output
 """
 
+import collections
 import errno
 import fractions
 import json
 import logging
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -49,6 +51,14 @@ class JSONSerializable(object):
       raise SerializeError(e)
 
 
+def maybe_makedirs(path):
+  try:
+    os.makedirs(path)
+  except OSError as e:
+    if e.errno != errno.EEXIST:
+      raise Error(e)
+
+
 def join_cmd_parts(cmd_parts):
   escaped_parts = []
   for part in cmd_parts:
@@ -59,66 +69,131 @@ def join_cmd_parts(cmd_parts):
   return ' '.join(escaped_parts)
 
 
+class StageOutput(object):
+  SCORE_RE = re.compile(r'\s*(\d+)\s*/\s*(\d+)\s*')
 
-class BuildScript(JSONSerializable):
-  def __init__(self, archive_path=None, cmds=None, expected_filenames=None):
-    if cmds is None:
-      cmds = []
-    if expected_filenames is None:
-      expected_filenames = []
-    assert not cmds or not isinstance(cmds[0], basestring)
-    assert not isinstance(expected_filenames, basestring)
-    self.archive_path = archive_path
-    self.cmds = cmds
-    self.expected_filenames = expected_filenames
+  def __init__(self, output_path):
+    try:
+      with open(os.path.join(output_path, 'score')) as f:
+        score_raw = f.read().strip()
+    except IOError as e:
+      if e.errno == errno.ENOENT:
+        score_raw = ''
+      else:
+        raise Error(e)
+    score_match = re.match(self.SCORE_RE, score_raw)
+    if score_match:
+      self.score = int(score_match.group(1))
+      self.total = int(score_match.group(2))
+    else:
+      self.score = None
+      self.total = None
 
-  def serialize(self):
-    return json.dumps({
-      'archive_path': self.archive_path,
-      'cmds': self.cmds,
-      'expected_filenames': self.expected_filenames})
+def make_file_executable(path):
+  mode = os.stat(path).st_mode
+  # copy read bits to executable bits
+  mode |= (mode & 0444) >> 2
+  os.chmod(path, mode)
+
+class Stage(object):
+  def __init__(self, stage_path):
+    self.path = stage_path
+    _, self.name = os.path.split(stage_path)
+    self.output = None
+
+  def save_main_script(self, contents):
+    maybe_makedirs(self.path)
+    path = os.path.join(self.path, 'main')
+    with open(path, 'w') as f:
+      # remove bad line-endings
+      f.write(contents.replace('\r\n', '\n'))
+    make_file_executable(path)
+
+  def read_main_script(self):
+    try:
+      with open(os.path.join(self.path, 'main')) as f:
+        return f.read()
+    except IOError as e:
+      if e.errno == errno.ENOENT:
+        return ''
+      else:
+        raise Error(e)
+
+  @property
+  def main_script(self):
+    return self.read_main_script()
+
+  @main_script.setter
+  def main_script(self, contents):
+    return self.save_main_script(contents)
+
+  @property
+  def filenames_except_main(self):
+    try:
+      filenames = set(os.listdir(self.path))
+    except OSError as e:
+      if e.errno == errno.ENOENT:
+        filenames = set()
+      else:
+        raise Error(e)
+    filenames.discard('main')
+    return sorted(filenames)
 
 
-class TestCase(JSONSerializable):
-  def __init__(self, input_archive_path=None, output_archive_path=None, cmds=None):
-    if cmds is None:
-      cmds = []
-    assert not cmds or not isinstance(cmds[0], basestring)
-    self.input_archive_path = input_archive_path
-    self.output_archive_path = output_archive_path
-    self.cmds = cmds
+class Stages(object):
+  def __init__(self, stages_path):
+    self.path = stages_path
+    self._stages = None
 
-  def score(self, host_dir):
-    "Return a tuple of score in [0, 1] and a list of error strings."
-    pass
-
-  def serialize(self):
-    return json.dumps({
-      'input_archive_path': self.input_archive_path,
-      'output_archive_path': self.output_archive_path,
-      'cmds': self.cmds})
-
-
-class DiffTestCase(TestCase):
-  def score(self, host_dir):
-    total_score = 0
-    errors = []
-    base_filenames = os.listdir(os.path.join(host_dir, 'root'))
-    for base_name in base_filenames:
-      filename_expected = os.path.join(host_dir, 'root', base_name)
-      filename_actual = os.path.join(host_dir, 'grade_oven', base_name)
+  @property
+  def stages(self):
+    if self._stages is None:
       try:
-        with open(filename_actual) as f:
-          actual = f.read()
-        with open(filename_expected) as f:
-          expected = f.read()
-        if actual.split() == expected.split():
-          total_score += fractions.Fraction(1, len(base_filenames))
-        else:
-          errors.append('Expected output different for {}'.format(base_name))
+        with open(os.path.join(self.path, 'stages')) as f:
+          stage_names = [s for s in f.read().split('\n') if s]
       except IOError as e:
-        errors.append('Expected output not found for {} ({})'.format(base_name, e))
-    return total_score, errors
+        if e.errno == errno.ENOENT:
+          stage_names = []
+        else:
+          raise Error(e)
+      stages = collections.OrderedDict()
+      for stage_name in stage_names:
+        # TODO: sanitize names so they can't be something like '/path/from/root'
+        stages[stage_name] = Stage(os.path.join(self.path, stage_name))
+      self._stages = stages
+    return self._stages
+
+  def save_stages(self):
+    assert self._stages is not None
+    maybe_makedirs(self.path)
+    with open(os.path.join(self.path, 'stages'), 'w') as f:
+      f.write('\n'.join(self.stages.iterkeys()))
+
+  def add_stage(self, stage_name):
+    stage_path = os.path.join(self.path, stage_name)
+    self.stages[stage_name] = Stage(stage_path)
+    self.save_stages()
+    return self.stages[stage_name]
+
+
+def merge_tree(src, dst):
+  "Like shutil.copytree, except it is not an error if the dst exists."
+  src = os.path.abspath(src)
+  dst = os.path.abspath(dst)
+  maybe_makedirs(dst)
+  for filename in os.listdir(src):
+    src_filename = os.path.join(src, filename)
+    dst_filename = os.path.join(dst, filename)
+    if os.path.isfile(src_filename):
+      try:
+        shutil.copy(src_filename, dst_filename)
+      except shutil.Error as e:
+        raise Error(e)
+    elif os.path.isdir(src_filename):
+      merge_tree(src_filename, dst_filename)
+    else:
+      raise Error('"{}" is not a file/directory and cannot be copied.'.format(
+        src_filename))
 
 
 class DockerExecutor(object):
@@ -138,8 +213,6 @@ class DockerExecutor(object):
     assert user in ('grade_oven', 'root')
     docker_cmd = [
       'docker', 'run', '--hostname', 'grade_oven', '--memory', '256m',
-      # '--lxc-conf', 'lxc.cgroup.tasks.limit=30',
-      # '--ulimit', 'nofile=262144:262144',
       # TODO: figure out why I need to set nproc so high
       #  If I didn't set nproc > 500 docker wouldn't even start
       '--ulimit', 'nproc=1000:1000',
@@ -149,13 +222,12 @@ class DockerExecutor(object):
       '--restart=no', '--user', user, '--detach',  # , '--rm=true'
       '--volume', '{}/grade_oven:/grade_oven'.format(self.host_dir),
       '--volume', '{}/tmp:/tmp'.format(self.host_dir),
-      '--workdir', '/grade_oven', '--cpu-shares', '128']
+      '--workdir', '/grade_oven/submission', '--cpu-shares', '128']
     if user == 'root':
       docker_cmd.append('--volume')
       docker_cmd.append('{}/root:/root'.format(self.host_dir))
     docker_cmd.append(docker_image_name)
-    # Add a soft timeout with 5 extra seconds.
-    docker_cmd.extend(['timeout', str(self.timeout_seconds + 5)])
+    # docker_cmd.extend(['od', '-c']) DO NOT SUBMIT
     docker_cmd.extend(cmd)
     logging.info('Starting Docker container: %s', docker_cmd)
     proc = subprocess.Popen(
@@ -178,7 +250,7 @@ class DockerExecutor(object):
       return_code = None
 
     logging.info('Stopping Docker container: %s', self.container_id)
-    docker_cmd = ['docker', 'stop', '--time', '10', self.container_id]
+    docker_cmd = ['docker', 'stop', '--time', '5', self.container_id]
     proc = subprocess.Popen(
       docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env={})
     proc.wait()
@@ -222,13 +294,14 @@ class DockerExecutor(object):
             output.rsplit('\n', 1)[-1]))
     return output, errors
 
-  def _copy_and_extract_archive(self, archive_path, user=None):
+  def _copy_and_extract_archive(self, archive_path, dst_path=None, user=None):
     output = ''
     errors = []
     if user is None:
       user = 'grade_oven'
     if archive_path is not None:
-      dst_path = os.path.join(self.host_dir, user)
+      if dst_path is None:
+        dst_path = os.path.join(self.host_dir, user)
       if os.path.isfile(archive_path):
         logging.info('Copying file "%s" to "%s"', archive_path, dst_path)
         shutil.copy(archive_path, dst_path)
@@ -237,9 +310,11 @@ class DockerExecutor(object):
       elif os.path.isdir(archive_path):
         logging.info(
           'Copying directory files "%s"/* to "%s"', archive_path, dst_path)
-        # TODO: Make this copy the contents of a directory properly
-        for f in os.listdir(archive_path):
-          shutil.copy(os.path.join(archive_path, f), dst_path)
+        try:
+          merge_tree(archive_path, dst_path)
+        except Error as e:
+          errors.append(repr(e))
+          errors.append(str(e))
       elif not os.path.exists(archive_path):
         errors.append('archive_path does not exist: "{}"'.format(archive_path))
         logging.error(errors[-1])
@@ -249,7 +324,9 @@ class DockerExecutor(object):
     return output, errors
 
   def init(self):
-    for sub_dir in ('tmp', 'root', 'grade_oven'):
+    for sub_dir in (
+        'tmp', 'grade_oven', 'grade_oven/output',
+        'grade_oven/submission'):
       try:
         os.mkdir(os.path.join(self.host_dir, sub_dir))
       except OSError as e:
@@ -258,57 +335,29 @@ class DockerExecutor(object):
       shutil.rmtree(os.path.join(self.host_dir, sub_dir))
       os.mkdir(os.path.join(self.host_dir, sub_dir))
 
-  # TODO: add error checking and reporting
-  # TODO: check for bad users (e.g. use os.path.isfile() on expected_filenames)
-  def build(self, code_path, build_script):
+  def run_stages(self, submission_path, stages):
     outputs = []
     errors = []
-    # copy code archive to a special directory, that is mounted in a container
-    # extract code archive in that special directory in that container
-    output, errs = self._copy_and_extract_archive(code_path)
+    output, errs = self._copy_and_extract_archive(
+      submission_path, os.path.join(self.host_dir, 'grade_oven/submission'))
+    outputs.append(output)
     errors.extend(errs)
-    outputs.extend(output)
-    # copy and extract build script archive to that mounted directory
-    output, errs = self._copy_and_extract_archive(build_script.archive_path)
-    errors.extend(errs)
-    outputs.extend(output)
-    # run the build script
-    for cmd in build_script.cmds:
-      return_code, output, errs = self._docker_run(
-        'grade_oven/preheat_build', cmd)
-      errors.extend(errs)
-      if return_code:
-        errors.append('Build command failed: {}'.format(join_cmd_parts(cmd)))
+    for stage in stages.stages.itervalues():
+      output, errs = self._copy_and_extract_archive(
+        stage.path,
+        os.path.join(self.host_dir, 'grade_oven', stage.name))
       outputs.append(output)
-    # remove everything in the special directory, except expected_filenames
-    cmd = ['mv'] + build_script.expected_filenames + ['/root/']
-    errors.extend(self._docker_run('grade_oven/preheat_build', cmd, user='root')[2])
-    cmd = ['/bin/bash', '-c', 'rm -rf /grade_oven/*']
-    errors.extend(self._docker_run('grade_oven/preheat_build', cmd)[2])
-    cmd = ['/bin/bash', '-c', 'mv /root/* /grade_oven/']
-    errors.extend(self._docker_run('grade_oven/preheat_build', cmd, user='root')[2])
-    return '\n'.join(output for output in outputs if output), errors
-
-  def test(self, test_case):
-    outputs = []
-    errors = []
-    # copy test input archive input to that mounted directory
-    output, errs = self._copy_and_extract_archive(test_case.input_archive_path)
-    errors.extend(errs)
-    outputs.extend(output)
-    # run the test script commands with the test input
-    for cmd in test_case.cmds:
-      _, output, errs = self._docker_run('grade_oven/bake_test', cmd)
       errors.extend(errs)
-      outputs.extend(output)
-    # diff the test results against the expected test output
-    output, errs = self._copy_and_extract_archive(test_case.output_archive_path, user='root')
-    errors.extend(errs)
-    outputs.extend(output)
-    score, errs = test_case.score(self.host_dir)
-    errors.extend(errs)
-    return score, '\n'.join(output), errors
+      return_code, output, errs = self._docker_run(
+        'grade_oven/grade_oven',
+        [os.path.join('/grade_oven', stage.name, 'main')])
+      outputs.append(output)
+      errors.extend(errs)
+      stage.output = StageOutput(
+        os.path.join(self.host_dir, 'grade_oven/output'))
+    # return '\n'.join(output), errors
+    return ''.join(outputs), errors
 
   def cleanup(self):
-    for sub_dir in ('tmp', 'root', 'grade_oven'):
+    for sub_dir in ('tmp', 'grade_oven'):
       shutil.rmtree(os.path.join(self.host_dir, sub_dir))

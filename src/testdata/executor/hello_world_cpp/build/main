@@ -1,0 +1,2 @@
+#!/bin/bash
+clang -std=c++11 -Wall -Wextra -lstdc++ -o hello_world hello_world.cpp

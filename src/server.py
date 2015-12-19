@@ -8,6 +8,7 @@ import functools
 import shlex
 import shutil
 import time
+import tempfile
 
 import bcrypt
 import flask
@@ -136,6 +137,15 @@ BASE_FILENAME_CHARS = frozenset(
 def base_filename_is_safe(filename):
   return not (set(filename) - BASE_FILENAME_CHARS) and filename
 
+def safe_base_filename(filename):
+  if base_filename_is_safe(filename):
+    return filename
+  elif not filename:
+    return '_'
+  else:
+    return ''.join(c if c in BASE_FILENAME_CHARS else '%{!x}'.format(ord(c))
+                   for c in filename)
+
 # TODO: handle/return errors
 def save_files_in_dir(dir_path, flask_files):
   try:
@@ -201,44 +211,21 @@ def courses_x_assignments(course_name):
     takes_course=takes_course, assignments=assignment_names,
     course_name=course.name)
 
-def _edit_assignment(form, course_name, assignment_name):
+def _edit_assignment(form, course_name, assignment_name, stages):
   course = grade_oven.course(course_name)
   course.add_assignment(assignment_name)
   assignment = course.assignment(assignment_name)
-  assignment_desc = form.get('assignment_desc')
-  if assignment_desc:
-    assignment.set_description(assignment_desc)
-  # build_script
-  build_script = assignment.get_build_script()
-  # TODO (here and below): check if any files were uploaded
-  #   also remove old files
-  #   also have some way to garbage collect old files
-  #   also show the files that already exist
-  files = flask.request.files.getlist('build_archive[]')
-  if files:
-    save_files_in_dir(assignment.build_script_archive_dir(), files)
-    build_script.archive_path = assignment.build_script_archive_dir()
-  cmds = form.get('build_script_cmds')
-  if cmds:
-    build_script.cmds = map(shlex.split, cmds.split('\n'))
-  expected_filenames = form.get('expected_filenames')
-  if expected_filenames:
-    build_script.expected_filenames = expected_filenames.split('\n')
-  assignment.set_build_script(build_script)
-  # test_case
-  test_case = assignment.get_test_case()
-  files = flask.request.files.getlist('input_archive[]')
-  if files:
-    save_files_in_dir(assignment.test_case_input_archive_dir(), files)
-    test_case.input_archive_path = assignment.test_case_input_archive_dir()
-  files = flask.request.files.getlist('output_archive[]')
-  if files:
-    save_files_in_dir(assignment.test_case_output_archive_dir(), files)
-    test_case.output_archive_path = assignment.test_case_output_archive_dir()
-  cmds = form.get('test_case_cmds')
-  if cmds:
-    test_case.cmds = map(shlex.split, cmds.split('\n'))
-  assignment.set_test_case(test_case)
+  new_stage_name = form.get('new_stage_name')
+  if new_stage_name:
+    new_stage_name = safe_base_filename(new_stage_name)
+    stages.add_stage(new_stage_name)
+  for stage in stages.stages.itervalues():
+    main_cmds = form.get('main_cmds_{}'.format(stage.name))
+    if main_cmds:
+      stage.save_main_script(main_cmds)
+    files = flask.request.files.getlist('files_{}[]'.format(stage.name))
+    if files:
+      save_files_in_dir(stage.path, files)
 
 @app.route('/courses/<string:course_name>/assignments/<string:assignment_name>', methods=['GET', 'POST'])
 @login.login_required
@@ -249,44 +236,31 @@ def courses_x_assignments_x(course_name, assignment_name):
   assignment = course.assignment(assignment_name)
   instructs_course = user.instructs_course(course.name)
   takes_course = user.takes_course(course.name)
-  build_script_cmds = None
-  test_case_cmds = None
-  score = None
-  build_output = None
-  test_output = None
+  assignment_desc = assignment.description()
+  stages = executor.Stages(os.path.join(
+    'data/files/courses', course.name, 'assignments', assignment.name))
   if instructs_course:
     form = flask.request.form
-    _edit_assignment(form, course_name, assignment_name)
-    build_script = assignment.get_build_script()
-    build_script_cmds = '\n'.join(executor.join_cmd_parts(c)
-                                  for c in build_script.cmds)
-    test_case = assignment.get_test_case()
-    test_case_cmds = '\n'.join(executor.join_cmd_parts(c)
-                               for c in test_case.cmds)
+    _edit_assignment(form, course_name, assignment_name, stages)
   if takes_course:
-    temp_hack_dir = os.path.join(assignment.root_dir(), 'TEMPORARY_HACK')
-    files = flask.request.files.getlist('code_archive[]')
-    if files:
-      shutil.rmtree(temp_hack_dir, ignore_errors=True)
-      os.makedirs(temp_hack_dir)
-      save_files_in_dir(temp_hack_dir, files)
-      build_script = assignment.get_build_script()
-      test_case = assignment.get_test_case()
-      c = executor.DockerExecutor('temp_hack', 'test_host_dir')
-      c.init()
-      build_output, errs = c.build(temp_hack_dir, build_script)
-      errors.extend(errs)
-      score, test_output, errs = c.test(test_case)
-      errors.extend(errs)
-      c.cleanup()
-  assignment_desc = assignment.description()
+    files = flask.request.files.getlist('submission_files[]')
+    temp_dir = tempfile.mkdtemp('grade_oven')
+    save_files_in_dir(temp_dir, files)
+    c = executor.DockerExecutor('TEMP_HACK', 'test_host_dir')
+    c.init()
+    output, errs = c.run_stages(temp_dir, stages)
+    errors.extend(errs)
+    score = []
+    for s in stages.stages.itervalues():
+      score.append('{}/{}'.format(s.output.score, s.output.total))
+    score = ' -- '.join(score)
+    c.cleanup()
+    shutil.rmtree(temp_dir)
   return flask.render_template(
     'courses_x_assignments_x.html', instructs_course=instructs_course,
     takes_course=takes_course, course_name=course.name,
-    assignment_name=assignment.name, score=score, errors=errors,
-    build_script_cmds=build_script_cmds, test_case_cmds=test_case_cmds,
-    assignment_desc=assignment_desc, build_output=build_output,
-    test_output=test_output)
+    assignment_name=assignment.name, errors=errors, output=output,
+    stages=stages.stages.values(), score=score)
 
 @app.route('/')
 def index():

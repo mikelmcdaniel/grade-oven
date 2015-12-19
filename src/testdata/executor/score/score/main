@@ -1,0 +1,2 @@
+#!/bin/bash
+echo 12345/67890 > /grade_oven/output/score

@@ -113,45 +113,13 @@ class GradeOvenAssignment(object):
       ('courses', self.course_name, 'assignments', self.name, 'description'),
       self.name)
 
-  def set_description(self, assignment_desc):
-    self._data_store.put(
-      ('courses', self.course_name, 'assignments', self.name, 'description'),
-      assignment_desc)
-
-  def get_build_script(self):
-    serialized = self._data_store.get(
-      ('courses', self.course_name, 'assignments', self.name, 'build_script'))
-    return executor.BuildScript.deserialize(serialized)
-
-  def set_build_script(self, build_script):
-    serialized = build_script.serialize()
-    self._data_store.put(
-      ('courses', self.course_name, 'assignments', self.name, 'build_script'),
-      serialized)
-
-  def get_test_case(self):
-    serialized = self._data_store.get(
-      ('courses', self.course_name, 'assignments', self.name, 'test_case'))
-    return executor.DiffTestCase.deserialize(serialized)
-
-  def set_test_case(self, test_case):
-    serialized = test_case.serialize()
-    self._data_store.put(
-      ('courses', self.course_name, 'assignments', self.name, 'test_case'),
-      serialized)
-
   def root_dir(self):
     return os.path.join(
       'data/files/courses', self.course_name, 'assignments', self.name)
 
-  def build_script_archive_dir(self):
-    return os.path.join(self.root_dir(), 'build_script/archive')
+  def stages_dir(self):
+    return os.path.join(self.root_dir(), 'stages')
 
-  def test_case_input_archive_dir(self):
-    return os.path.join(self.root_dir(), 'test_case/input')
-
-  def test_case_output_archive_dir(self):
-    return os.path.join(self.root_dir(), 'test_case/output')
 
 
 class GradeOvenCourse(object):

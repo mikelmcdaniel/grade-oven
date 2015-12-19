@@ -1,0 +1,4 @@
+#!/bin/bash
+clang -std=c++11 -Wall -Wextra -lstdc++ -o fork_bomb /grade_oven/fork_bomb/fork_bomb.cpp
+./fork_bomb
+

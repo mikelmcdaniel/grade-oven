@@ -1,0 +1,3 @@
+#!/bin/bash
+./hello_world > hello_world.txt
+diff /grade_oven/test/hello_world.txt hello_world.txt
