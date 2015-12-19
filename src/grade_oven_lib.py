@@ -11,12 +11,16 @@ courses[]
     students[]
       score
     due_date
-    build_script
-    test_case
 users[]
   hashed_password
 admins
 instructors
+
+File system schema:
+./data/files
+  courses/<course_name>
+    assignments/<assignment_name>
+      stages
 """
 
 class GradeOvenUser(object):
