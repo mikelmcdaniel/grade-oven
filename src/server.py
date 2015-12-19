@@ -254,11 +254,15 @@ def courses_x_assignments_x(course_name, assignment_name):
     save_files_in_dir(temp_dir, files)
     c = executor.DockerExecutor('TEMP_HACK', 'test_host_dir')
     c.init()
+    outputs = []
     output, errs = c.run_stages(temp_dir, stages)
+    outputs.append(output)
     errors.extend(errs)
     score = []
     for s in stages.stages.itervalues():
       score.append('{}/{}'.format(s.output.score, s.output.total))
+      outputs.append(str(s.output.stdout))
+    output = '\n'.join(outputs)
     score = ' -- '.join(score)
     c.cleanup()
     shutil.rmtree(temp_dir)
