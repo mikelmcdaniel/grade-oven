@@ -95,6 +95,16 @@ def make_file_executable(path):
   mode |= (mode & 0444) >> 2
   os.chmod(path, mode)
 
+def file_contents_or(file_path, default_contents=''):
+  try:
+    with open(file_path) as f:
+      return f.read()
+  except IOError as e:
+    if e.errno == errno.ENOENT:
+      return default_contents
+    else:
+      raise Error(e)
+
 class Stage(object):
   def __init__(self, stage_path):
     self.path = stage_path
@@ -110,14 +120,7 @@ class Stage(object):
     make_file_executable(path)
 
   def read_main_script(self):
-    try:
-      with open(os.path.join(self.path, 'main')) as f:
-        return f.read()
-    except IOError as e:
-      if e.errno == errno.ENOENT:
-        return ''
-      else:
-        raise Error(e)
+    return file_contents_or(os.path.join(self.path, 'main'))
 
   @property
   def main_script(self):
@@ -128,7 +131,7 @@ class Stage(object):
     return self.save_main_script(contents)
 
   @property
-  def filenames_except_main(self):
+  def filenames_except_meta(self):
     try:
       filenames = set(os.listdir(self.path))
     except OSError as e:
@@ -137,31 +140,45 @@ class Stage(object):
       else:
         raise Error(e)
     filenames.discard('main')
+    filenames.discard('description')
     return sorted(filenames)
+
+  @property
+  def description(self):
+    return file_contents_or(os.path.join(self.path, 'description'), self.name)
+
+  def save_description(self, desc):
+    maybe_makedirs(self.path)
+    with open(os.path.join(self.path, 'description'), 'w') as f:
+      f.write(desc)
 
 
 class Stages(object):
   def __init__(self, stages_path):
     self.path = stages_path
+    _, self.name = os.path.split(stages_path)
     self._stages = None
 
   @property
   def stages(self):
     if self._stages is None:
-      try:
-        with open(os.path.join(self.path, 'stages')) as f:
-          stage_names = [s for s in f.read().split('\n') if s]
-      except IOError as e:
-        if e.errno == errno.ENOENT:
-          stage_names = []
-        else:
-          raise Error(e)
+      raw_names = file_contents_or(os.path.join(self.path, 'stages'))
+      stage_names = [s for s in raw_names.split('\n') if s]
       stages = collections.OrderedDict()
       for stage_name in stage_names:
         # TODO: sanitize names so they can't be something like '/path/from/root'
         stages[stage_name] = Stage(os.path.join(self.path, stage_name))
       self._stages = stages
     return self._stages
+
+  @property
+  def description(self):
+    return file_contents_or(os.path.join(self.path, 'description'), self.name)
+
+  def save_description(self, desc):
+    maybe_makedirs(self.path)
+    with open(os.path.join(self.path, 'description'), 'w') as f:
+      f.write(desc)
 
   def save_stages(self):
     assert self._stages is not None

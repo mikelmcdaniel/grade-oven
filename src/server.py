@@ -219,7 +219,13 @@ def _edit_assignment(form, course_name, assignment_name, stages):
   if new_stage_name:
     new_stage_name = safe_base_filename(new_stage_name)
     stages.add_stage(new_stage_name)
+  description = form.get('description')
+  if description:
+    stages.save_description(description)
   for stage in stages.stages.itervalues():
+    description = form.get('description_{}'.format(stage.name))
+    if description:
+      stage.save_description(description)
     main_cmds = form.get('main_cmds_{}'.format(stage.name))
     if main_cmds:
       stage.save_main_script(main_cmds)
@@ -260,7 +266,7 @@ def courses_x_assignments_x(course_name, assignment_name):
     'courses_x_assignments_x.html', instructs_course=instructs_course,
     takes_course=takes_course, course_name=course.name,
     assignment_name=assignment.name, errors=errors, output=output,
-    stages=stages.stages.values(), score=score)
+    stages=stages.stages.values(), score=score, stages_desc=stages.description)
 
 @app.route('/')
 def index():

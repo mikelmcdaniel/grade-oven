@@ -7,14 +7,16 @@ ERROR {{ error }} <br>
 
 {% if instructs_course %}
 <form method="post" enctype="multipart/form-data">
-  <input name="assignment_desc" type="text" placeholder="assignment description" value="{{ assignment_desc|e }}"><br>
+  Description: <input name="description" type="text" placeholder="assignment description" value="{{ stages_desc|e }}"><br>
   {% for stage in stages %}
   <h4>{{ stage.name|e }}:</h4>
-  commands <textarea name="main_cmds_{{ stage.name|e }}" rows="5" cols="80">{{ stage.main_script|e }}</textarea><br>
-  {% for filename in stage.filenames_except_main %}
+  Description: <input name="description_{{ stage.name|e }}" placeholder="description of {{ stage.name|e }}" type="text" value="{{ stage.description|e }}"><br>
+  Commands:<br>
+  <textarea name="main_cmds_{{ stage.name|e }}" rows="5" cols="80">{{ stage.main_script|e }}</textarea><br>
+  {% for filename in stage.filenames_except_meta %}
   FILE {{ filename|e }}<br>
   {% endfor %}
-  files <input type="file" multiple="multiple" name="files_{{ stage.name|e }}[]"><br>
+  File Upload: <input type="file" multiple="multiple" name="files_{{ stage.name|e }}[]"><br>
   {% endfor %}
   <input name="new_stage_name" type="text" placeholder="new stage name">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
