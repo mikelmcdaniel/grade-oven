@@ -1,0 +1,4 @@
+#!/bin/bash
+clang -std=c++11 -Wall -Wextra -lstdc++ -O0 -o much_ram /grade_oven/much_ram/much_ram.cpp
+./much_ram
+

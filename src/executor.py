@@ -69,32 +69,6 @@ def join_cmd_parts(cmd_parts):
   return ' '.join(escaped_parts)
 
 
-class StageOutput(object):
-  SCORE_RE = re.compile(r'\s*(\d+)\s*/\s*(\d+)\s*')
-
-  def __init__(self, output_path):
-    try:
-      with open(os.path.join(output_path, 'score')) as f:
-        score_raw = f.read().strip()
-    except IOError as e:
-      if e.errno == errno.ENOENT:
-        score_raw = ''
-      else:
-        raise Error(e)
-    score_match = re.match(self.SCORE_RE, score_raw)
-    if score_match:
-      self.score = int(score_match.group(1))
-      self.total = int(score_match.group(2))
-    else:
-      self.score = None
-      self.total = None
-
-def make_file_executable(path):
-  mode = os.stat(path).st_mode
-  # copy read bits to executable bits
-  mode |= (mode & 0444) >> 2
-  os.chmod(path, mode)
-
 def file_contents_or(file_path, default_contents=''):
   try:
     with open(file_path) as f:
@@ -104,6 +78,27 @@ def file_contents_or(file_path, default_contents=''):
       return default_contents
     else:
       raise Error(e)
+
+class StageOutput(object):
+  SCORE_RE = re.compile(r'\s*(-?\d+)\s*/\s*(-?\d+)\s*')
+
+  def __init__(self, output_path):
+    score_raw = file_contents_or(os.path.join(output_path, 'score'), '')
+    score_match = re.match(self.SCORE_RE, score_raw)
+    if score_match:
+      self.score = int(score_match.group(1))
+      self.total = int(score_match.group(2))
+    else:
+      self.score = None
+      self.total = None
+    self.stdout = None
+    self.errors = None
+
+def make_file_executable(path):
+  mode = os.stat(path).st_mode
+  # copy read bits to executable bits
+  mode |= (mode & 0444) >> 2
+  os.chmod(path, mode)
 
 class Stage(object):
   def __init__(self, stage_path):
@@ -368,12 +363,11 @@ class DockerExecutor(object):
       return_code, output, errs = self._docker_run(
         'grade_oven/grade_oven',
         [os.path.join('/grade_oven', stage.name, 'main')])
-      outputs.append(output)
-      errors.extend(errs)
       stage.output = StageOutput(
         os.path.join(self.host_dir, 'grade_oven/output'))
-    # return '\n'.join(output), errors
-    return ''.join(outputs), errors
+      stage.output.stdout = output
+      stage.output.errors = errs
+    return '\n'.join(outputs), errors
 
   def cleanup(self):
     for sub_dir in ('tmp', 'grade_oven'):
