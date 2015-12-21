@@ -190,6 +190,7 @@ class Stages(object):
 
 def merge_tree(src, dst):
   "Like shutil.copytree, except it is not an error if the dst exists."
+  errors = []
   src = os.path.abspath(src)
   dst = os.path.abspath(dst)
   maybe_makedirs(dst)
@@ -200,12 +201,20 @@ def merge_tree(src, dst):
       try:
         shutil.copy(src_filename, dst_filename)
       except shutil.Error as e:
-        raise Error(e)
+        errors.append(repr(e))
+        errors.append(str(e))
+      except OSError as e:
+        errors.append(repr(e))
+        errors.append(str(e))
+      except IOError as e:
+        errors.append(repr(e))
+        errors.append(str(e))
     elif os.path.isdir(src_filename):
       merge_tree(src_filename, dst_filename)
     else:
       raise Error('"{}" is not a file/directory and cannot be copied.'.format(
         src_filename))
+  return errors
 
 
 class DockerExecutor(object):
@@ -323,7 +332,8 @@ class DockerExecutor(object):
         logging.info(
           'Copying directory files "%s"/* to "%s"', archive_path, dst_path)
         try:
-          merge_tree(archive_path, dst_path)
+          errs = merge_tree(archive_path, dst_path)
+          errors.extend(errs)
         except Error as e:
           errors.append(repr(e))
           errors.append(str(e))
