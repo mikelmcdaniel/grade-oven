@@ -9,7 +9,9 @@ courses[]
   instructors
   assignments[]
     students[]
-      score
+      stages[]
+        score
+        total
     due_date
 users[]
   hashed_password
@@ -21,6 +23,7 @@ File system schema:
   courses/<course_name>
     assignments/<assignment_name>
       stages
+      submissions/<students>
 """
 
 class GradeOvenUser(object):
@@ -124,6 +127,53 @@ class GradeOvenAssignment(object):
   def stages_dir(self):
     return os.path.join(self.root_dir(), 'stages')
 
+  def student_submission(self, student_username):
+    return GradeOvenStudentSubmission(self._data_store, self.course_name,
+                                      self.name, student_username)
+
+
+class GradeOvenStudentSubmission(object):
+  def __init__(self, data_store, course_name, assignment_name, student_username):
+    self.course_name = course_name
+    self.assignment_name = assignment_name
+    self.student_username = student_username
+    self._data_store = data_store
+
+  def stage_names(self):
+    return self._data_store.get_all(
+      ('courses', self.course_name, 'assignments', self.assignment_name, 'stages'))
+
+  def score(self):
+    return sum(int(self._data_store.get(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'stages', stage_name, 'score'), 0) or 0)
+                   for stage_name in self.stage_names())
+
+  def set_score(self, stage_name, score):
+    self._data_store.put(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'stages', stage_name, 'score'), score)
+
+  def total(self):
+    return sum(int(self._data_store.get(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'stages', stage_name, 'total'), 0) or 0)
+                   for stage_name in self.stage_names())
+
+  def set_total(self, stage_name, total):
+    self._data_store.put(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'stages', stage_name, 'total'), total)
+
+  def set_output(self, stage_name, output):
+    self._data_store.put(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'stages', stage_name, 'output'), output)
+
+  def set_errors(self, stage_name, errors):
+    self._data_store.put(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'stages', stage_name, 'errors'), errors)
 
 
 class GradeOvenCourse(object):

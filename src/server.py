@@ -3,12 +3,16 @@
 #   e.g. only admins, instructors, and enrolled students should see courses
 import errno
 import cgi
+import collections
 import os
 import functools
+import glob
 import shlex
 import shutil
 import time
 import tempfile
+import threading
+import logging
 
 import bcrypt
 import flask
@@ -18,6 +22,7 @@ from OpenSSL import SSL
 import datastore as datastore_lib
 import grade_oven_lib
 import executor
+import executor_queue_lib
 
 # globals
 app = flask.Flask(__name__)
@@ -27,6 +32,32 @@ login_manager = login.LoginManager()
 login_manager.init_app(app)
 data_store = datastore_lib.DataStore(os.path.abspath('data/db'))
 grade_oven = grade_oven_lib.GradeOven(data_store)
+executor_queue = executor_queue_lib.ExecutorQueue()
+
+
+class ResourcePool(object):
+  def __init__(self, resources):
+    self._free_resources = collections.deque(resources)
+    self._used_resources = set()
+    self._resources_lock = threading.Lock()
+
+  def get(self):
+    with self._resources_lock:
+      try:
+        resource = self._free_resources.popleft()
+      except IndexError:
+        return None
+      self._used_resources.add(resource)
+      return resource
+
+  def free(self, resource):
+    with self._resources_lock:
+      self._used_resources.remove(resource)
+      self._free_resources.append(resource)
+
+
+temp_dirs = ResourcePool(
+  os.path.abspath(p) for p in glob.glob('data/host_dirs/?'))
 
 
 def admin_required(func):
@@ -147,7 +178,7 @@ def safe_base_filename(filename):
                    for c in filename)
 
 # TODO: handle/return errors
-def save_files_in_dir(dir_path, flask_files):
+def save_files_in_dir(flask_files, dir_path):
   try:
     os.makedirs(dir_path)
   except OSError as e:
@@ -231,15 +262,61 @@ def _edit_assignment(form, course_name, assignment_name, stages):
       stage.save_main_script(main_cmds)
     files = flask.request.files.getlist('files_{}[]'.format(stage.name))
     if files:
-      save_files_in_dir(stage.path, files)
+      save_files_in_dir(files, stage.path)
 
-@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>', methods=['GET', 'POST'])
+
+class GradeOvenSubmission(executor_queue_lib.Submission):
+  def __init__(
+      self, priority, short_desc, submission_dir, container_id, stages,
+      student_submission):
+    super(GradeOvenSubmission, self).__init__(priority, short_desc)
+    self._temp_dir = None
+    self.submission_dir = submission_dir
+    self.container_id = container_id
+    self.stages = stages
+    self.student_submission = student_submission
+    self.container = None
+
+  def _run_stages_callback(self, stage):
+    logging.info('GradeOvenSubmission._run_stages_callback %s', stage.name)
+    self.student_submission.set_score(stage.name, stage.output.score)
+    logging.info('SAVED SCORE %s %s', stage.name, stage.output.score)
+    self.student_submission.set_total(stage.name, stage.output.total)
+    self.student_submission.set_output(stage.name, stage.output.stdout)
+    errors = '\n'.join(stage.output.errors)
+    self.student_submission.set_errors(stage.name, errors)
+
+  def before_run(self):
+    logging.info('GradeOvenSubmission.before_run %s', self.description)
+    self._temp_dir = temp_dirs.get()
+    assert self._temp_dir is not None
+
+  def run(self):
+    logging.info('GradeOvenSubmission.run %s', self.description)
+    self.container = executor.DockerExecutor(self.container_id, self._temp_dir)
+    self.container.init()
+    outputs = []
+    errors = []
+    output, errs = self.container.run_stages(self.submission_dir, self.stages,
+                                             self._run_stages_callback)
+    outputs.append(output)
+    errors.extend(errs)
+
+  def after_run(self):
+    logging.info('GradeOvenSubmission.after_run %s', self.description)
+    self.container.cleanup()
+    temp_dirs.free(self._temp_dir)
+
+
+@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>',
+           methods=['GET', 'POST'])
 @login.login_required
 def courses_x_assignments_x(course_name, assignment_name):
   errors = []
   user = login.current_user
   course = grade_oven.course(course_name)
   assignment = course.assignment(assignment_name)
+  student_submission = assignment.student_submission(user.username)
   instructs_course = user.instructs_course(course.name)
   takes_course = user.takes_course(course.name)
   assignment_desc = assignment.description()
@@ -250,27 +327,34 @@ def courses_x_assignments_x(course_name, assignment_name):
     _edit_assignment(form, course_name, assignment_name, stages)
   if takes_course:
     files = flask.request.files.getlist('submission_files[]')
-    temp_dir = tempfile.mkdtemp('grade_oven')
-    save_files_in_dir(temp_dir, files)
-    c = executor.DockerExecutor('TEMP_HACK', 'test_host_dir')
-    c.init()
-    outputs = []
-    output, errs = c.run_stages(temp_dir, stages)
-    outputs.append(output)
-    errors.extend(errs)
-    score = []
-    for s in stages.stages.itervalues():
-      score.append('{}/{}'.format(s.output.score, s.output.total))
-      outputs.append(str(s.output.stdout))
-    output = '\n'.join(outputs)
-    score = ' -- '.join(score)
-    c.cleanup()
-    shutil.rmtree(temp_dir)
+    if files:
+      submission_dir = os.path.join(
+        'data/files/courses', course_name, 'assignments', assignment_name,
+        'submissions', user.username)
+      try:
+        shutil.rmtree(submission_dir)
+      except OSError as e:
+        if e.errno != errno.ENOENT:
+          raise e
+      save_files_in_dir(files, submission_dir)
+      desc = '{}_{}_{}'.format(course_name, assignment_name, user.username)
+      submission = GradeOvenSubmission(
+        'priority', desc, submission_dir, desc, stages, student_submission)
+      executor_queue.enqueue(submission)
+
+    # TODO: REMOVE THIS HACK
+    score = student_submission.score()
+    total = student_submission.total()
+  else:
+    score = 'NO SCORE'
+    total = 'NO TOTAL'
+  output = 'NOTHING FOR NOW'
   return flask.render_template(
     'courses_x_assignments_x.html', instructs_course=instructs_course,
     takes_course=takes_course, course_name=course.name,
     assignment_name=assignment.name, errors=errors, output=output,
-    stages=stages.stages.values(), score=score, stages_desc=stages.description)
+    stages=stages.stages.values(), score='{} / {}'.format(score, total),
+    stages_desc=stages.description)
 
 @app.route('/')
 def index():
@@ -312,6 +396,9 @@ if __name__ == '__main__':
   # TODO: generate a legitimate server key and certificate
   context.use_privatekey_file('data/ssl/server.key')
   context.use_certificate_file('data/ssl/server.crt')
+
+  # logging.basicConfig(filename='data/server.log', level=logging.DEBUG)
+  logging.basicConfig(level=logging.DEBUG)
 
   # TODO: add logging
   app.run(

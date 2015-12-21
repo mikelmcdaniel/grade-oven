@@ -12,7 +12,7 @@ class TestExecutor(unittest.TestCase):
       nonce.append('nonce')
     executor_queue = executor_queue_lib.ExecutorQueue()
     submission = executor_queue_lib.Submission(
-      closure, 'arbitrary priority', 'short description')
+      'arbitrary priority', 'short description', closure)
     executor_queue.enqueue(submission)
     executor_queue.join()
     self.assertEqual(nonce, ['nonce'])
@@ -26,11 +26,11 @@ class TestExecutor(unittest.TestCase):
     def closure3():
       nonce.add('three')
     submission1 = executor_queue_lib.Submission(
-      closure1, 'arbitrary priority', 'first description')
+      'arbitrary priority', 'first description', closure1)
     submission2 = executor_queue_lib.Submission(
-      closure2, 'arbitrary priority', 'second description')
+      'arbitrary priority', 'second description', closure2)
     submission3 = executor_queue_lib.Submission(
-      closure3, 'arbitrary priority', 'third description')
+      'arbitrary priority', 'third description', closure3)
     executor_queue = executor_queue_lib.ExecutorQueue()
     executor_queue.enqueue(submission1)
     executor_queue.enqueue(submission2)
@@ -40,10 +40,10 @@ class TestExecutor(unittest.TestCase):
 
   def test_submission_ordering(self):
     sorted_submissions = [
-      executor_queue_lib.Submission(lambda: None, j, str(j))
+      executor_queue_lib.Submission(j, str(j))
       for j in xrange(10)]
     shuffled_submissions = [
-      executor_queue_lib.Submission(lambda: None, j, str(j))
+      executor_queue_lib.Submission(j, str(j))
       for j in xrange(10)]
     random.shuffle(shuffled_submissions)
     self.assertEqual(sorted_submissions, sorted(shuffled_submissions))
@@ -74,13 +74,13 @@ class TestExecutor(unittest.TestCase):
     # The null submission is necessary since as soon as it's queued, it will
     # be started since nothing else is in the queue and max_threads == 1.
     null_submission = executor_queue_lib.Submission(
-      null_closure, 1000, 'null submission')
+      1000, 'null submission', null_closure)
     submission1 = executor_queue_lib.Submission(
-      closure1, 1, 'most important')
+      1, 'most important', closure1)
     submission2 = executor_queue_lib.Submission(
-      closure2, 2, 'meh')
+      2, 'meh', closure2)
     submission3 = executor_queue_lib.Submission(
-      closure3, 3, 'least important')
+      3, 'least important', closure3)
     executor_queue = executor_queue_lib.ExecutorQueue(max_threads=1)
     nonce_lock.acquire()
     executor_queue.enqueue(null_submission)

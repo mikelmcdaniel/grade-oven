@@ -246,7 +246,7 @@ class DockerExecutor(object):
       docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env={})
     proc.wait()
 
-    logging.info('Waiting for Docker container : %s', self.container_id)
+    logging.info('Waiting for Docker container: %s', self.container_id)
     docker_cmd = [
       'timeout', str(self.timeout_seconds), 'docker', 'wait', self.container_id]
     proc = subprocess.Popen(
@@ -347,7 +347,11 @@ class DockerExecutor(object):
       shutil.rmtree(os.path.join(self.host_dir, sub_dir))
       os.mkdir(os.path.join(self.host_dir, sub_dir))
 
-  def run_stages(self, submission_path, stages):
+  def run_stages(self, submission_path, stages, stage_done_callback=None):
+    """Run stages, copying submission_path to /grade_oven/submission inside the
+    container.  When a stage is done running, stage_done_callback is called
+    with the stage that has completed.
+    """
     outputs = []
     errors = []
     output, errs = self._copy_and_extract_archive(
@@ -367,6 +371,8 @@ class DockerExecutor(object):
         os.path.join(self.host_dir, 'grade_oven/output'))
       stage.output.stdout = output
       stage.output.errors = errs
+      if stage_done_callback is not None:
+        stage_done_callback(stage)
     return '\n'.join(outputs), errors
 
   def cleanup(self):

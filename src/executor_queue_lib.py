@@ -13,13 +13,29 @@ import logging
 
 @functools.total_ordering
 class Submission(object):
-  def __init__(self, closure, priority, short_desc, long_desc=None):
+  QUEUED = 'queued'
+  RUNNING = 'running'
+  DONE = 'done'
+  def __init__(self, priority, short_desc, closure=None, long_desc=None):
     if long_desc is None:
       long_desc = short_desc
     self.closure = closure
     self.priority = priority
     self.short_description = short_desc
     self.description = long_desc
+    self.status = self.QUEUED
+
+  def before_run(self):
+    pass
+
+  def run(self):
+    self.closure()
+
+  def after_run(self):
+    pass
+
+  def __hash__(self):
+    return hash(self.priority)
 
   def __ne__(self, other):
     return not self == other
@@ -40,9 +56,13 @@ class ExecutorThread(threading.Thread):
     self._release_func = release_func
 
   def run(self):
+    self.submission.status = Submission.RUNNING
     try:
-      self.submission.closure()
+      self.submission.before_run()
+      self.submission.run()
     finally:
+      self.submission.status = Submission.DONE
+      self.submission.after_run()
       self._release_func()
 
 
