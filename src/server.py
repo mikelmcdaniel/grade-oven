@@ -140,7 +140,8 @@ def admin_edit_user():
         msgs.append('Set takes_course {!r} == {!r}'.format(course, takes_course))
   else:
     errors.append('Username must be set.')
-  return flask.render_template('admin_edit_user.html', errors=errors, msgs=msgs)
+  return flask.render_template(
+    'admin_edit_user.html', username=login.current_user.get_id(), errors=errors, msgs=msgs)
 
 @app.route('/admin/db/get/<path:key>')
 @admin_required
@@ -162,7 +163,8 @@ def debug_logged_in():
 @login.login_required
 def courses():
   return flask.render_template(
-    'courses.html', courses=grade_oven.course_names())
+    'courses.html', username=login.current_user.get_id(),
+    courses=grade_oven.course_names())
 
 BASE_FILENAME_CHARS = frozenset(
   'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_.()')
@@ -218,7 +220,8 @@ def courses_x(course_name):
     student_usernames = None
   assignment_names = course.assignment_names()
   return flask.render_template(
-    'courses_x.html', instructs_course=instructs_course,
+    'courses_x.html', username=login.current_user.get_id(),
+    instructs_course=instructs_course,
     takes_course=takes_course, students=student_usernames,
     assignments=assignment_names, course_name=course.name)
 
@@ -239,7 +242,8 @@ def courses_x_assignments(course_name):
         '/courses/{}/assignments/{}'.format(course_name, assignment_name))
   assignment_names = course.assignment_names()
   return flask.render_template(
-    'courses_x_assignments.html', instructs_course=instructs_course,
+    'courses_x_assignments.html', username=login.current_user.get_id(),
+    instructs_course=instructs_course,
     takes_course=takes_course, assignments=assignment_names,
     course_name=course.name)
 
@@ -334,12 +338,13 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
 
 
 def _make_grade_table(course, assignment):
-  header_row = ['username', 'score', 'submission status',
-                'submit time', 'attempts']
+  header_row = ['Avatar Name', 'Score', 'Submission Status',
+                'Submit Time', 'Attempts']
   table = []
   for username in course.student_usernames():
     row = []
-    row.append(username)
+    user = grade_oven.user(username)
+    row.append(user.avatar_name())
     submission = assignment.student_submission(username)
     row.append(submission.score())
     row.append(submission.status())
@@ -393,11 +398,34 @@ def courses_x_assignments_x(course_name, assignment_name):
     output, errors = None, None
   header_row, table = _make_grade_table(course, assignment)
   return flask.render_template(
-    'courses_x_assignments_x.html', instructs_course=instructs_course,
+    'courses_x_assignments_x.html', username=login.current_user.get_id(),
+    instructs_course=instructs_course,
     takes_course=takes_course, course_name=course.name,
     assignment_name=assignment.name,
     stages=stages.stages.values(), output=output, errors=errors,
     stages_desc=stages.description, header_row=header_row, table=table)
+
+@app.route('/settings', methods=['GET', 'POST'])
+@login.login_required
+def settings():
+  user = login.current_user
+  errors = []
+
+  form = flask.request.form
+  avatar_name = form.get('avatar_name')
+  if avatar_name:
+    user.set_avatar_name(avatar_name)
+  password = form.get('password')
+  password2 = form.get('password2')
+  if password or password2:
+    if password == password2:
+      user.set_password(password)
+    else:
+      errors.append('Passwords do not match.')
+
+  return flask.render_template(
+    'settings.html', username=login.current_user.get_id(),
+    avatar_name=user.avatar_name(), errors=errors)
 
 @app.route('/')
 def index():
@@ -419,7 +447,8 @@ def login_():
     else:
       login.login_user(user, remember=True)
       return flask.redirect('/')
-  return flask.render_template('login.html')
+  return flask.render_template(
+    'login.html', username=login.current_user.get_id())
 
 @app.route("/logout")
 @login.login_required

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>Settings</h2>
+{% for error in errors %}
+ERROR: {{ error|e }}<br>
+{% endfor %}
+<form method="post">
+  Avatar Name: <input name="avatar_name" type="text" placeholder="{{ avatar_name|e }}"><br><br>
+
+  Change password: <input name="password" type="password" placeholder="password"><br>
+  Verify Password: <input name="password2" type="password" placeholder="password (confirm)"><br>
+
+  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+  <input type="submit" value="Update Preferences">
+</form>
+{% endblock %}
