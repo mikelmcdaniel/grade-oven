@@ -14,7 +14,7 @@ ERROR {{ error }} <br>
   Commands:<br>
   <textarea name="main_cmds_{{ stage.name|e }}" rows="5" cols="80">{{ stage.main_script|e }}</textarea><br>
   {% for filename in stage.filenames_except_meta %}
-  FILE {{ filename|e }}<br>
+  Delete File: {{ filename|e }} <input type="checkbox" name="delete_files" value="{{ stage.name|e }}/{{ filename|e }}"><br>
   {% endfor %}
   File Upload: <input type="file" multiple="multiple" name="files_{{ stage.name|e }}[]"><br>
   {% endfor %}
@@ -26,13 +26,28 @@ ERROR {{ error }} <br>
 
 {% if takes_course %}
 <h3>Submit Solution</h3>
-OUTPUT {{ output|e }}<br>
-SCORE {{ score|e }}<br>
 <form method="post" enctype="multipart/form-data">
   <input type="file" multiple="multiple" name="submission_files[]">
   <input type="submit" value="Submit Code">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
 </form>
+{% endif %}
+
+{% if takes_course or instructs_course %}
+<table border="1">
+  <tr>
+    {% for col in header_row %}
+    <th>{{ col|e }}</th>
+    {% endfor %}
+  </tr>
+  {% for row in table %}
+  <tr>
+    {% for col in row %}
+    <td>{{ col|e }}</td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+</table>
 {% endif %}
 
 {% endblock %}

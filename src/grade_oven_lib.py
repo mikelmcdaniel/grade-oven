@@ -146,34 +146,34 @@ class GradeOvenStudentSubmission(object):
   def score(self):
     return sum(int(self._data_store.get(
       ('courses', self.course_name, 'assignments', self.assignment_name,
-       'stages', stage_name, 'score'), 0) or 0)
+       'students', self.student_username, 'stages', stage_name, 'score'), 0) or 0)
                    for stage_name in self.stage_names())
 
   def set_score(self, stage_name, score):
     self._data_store.put(
       ('courses', self.course_name, 'assignments', self.assignment_name,
-       'stages', stage_name, 'score'), score)
+       'students', self.student_username, 'stages', stage_name, 'score'), score)
 
   def total(self):
     return sum(int(self._data_store.get(
       ('courses', self.course_name, 'assignments', self.assignment_name,
-       'stages', stage_name, 'total'), 0) or 0)
+       'students', self.student_username, 'stages', stage_name, 'total'), 0) or 0)
                    for stage_name in self.stage_names())
 
   def set_total(self, stage_name, total):
     self._data_store.put(
       ('courses', self.course_name, 'assignments', self.assignment_name,
-       'stages', stage_name, 'total'), total)
+       'students', self.student_username, 'stages', stage_name, 'total'), total)
 
   def set_output(self, stage_name, output):
     self._data_store.put(
       ('courses', self.course_name, 'assignments', self.assignment_name,
-       'stages', stage_name, 'output'), output)
+       'students', self.student_username, 'stages', stage_name, 'output'), output)
 
   def set_errors(self, stage_name, errors):
     self._data_store.put(
       ('courses', self.course_name, 'assignments', self.assignment_name,
-       'stages', stage_name, 'errors'), errors)
+       'students', self.student_username, 'stages', stage_name, 'errors'), errors)
 
 
 class GradeOvenCourse(object):

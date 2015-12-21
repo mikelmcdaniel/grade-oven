@@ -243,6 +243,8 @@ def courses_x_assignments(course_name):
     course_name=course.name)
 
 def _edit_assignment(form, course_name, assignment_name, stages):
+  logging.info('Editing assignment "%s" in course "%s"',
+               assignment_name, course_name)
   course = grade_oven.course(course_name)
   course.add_assignment(assignment_name)
   assignment = course.assignment(assignment_name)
@@ -253,6 +255,24 @@ def _edit_assignment(form, course_name, assignment_name, stages):
   description = form.get('description')
   if description:
     stages.save_description(description)
+  delete_files = form.getlist('delete_files')
+  for delete_file in delete_files:
+    parts = delete_file.split('/', 1)
+    if len(parts) == 2:
+      df_stage_name, df_filename = parts
+      df_stage_name = safe_base_filename(df_stage_name)
+      df_filename = safe_base_filename(df_filename)
+      try:
+        df_stage = stages.stages[df_stage_name]
+        try:
+          os.remove(os.path.join(df_stage.path, df_filename))
+        except OSError as e:
+          logging.warning('OSError when deleting "%s": %s', delete_file, e)
+      except KeyError as e:
+        logging.warning('Could not find stage "%s" to delete "%s": %s',
+                        df_stage_name, delete_file, e)
+    else:
+      logging.warning('Could not split "%s" to delete it.', delete_file)
   for stage in stages.stages.itervalues():
     description = form.get('description_{}'.format(stage.name))
     if description:
@@ -280,7 +300,6 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
   def _run_stages_callback(self, stage):
     logging.info('GradeOvenSubmission._run_stages_callback %s', stage.name)
     self.student_submission.set_score(stage.name, stage.output.score)
-    logging.info('SAVED SCORE %s %s', stage.name, stage.output.score)
     self.student_submission.set_total(stage.name, stage.output.total)
     self.student_submission.set_output(stage.name, stage.output.stdout)
     errors = '\n'.join(stage.output.errors)
@@ -308,11 +327,21 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     temp_dirs.free(self._temp_dir)
 
 
+def _make_grade_table(course, assignment):
+  header_row = ['username', 'score']
+  table = []
+  for username in course.student_usernames():
+    row = []
+    row.append(username)
+    row.append(assignment.student_submission(username).score())
+    table.append(row)
+  table = sorted(table, key=lambda row: (-row[1], row[0]))
+  return header_row, table
+
 @app.route('/courses/<string:course_name>/assignments/<string:assignment_name>',
            methods=['GET', 'POST'])
 @login.login_required
 def courses_x_assignments_x(course_name, assignment_name):
-  errors = []
   user = login.current_user
   course = grade_oven.course(course_name)
   assignment = course.assignment(assignment_name)
@@ -341,20 +370,13 @@ def courses_x_assignments_x(course_name, assignment_name):
       submission = GradeOvenSubmission(
         'priority', desc, submission_dir, desc, stages, student_submission)
       executor_queue.enqueue(submission)
-
-    # TODO: REMOVE THIS HACK
-    score = student_submission.score()
-    total = student_submission.total()
-  else:
-    score = 'NO SCORE'
-    total = 'NO TOTAL'
-  output = 'NOTHING FOR NOW'
+  header_row, table = _make_grade_table(course, assignment)
   return flask.render_template(
     'courses_x_assignments_x.html', instructs_course=instructs_course,
     takes_course=takes_course, course_name=course.name,
-    assignment_name=assignment.name, errors=errors, output=output,
-    stages=stages.stages.values(), score='{} / {}'.format(score, total),
-    stages_desc=stages.description)
+    assignment_name=assignment.name,
+    stages=stages.stages.values(),
+    stages_desc=stages.description, header_row=header_row, table=table)
 
 @app.route('/')
 def index():
