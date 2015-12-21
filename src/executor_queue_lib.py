@@ -1,6 +1,5 @@
 """An ExecutorQueue runs in a separate thread and is used to queue
 and run stages against student submissions in separate Python threads.
-Unlike the Executor class, ExecutorQueue is tightly coupled with Grade Oven.
 
 Note that because executor mostly uses subprocess to run code, it is
 not necessary to use multiprocessing to get good parallism.
@@ -11,8 +10,6 @@ import functools
 import threading
 import Queue as queue
 import logging
-
-import executor
 
 @functools.total_ordering
 class Submission(object):
@@ -55,6 +52,7 @@ class ExecutorQueue(object):
     self._submission_queue = queue.PriorityQueue()
     self._threads_semaphore = threading.BoundedSemaphore(max_threads)
     self._running_threads = collections.deque()
+    self._running_threads_lock = threading.Lock()
 
   def enqueue(self, submission):
     self._submission_queue.put(submission)
@@ -62,20 +60,22 @@ class ExecutorQueue(object):
 
   def _maybe_cleanup_threads(self):
     threads_to_remove = 0
-    for t in self._running_threads:
-      if t.is_alive():
-        break
-      threads_to_remove += 1
-    for _ in xrange(threads_to_remove):
-      self._running_threads.popleft()
+    with self._running_threads_lock:
+      for t in self._running_threads:
+        if t.is_alive():
+          break
+        threads_to_remove += 1
+      for _ in xrange(threads_to_remove):
+        self._running_threads.popleft()
 
   def join(self):
     while True:
-      try:
-        t = self._running_threads.popleft()
-      except IndexError:  # no threads are running
-        break
-      t.join()
+      with self._running_threads_lock:
+        try:
+          t = self._running_threads[0]
+        except IndexError:  # no threads are running
+          break
+          t.join()
       self._maybe_cleanup_threads()
 
   def _release_func(self):
@@ -93,6 +93,7 @@ class ExecutorQueue(object):
       if submission is not None:
         t = ExecutorThread(submission, self._release_func)
         t.start()
-        self._running_threads.append(t)
+        with self._running_threads_lock:
+          self._running_threads.append(t)
 
 
