@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
 <h2>Course {{ course_name|e }} Assignment {{ assignment_name|e }}</h2>
-{% for error in errors %}
-ERROR {{ error }} <br>
-{% endfor %}
 
 {% if instructs_course %}
 <form method="post" enctype="multipart/form-data">
@@ -25,15 +22,21 @@ ERROR {{ error }} <br>
 {% endif %}
 
 {% if takes_course %}
-<h3>Submit Solution</h3>
+<h3>Submit Solution:</h3>
 <form method="post" enctype="multipart/form-data">
   <input type="file" multiple="multiple" name="submission_files[]">
   <input type="submit" value="Submit Code">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
 </form>
+<h3>Previous Submission:</h3>
+<h4>Output:</h4>
+<code><pre>{{ output|e }}</pre></code>
+<h4>Errors:</h4>
+<code><pre>{{ errors|e }}</pre></code>
 {% endif %}
 
 {% if takes_course or instructs_course %}
+<h3>Scores:</h3>
 <table border="1">
   <tr>
     {% for col in header_row %}

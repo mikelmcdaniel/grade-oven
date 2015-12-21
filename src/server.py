@@ -370,12 +370,16 @@ def courses_x_assignments_x(course_name, assignment_name):
       submission = GradeOvenSubmission(
         'priority', desc, submission_dir, desc, stages, student_submission)
       executor_queue.enqueue(submission)
+    output = assignment.student_submission(user.username).output()
+    errors = assignment.student_submission(user.username).errors()
+  else:
+    output, errors = None, None
   header_row, table = _make_grade_table(course, assignment)
   return flask.render_template(
     'courses_x_assignments_x.html', instructs_course=instructs_course,
     takes_course=takes_course, course_name=course.name,
     assignment_name=assignment.name,
-    stages=stages.stages.values(),
+    stages=stages.stages.values(), output=output, errors=errors,
     stages_desc=stages.description, header_row=header_row, table=table)
 
 @app.route('/')

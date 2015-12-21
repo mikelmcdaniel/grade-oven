@@ -165,10 +165,22 @@ class GradeOvenStudentSubmission(object):
       ('courses', self.course_name, 'assignments', self.assignment_name,
        'students', self.student_username, 'stages', stage_name, 'total'), total)
 
+  def output(self):
+    return '\n'.join(str(self._data_store.get(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'students', self.student_username, 'stages', stage_name, 'output'), '') or '')
+                   for stage_name in self.stage_names())
+
   def set_output(self, stage_name, output):
     self._data_store.put(
       ('courses', self.course_name, 'assignments', self.assignment_name,
        'students', self.student_username, 'stages', stage_name, 'output'), output)
+
+  def errors(self):
+    return '\n'.join(str(self._data_store.get(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'students', self.student_username, 'stages', stage_name, 'errors'), '') or '')
+                   for stage_name in self.stage_names())
 
   def set_errors(self, stage_name, errors):
     self._data_store.put(
