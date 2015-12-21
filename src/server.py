@@ -4,6 +4,7 @@
 import errno
 import cgi
 import collections
+import datetime
 import os
 import functools
 import glob
@@ -304,9 +305,12 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     self.student_submission.set_output(stage.name, stage.output.stdout)
     errors = '\n'.join(stage.output.errors)
     self.student_submission.set_errors(stage.name, errors)
+    self.student_submission.set_status(
+      'running (finished {})'.format(stage.name))
 
   def before_run(self):
     logging.info('GradeOvenSubmission.before_run %s', self.description)
+    self.student_submission.set_status('setting up')
     self._temp_dir = temp_dirs.get()
     assert self._temp_dir is not None
 
@@ -316,6 +320,7 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     self.container.init()
     outputs = []
     errors = []
+    self.student_submission.set_status('running')
     output, errs = self.container.run_stages(self.submission_dir, self.stages,
                                              self._run_stages_callback)
     outputs.append(output)
@@ -325,17 +330,23 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     logging.info('GradeOvenSubmission.after_run %s', self.description)
     self.container.cleanup()
     temp_dirs.free(self._temp_dir)
+    self.student_submission.set_status('finished')
 
 
 def _make_grade_table(course, assignment):
-  header_row = ['username', 'score']
+  header_row = ['username', 'score', 'submission status',
+                'submit time', 'attempts']
   table = []
   for username in course.student_usernames():
     row = []
     row.append(username)
-    row.append(assignment.student_submission(username).score())
+    submission = assignment.student_submission(username)
+    row.append(submission.score())
+    row.append(submission.status())
+    row.append(submission.submit_time())
+    row.append(submission.num_submissions())
     table.append(row)
-  table = sorted(table, key=lambda row: (-row[1], row[0]))
+  table = sorted(table, key=lambda row: (-row[1], row[3], row[4]))
   return header_row, table
 
 @app.route('/courses/<string:course_name>/assignments/<string:assignment_name>',
@@ -348,7 +359,6 @@ def courses_x_assignments_x(course_name, assignment_name):
   student_submission = assignment.student_submission(user.username)
   instructs_course = user.instructs_course(course.name)
   takes_course = user.takes_course(course.name)
-  assignment_desc = assignment.description()
   stages = executor.Stages(os.path.join(
     'data/files/courses', course.name, 'assignments', assignment.name))
   if instructs_course:
@@ -357,6 +367,8 @@ def courses_x_assignments_x(course_name, assignment_name):
   if takes_course:
     files = flask.request.files.getlist('submission_files[]')
     if files:
+      logging.info('Student "%s" is attempting assignment "%s/%s".',
+                   user.username, course_name, assignment_name)
       submission_dir = os.path.join(
         'data/files/courses', course_name, 'assignments', assignment_name,
         'submissions', user.username)
@@ -370,8 +382,13 @@ def courses_x_assignments_x(course_name, assignment_name):
       submission = GradeOvenSubmission(
         'priority', desc, submission_dir, desc, stages, student_submission)
       executor_queue.enqueue(submission)
-    output = assignment.student_submission(user.username).output()
-    errors = assignment.student_submission(user.username).errors()
+      student_submission.set_status('queued')
+      student_submission.set_submit_time(
+        datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+      student_submission.set_num_submissions(
+        student_submission.num_submissions() + 1)
+    output = student_submission.output()
+    errors = student_submission.errors()
   else:
     output, errors = None, None
   header_row, table = _make_grade_table(course, assignment)

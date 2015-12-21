@@ -115,11 +115,6 @@ class GradeOvenAssignment(object):
     self.name = assignment_name
     self._data_store = data_store
 
-  def description(self):
-    return self._data_store.get(
-      ('courses', self.course_name, 'assignments', self.name, 'description'),
-      self.name)
-
   def root_dir(self):
     return os.path.join(
       'data/files/courses', self.course_name, 'assignments', self.name)
@@ -186,6 +181,36 @@ class GradeOvenStudentSubmission(object):
     self._data_store.put(
       ('courses', self.course_name, 'assignments', self.assignment_name,
        'students', self.student_username, 'stages', stage_name, 'errors'), errors)
+
+  def status(self):
+    return str(self._data_store.get(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'students', self.student_username, 'status'), 'NONE'))
+
+  def set_status(self, status):
+    self._data_store.put(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'students', self.student_username, 'status'), str(status))
+
+  def submit_time(self):
+    return str(self._data_store.get(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'students', self.student_username, 'submit_time'), '1970-01-01 00:00:00'))
+
+  def set_submit_time(self, submit_time):
+    self._data_store.put(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'students', self.student_username, 'submit_time'), str(submit_time))
+
+  def num_submissions(self):
+    return int(self._data_store.get(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'students', self.student_username, 'num_submissions'), 0))
+
+  def set_num_submissions(self, num_submissions):
+    self._data_store.put(
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'students', self.student_username, 'num_submissions'), int(num_submissions))
 
 
 class GradeOvenCourse(object):

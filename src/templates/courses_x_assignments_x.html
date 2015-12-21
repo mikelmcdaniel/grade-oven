@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block body %}
 <h2>Course {{ course_name|e }} Assignment {{ assignment_name|e }}</h2>
+<h3>{{ assignment_name|e }}:</h3>
+<pre>{{ stages_desc|e }}</pre>
+<pre>{% for stage in stages %}{{ stage.name|e }}:
+{{ stage.description|e }}
+{% endfor %}</pre>
 
 {% if instructs_course %}
 <form method="post" enctype="multipart/form-data">
