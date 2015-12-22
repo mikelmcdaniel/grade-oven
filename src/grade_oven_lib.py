@@ -19,7 +19,7 @@ admins
 instructors
 
 File system schema:
-./data/files
+../data/files
   courses/<course_name>
     assignments/<assignment_name>
       stages
@@ -123,7 +123,7 @@ class GradeOvenAssignment(object):
 
   def root_dir(self):
     return os.path.join(
-      'data/files/courses', self.course_name, 'assignments', self.name)
+      '../data/files/courses', self.course_name, 'assignments', self.name)
 
   def stages_dir(self):
     return os.path.join(self.root_dir(), 'stages')

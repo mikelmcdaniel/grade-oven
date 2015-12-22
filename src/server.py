@@ -27,11 +27,11 @@ import executor_queue_lib
 
 # globals
 app = flask.Flask(__name__)
-app.config['SECRET_KEY'] = open('data/secret_key.txt').read()
+app.config['SECRET_KEY'] = open('../data/secret_key.txt').read()
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 login_manager = login.LoginManager()
 login_manager.init_app(app)
-data_store = datastore_lib.DataStore(os.path.abspath('data/db'))
+data_store = datastore_lib.DataStore(os.path.abspath('../data/db'))
 grade_oven = grade_oven_lib.GradeOven(data_store)
 executor_queue = executor_queue_lib.ExecutorQueue()
 
@@ -58,7 +58,7 @@ class ResourcePool(object):
 
 
 temp_dirs = ResourcePool(
-  os.path.abspath(p) for p in glob.glob('data/host_dirs/?'))
+  os.path.abspath(p) for p in glob.glob('../data/host_dirs/?'))
 
 
 def admin_required(func):
@@ -365,7 +365,7 @@ def courses_x_assignments_x(course_name, assignment_name):
   instructs_course = user.instructs_course(course.name)
   takes_course = user.takes_course(course.name)
   stages = executor.Stages(os.path.join(
-    'data/files/courses', course.name, 'assignments', assignment.name))
+    '../data/files/courses', course.name, 'assignments', assignment.name))
   if instructs_course:
     form = flask.request.form
     _edit_assignment(form, course_name, assignment_name, stages)
@@ -375,7 +375,7 @@ def courses_x_assignments_x(course_name, assignment_name):
       logging.info('Student "%s" is attempting assignment "%s/%s".',
                    user.username, course_name, assignment_name)
       submission_dir = os.path.join(
-        'data/files/courses', course_name, 'assignments', assignment_name,
+        '../data/files/courses', course_name, 'assignments', assignment_name,
         'submissions', user.username)
       try:
         shutil.rmtree(submission_dir)
@@ -466,10 +466,10 @@ if __name__ == '__main__':
 
   context = SSL.Context(SSL.TLSv1_METHOD)
   # TODO: generate a legitimate server key and certificate
-  context.use_privatekey_file('data/ssl/server.key')
-  context.use_certificate_file('data/ssl/server.crt')
+  context.use_privatekey_file('../data/ssl/server.key')
+  context.use_certificate_file('../data/ssl/server.crt')
 
-  # logging.basicConfig(filename='data/server.log', level=logging.DEBUG)
+  # logging.basicConfig(filename='../data/server.log', level=logging.DEBUG)
   logging.basicConfig(level=logging.DEBUG)
 
   # TODO: add logging
