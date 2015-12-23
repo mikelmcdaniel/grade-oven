@@ -1,28 +1,29 @@
 # TODO: Validate course and assignment names
 # TODO: Restrict which users can see which pages more
 #   e.g. only admins, instructors, and enrolled students should see courses
-import errno
 import cgi
 import collections
-import os
+import errno
 import functools
 import glob
+import logging
+import optparse
+import os
 import shlex
 import shutil
-import time
 import tempfile
 import threading
-import logging
+import time
 
+from OpenSSL import SSL
+from flask.ext import login
 import bcrypt
 import flask
-from flask.ext import login
-from OpenSSL import SSL
 
 import datastore as datastore_lib
-import grade_oven_lib
 import executor
 import executor_queue_lib
+import grade_oven_lib
 
 # globals
 app = flask.Flask(__name__)
@@ -456,15 +457,32 @@ def login_():
   return flask.render_template(
     'login.html', username=login.current_user.get_id())
 
-@app.route("/logout")
+@app.route('/logout')
 @login.login_required
 def logout():
     login.logout_user()
     return flask.redirect('/')
 
+def get_command_line_options():
+  parser = optparse.OptionParser()
+  parser.add_option('--debug',
+                    action='store_true', dest='debug', default=True,
+                    help='Run in debug mode (instead of production mode).')
+  parser.add_option('--prod',
+                    action='store_false', dest='debug', default=True,
+                    help='Run in production mode (instead of debug mode).')
+  parser.add_option('--port',
+                    action='store', dest='port', type='int', default=None,
+                    help='Port to listen to.')
+  parser.add_option('--host',
+                    action='store', dest='host', type='string', default=None,
+                    help='Host name to listen to.')
 
+  options, _ = parser.parse_args()
+  return options
 
-if __name__ == '__main__':
+def main():
+  options = get_command_line_options()
   if not data_store.get_all(('admins',)):
     user = grade_oven.user('admin')
     user.set_password('admin')
@@ -479,6 +497,14 @@ if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)
 
   # TODO: add logging
+  if options.port is None:
+    options.port = 4321 if options.debug else 433
+  if options.host is None:
+    options.host = 'localhost' if options.debug else '0.0.0.0'
   app.run(
-    host='0.0.0.0', port=4321, debug=True, use_reloader=False,
-    use_debugger=False, ssl_context=context, use_evalex=False, threaded=True)
+    host=options.host, port=options.port, debug=options.debug, use_reloader=False,
+    use_debugger=options.debug, ssl_context=context, use_evalex=False, threaded=True)
+
+
+if __name__ == '__main__':
+  main()
