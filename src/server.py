@@ -4,7 +4,6 @@
 import errno
 import cgi
 import collections
-import datetime
 import os
 import functools
 import glob
@@ -348,7 +347,8 @@ def _make_grade_table(course, assignment):
     submission = assignment.student_submission(username)
     row.append(submission.score())
     row.append(submission.status())
-    row.append(submission.submit_time())
+    row.append(time.strftime('%Y-%m-%d %H:%M:%S',
+                             time.localtime(submission.submit_time())))
     row.append(submission.num_submissions())
     table.append(row)
   table = sorted(table, key=lambda row: (-row[1], row[3], row[4]))
@@ -388,8 +388,7 @@ def courses_x_assignments_x(course_name, assignment_name):
         'priority', desc, submission_dir, desc, stages, student_submission)
       executor_queue.enqueue(submission)
       student_submission.set_status('queued')
-      student_submission.set_submit_time(
-        datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+      student_submission.set_submit_time()
       student_submission.set_num_submissions(
         student_submission.num_submissions() + 1)
     output = student_submission.output()

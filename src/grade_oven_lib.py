@@ -1,6 +1,7 @@
+import bcrypt
 import executor
 import os
-import bcrypt
+import time
 """ Classes to interact with a Grade Oven data_store.DataStore() instance.
 
 DataStore schema:
@@ -142,7 +143,8 @@ class GradeOvenStudentSubmission(object):
 
   def stage_names(self):
     return self._data_store.get_all(
-      ('courses', self.course_name, 'assignments', self.assignment_name, 'stages'))
+      ('courses', self.course_name, 'assignments', self.assignment_name,
+       'students', self.student_username, 'stages'))
 
   def score(self):
     return sum(int(self._data_store.get(
@@ -199,14 +201,14 @@ class GradeOvenStudentSubmission(object):
        'students', self.student_username, 'status'), str(status))
 
   def submit_time(self):
-    return str(self._data_store.get(
+    return float(self._data_store.get(
       ('courses', self.course_name, 'assignments', self.assignment_name,
-       'students', self.student_username, 'submit_time'), '1970-01-01 00:00:00'))
+       'students', self.student_username, 'submit_time'), 0.0))
 
-  def set_submit_time(self, submit_time):
+  def set_submit_time(self, submit_time=None):
     self._data_store.put(
       ('courses', self.course_name, 'assignments', self.assignment_name,
-       'students', self.student_username, 'submit_time'), str(submit_time))
+       'students', self.student_username, 'submit_time'), float(time.time()))
 
   def num_submissions(self):
     return int(self._data_store.get(
