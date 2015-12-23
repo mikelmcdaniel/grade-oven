@@ -16,13 +16,11 @@ class Submission(object):
   QUEUED = 'queued'
   RUNNING = 'running'
   DONE = 'done'
-  def __init__(self, priority, short_desc, closure=None, long_desc=None):
-    if long_desc is None:
-      long_desc = short_desc
+  def __init__(self, priority, name, description, closure=None):
     self.closure = closure
     self.priority = priority
-    self.short_description = short_desc
-    self.description = long_desc
+    self.name = name
+    self.description = description
     self.status = self.QUEUED
 
   def before_run(self):
@@ -35,16 +33,16 @@ class Submission(object):
     pass
 
   def __hash__(self):
-    return hash(self.priority)
+    return hash(self.name)
 
   def __ne__(self, other):
     return not self == other
 
   def __eq__(self, other):
-    return self.priority == other
+    return self.name == other
 
   def __le__(self, other):
-    return self.priority < other
+    return self.name < other
 
 
 class ExecutorThread(threading.Thread):
@@ -52,7 +50,8 @@ class ExecutorThread(threading.Thread):
     super(ExecutorThread, self).__init__()
     self.daemon = False
     self.submission = submission
-    self.name = 'ExecutorThread {}'.format(self.submission.short_description)
+    self.name = 'ExecutorThread {}:{}'.format(self.submission.name,
+                                              self.submission.description)
     self._release_func = release_func
 
   def run(self):
@@ -70,13 +69,22 @@ class ExecutorQueue(object):
   def __init__(self, max_threads=3):
     # priority queue picks things with a lesser value first
     self._submission_queue = queue.PriorityQueue()
+    self._submission_set = set()
     self._threads_semaphore = threading.BoundedSemaphore(max_threads)
     self._running_threads = collections.deque()
     self._running_threads_lock = threading.Lock()
 
+  def __contains__(self, submission):
+    return submission in self._submission_set
+
   def enqueue(self, submission):
-    self._submission_queue.put(submission)
-    self.maybe_execute()
+    if submission not in self._submission_set:
+      self._submission_set.add(submission)
+      self._submission_queue.put((submission.priority, submission))
+      self.maybe_execute()
+      return True
+    else:
+      return False
 
   def _maybe_cleanup_threads(self):
     threads_to_remove = 0
@@ -98,7 +106,8 @@ class ExecutorQueue(object):
           t.join()
       self._maybe_cleanup_threads()
 
-  def _release_func(self):
+  def _release_func(self, submission):
+    self._submission_set.discard(submission)
     self._submission_queue.task_done()
     self._threads_semaphore.release()
     self.maybe_execute()
@@ -106,12 +115,13 @@ class ExecutorQueue(object):
   def maybe_execute(self):
     if self._threads_semaphore.acquire(blocking=False):
       try:
-        submission = self._submission_queue.get(block=False)
+        _, submission = self._submission_queue.get(block=False)
       except queue.Empty:
         submission = None
         self._threads_semaphore.release()
       if submission is not None:
-        t = ExecutorThread(submission, self._release_func)
+        t = ExecutorThread(
+          submission, functools.partial(self._release_func, submission))
         t.start()
         with self._running_threads_lock:
           self._running_threads.append(t)

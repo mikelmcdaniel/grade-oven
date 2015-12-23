@@ -291,9 +291,9 @@ def _edit_assignment(form, course_name, assignment_name, stages):
 
 class GradeOvenSubmission(executor_queue_lib.Submission):
   def __init__(
-      self, priority, short_desc, submission_dir, container_id, stages,
+      self, priority, name, description, submission_dir, container_id, stages,
       student_submission):
-    super(GradeOvenSubmission, self).__init__(priority, short_desc)
+    super(GradeOvenSubmission, self).__init__(priority, name, description)
     self._temp_dir = None
     self.submission_dir = submission_dir
     self.container_id = container_id
@@ -377,20 +377,27 @@ def courses_x_assignments_x(course_name, assignment_name):
       submission_dir = os.path.join(
         '../data/files/courses', course_name, 'assignments', assignment_name,
         'submissions', user.username)
-      try:
-        shutil.rmtree(submission_dir)
-      except OSError as e:
-        if e.errno != errno.ENOENT:
-          raise e
-      save_files_in_dir(files, submission_dir)
       desc = '{}_{}_{}'.format(course_name, assignment_name, user.username)
+      container_id = desc
       submission = GradeOvenSubmission(
-        'priority', desc, submission_dir, desc, stages, student_submission)
-      executor_queue.enqueue(submission)
-      student_submission.set_status('queued')
-      student_submission.set_submit_time()
-      student_submission.set_num_submissions(
-        student_submission.num_submissions() + 1)
+        'priority', user.username, desc, submission_dir, container_id, stages,
+        student_submission)
+      if submission in executor_queue:
+        logging.warning(
+          'Student "%s" submited assignment "%s/%s" while still in the queue.',
+          user.username, course_name, assignment_name)
+      else:
+        try:
+          shutil.rmtree(submission_dir)
+        except OSError as e:
+          if e.errno != errno.ENOENT:
+            raise e
+        save_files_in_dir(files, submission_dir)
+        executor_queue.enqueue(submission)
+        student_submission.set_status('queued')
+        student_submission.set_submit_time()
+        student_submission.set_num_submissions(
+          student_submission.num_submissions() + 1)
     output = student_submission.output()
     errors = student_submission.errors()
   else:

@@ -12,7 +12,7 @@ class TestExecutor(unittest.TestCase):
       nonce.append('nonce')
     executor_queue = executor_queue_lib.ExecutorQueue()
     submission = executor_queue_lib.Submission(
-      'arbitrary priority', 'short description', closure)
+      'arbitrary priority', 'name', 'description', closure)
     executor_queue.enqueue(submission)
     executor_queue.join()
     self.assertEqual(nonce, ['nonce'])
@@ -26,11 +26,11 @@ class TestExecutor(unittest.TestCase):
     def closure3():
       nonce.add('three')
     submission1 = executor_queue_lib.Submission(
-      'arbitrary priority', 'first description', closure1)
+      'arbitrary priority', 'name', 'first description', closure1)
     submission2 = executor_queue_lib.Submission(
-      'arbitrary priority', 'second description', closure2)
+      'arbitrary priority', 'name', 'second description', closure2)
     submission3 = executor_queue_lib.Submission(
-      'arbitrary priority', 'third description', closure3)
+      'arbitrary priority', 'name', 'third description', closure3)
     executor_queue = executor_queue_lib.ExecutorQueue()
     executor_queue.enqueue(submission1)
     executor_queue.enqueue(submission2)
@@ -40,10 +40,10 @@ class TestExecutor(unittest.TestCase):
 
   def test_submission_ordering(self):
     sorted_submissions = [
-      executor_queue_lib.Submission(j, str(j))
+      executor_queue_lib.Submission(j, str(j), str(j))
       for j in xrange(10)]
     shuffled_submissions = [
-      executor_queue_lib.Submission(j, str(j))
+      executor_queue_lib.Submission(j, str(j), str(j))
       for j in xrange(10)]
     random.shuffle(shuffled_submissions)
     self.assertEqual(sorted_submissions, sorted(shuffled_submissions))
@@ -74,13 +74,13 @@ class TestExecutor(unittest.TestCase):
     # The null submission is necessary since as soon as it's queued, it will
     # be started since nothing else is in the queue and max_threads == 1.
     null_submission = executor_queue_lib.Submission(
-      1000, 'null submission', null_closure)
+      1000, 'null submission', 'null submission', null_closure)
     submission1 = executor_queue_lib.Submission(
-      1, 'most important', closure1)
+      1, 'most important', 'most important', closure1)
     submission2 = executor_queue_lib.Submission(
-      2, 'meh', closure2)
+      2, 'meh', 'meh', closure2)
     submission3 = executor_queue_lib.Submission(
-      3, 'least important', closure3)
+      3, 'least important', 'least important', closure3)
     executor_queue = executor_queue_lib.ExecutorQueue(max_threads=1)
     nonce_lock.acquire()
     executor_queue.enqueue(null_submission)
@@ -104,6 +104,44 @@ class TestExecutor(unittest.TestCase):
       nonce_lock.release()
       executor_queue.join()
       self.assertEqual(nonce, ['first', 'second', 'third'])
+
+  def test_multiple_identical_submissions(self):
+    nonce = []
+    nonce_lock = threading.Lock()
+    def null_closure():
+      nonce_lock.acquire()
+      nonce_lock.release()
+    def closure1():
+      nonce_lock.acquire()
+      nonce_lock.release()
+      nonce.append('first')
+    def closure2():
+      nonce_lock.acquire()
+      nonce_lock.release()
+      nonce.append('second')
+    def closure3():
+      nonce_lock.acquire()
+      nonce_lock.release()
+      nonce.append('third')
+    # The null submission is necessary since as soon as it's queued, it will
+    # be started since nothing else is in the queue and max_threads == 1.
+    null_submission = executor_queue_lib.Submission(
+      1000, 'null submission', 'null submission', null_closure)
+    submission1 = executor_queue_lib.Submission(
+      3, 'same name', 'most important', closure1)
+    submission2 = executor_queue_lib.Submission(
+      2, 'same name', 'meh', closure2)
+    submission3 = executor_queue_lib.Submission(
+      1, 'same name', 'least important', closure3)
+    executor_queue = executor_queue_lib.ExecutorQueue(max_threads=1)
+    nonce_lock.acquire()
+    executor_queue.enqueue(null_submission)
+    executor_queue.enqueue(submission1)
+    executor_queue.enqueue(submission2)
+    executor_queue.enqueue(submission3)
+    nonce_lock.release()
+    executor_queue.join()
+    self.assertEqual(nonce, ['first'])
 
 
 
