@@ -1,9 +1,9 @@
 <!doctype html>
 <title>Grade Oven</title>
 <!-- <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}"> -->
-<div class="header">
+{% if username %}<div class="header">
 Logged in as {{ username|e }}.  <a href="/">home</a> <a href="/settings">settings</a> <a href="/logout">logout</a>
-</div>
+</div>{% endif %}
 <div class="page">
   {% block body %}{% endblock %}
 </div>
