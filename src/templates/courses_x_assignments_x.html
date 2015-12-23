@@ -8,7 +8,7 @@
 {% endfor %}</pre>
 
 {% if instructs_course %}
-<form method="post" enctype="multipart/form-data">
+<form method="post" enctype="multipart/form-data" action="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/edit">
   Description: <input name="description" type="text" placeholder="assignment description" value="{{ stages_desc|e }}"><br>
   {% for stage in stages %}
   <h4>{{ stage.name|e }}:</h4>
@@ -28,7 +28,7 @@
 
 {% if takes_course %}
 <h3>Submit Solution:</h3>
-<form method="post" enctype="multipart/form-data">
+<form method="post" enctype="multipart/form-data" action="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/submit">
   <input type="file" multiple="multiple" name="submission_files[]">
   <input type="submit" value="Submit Code">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">

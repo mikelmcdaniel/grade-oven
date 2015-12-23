@@ -81,7 +81,7 @@ def csrf_protect():
   if flask.request.method != 'GET':
     token = flask.session.pop('_csrf_token', None)
     if not token or token != flask.request.form.get('_csrf_token'):
-      abort(403)
+      flask.abort(403)
 
 def generate_csrf_token():
   if '_csrf_token' not in flask.session:
@@ -355,21 +355,37 @@ def _make_grade_table(course, assignment):
   table = sorted(table, key=lambda row: (-row[1], row[3], row[4]))
   return header_row, table
 
-@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>',
-           methods=['GET', 'POST'])
+@app.route(
+  '/courses/<string:course_name>/assignments/<string:assignment_name>/edit',
+  methods=['POST'])
 @login.login_required
-def courses_x_assignments_x(course_name, assignment_name):
+def courses_x_assignments_x_edit(course_name, assignment_name):
   user = login.current_user
   course = grade_oven.course(course_name)
   assignment = course.assignment(assignment_name)
   student_submission = assignment.student_submission(user.username)
   instructs_course = user.instructs_course(course.name)
-  takes_course = user.takes_course(course.name)
   stages = executor.Stages(os.path.join(
     '../data/files/courses', course.name, 'assignments', assignment.name))
   if instructs_course:
     form = flask.request.form
     _edit_assignment(form, course_name, assignment_name, stages)
+  return flask.redirect(
+    '/courses/{}/assignments/{}'.format(course_name, assignment_name),
+    code=303)
+
+@app.route(
+  '/courses/<string:course_name>/assignments/<string:assignment_name>/submit',
+  methods=['POST'])
+@login.login_required
+def courses_x_assignments_x_submit(course_name, assignment_name):
+  user = login.current_user
+  course = grade_oven.course(course_name)
+  assignment = course.assignment(assignment_name)
+  student_submission = assignment.student_submission(user.username)
+  takes_course = user.takes_course(course.name)
+  stages = executor.Stages(os.path.join(
+    '../data/files/courses', course.name, 'assignments', assignment.name))
   if takes_course:
     files = flask.request.files.getlist('submission_files[]')
     if files:
@@ -399,6 +415,22 @@ def courses_x_assignments_x(course_name, assignment_name):
         student_submission.set_submit_time()
         student_submission.set_num_submissions(
           student_submission.num_submissions() + 1)
+  return flask.redirect(
+    '/courses/{}/assignments/{}'.format(course_name, assignment_name),
+    code=303)
+
+@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>')
+@login.login_required
+def courses_x_assignments_x(course_name, assignment_name):
+  user = login.current_user
+  course = grade_oven.course(course_name)
+  assignment = course.assignment(assignment_name)
+  student_submission = assignment.student_submission(user.username)
+  instructs_course = user.instructs_course(course.name)
+  takes_course = user.takes_course(course.name)
+  stages = executor.Stages(os.path.join(
+    '../data/files/courses', course.name, 'assignments', assignment.name))
+  if takes_course:
     output = student_submission.output()
     errors = student_submission.errors()
   else:
@@ -450,12 +482,13 @@ def login_():
     user = grade_oven_lib.GradeOvenUser.load_and_authenticate_user(
       data_store, username, password)
     if user is None:
-      return flask.abort(400)
+      return flask.abort(401)
     else:
       login.login_user(user, remember=True)
-      return flask.redirect('/')
+      return flask.redirect('/', code=303)
   return flask.render_template(
     'login.html', username=login.current_user.get_id())
+
 
 @app.route('/logout')
 @login.login_required
