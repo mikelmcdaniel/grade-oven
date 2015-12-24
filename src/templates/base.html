@@ -4,6 +4,15 @@
 {% if username %}<div class="header">
 Logged in as {{ username|e }}.  <a href="/">home</a> <a href="/settings">settings</a> <a href="/logout">logout</a>
 </div>{% endif %}
+{% with flash_errors = get_flashed_messages() %}
+  {% if errors or flash_errors %}
+<h2>Errors:</h2>
+<ul class="error">
+  {% for error in flash_errors %}<li>{{ error|e }}</li>{% endfor %}
+  {% for error in errors %}<li>{{ error|e }}</li>{% endfor %}
+</ul>
+  {% endif %}
+{% endwith %}
 <div class="page">
   {% block body %}{% endblock %}
 </div>

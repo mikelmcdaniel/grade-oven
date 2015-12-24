@@ -248,6 +248,7 @@ def courses_x_assignments(course_name):
     course_name=course.name)
 
 def _edit_assignment(form, course_name, assignment_name, stages):
+  errors = []
   logging.info('Editing assignment "%s" in course "%s"',
                assignment_name, course_name)
   course = grade_oven.course(course_name)
@@ -273,11 +274,15 @@ def _edit_assignment(form, course_name, assignment_name, stages):
           os.remove(os.path.join(df_stage.path, df_filename))
         except OSError as e:
           logging.warning('OSError when deleting "%s": %s', delete_file, e)
+          errors.append('OSError when deleting "{}": {}'.format(delete_file, e))
       except KeyError as e:
         logging.warning('Could not find stage "%s" to delete "%s": %s',
                         df_stage_name, delete_file, e)
+        errors.append('Could not find stage "{}" to delete "{}": {}'.format(
+                        df_stage_name, delete_file, e))
     else:
       logging.warning('Could not split "%s" to delete it.', delete_file)
+      errors.append('Could not split "{}" to delete it.'.format(delete_file))
   for stage in stages.stages.itervalues():
     description = form.get('description_{}'.format(stage.name))
     if description:
@@ -288,6 +293,7 @@ def _edit_assignment(form, course_name, assignment_name, stages):
     files = flask.request.files.getlist('files_{}[]'.format(stage.name))
     if files:
       save_files_in_dir(files, stage.path)
+  return errors
 
 
 class GradeOvenSubmission(executor_queue_lib.Submission):
@@ -301,6 +307,8 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     self.stages = stages
     self.student_submission = student_submission
     self.container = None
+    self.outputs = []
+    self.errors = []
 
   def _run_stages_callback(self, stage):
     logging.info('GradeOvenSubmission._run_stages_callback %s', stage.name)
@@ -322,13 +330,11 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     logging.info('GradeOvenSubmission.run %s', self.description)
     self.container = executor.DockerExecutor(self.container_id, self._temp_dir)
     self.container.init()
-    outputs = []
-    errors = []
     self.student_submission.set_status('running')
     output, errs = self.container.run_stages(self.submission_dir, self.stages,
                                              self._run_stages_callback)
-    outputs.append(output)
-    errors.extend(errs)
+    self.outputs.append(output)
+    self.errors.extend(errs)
 
   def after_run(self):
     logging.info('GradeOvenSubmission.after_run %s', self.description)
@@ -369,7 +375,8 @@ def courses_x_assignments_x_edit(course_name, assignment_name):
     '../data/files/courses', course.name, 'assignments', assignment.name))
   if instructs_course:
     form = flask.request.form
-    _edit_assignment(form, course_name, assignment_name, stages)
+    for error in _edit_assignment(form, course_name, assignment_name, stages):
+      flask.flash(error)
   return flask.redirect(
     '/courses/{}/assignments/{}'.format(course_name, assignment_name),
     code=303)
@@ -403,6 +410,9 @@ def courses_x_assignments_x_submit(course_name, assignment_name):
         logging.warning(
           'Student "%s" submited assignment "%s/%s" while still in the queue.',
           user.username, course_name, assignment_name)
+        flask.flash(
+          '{} cannot submit assignment {} for {} while in the queue.'.format(
+            user.username, assignment_name, course_name))
       else:
         try:
           shutil.rmtree(submission_dir)
@@ -431,17 +441,18 @@ def courses_x_assignments_x(course_name, assignment_name):
   stages = executor.Stages(os.path.join(
     '../data/files/courses', course.name, 'assignments', assignment.name))
   if takes_course:
-    output = student_submission.output()
-    errors = student_submission.errors()
+    submission_output = student_submission.output()
+    submission_errors = student_submission.errors()
   else:
-    output, errors = None, None
+    submission_output, submission_errors = 'no output', 'no errors'
   header_row, table = _make_grade_table(course, assignment)
   return flask.render_template(
     'courses_x_assignments_x.html', username=login.current_user.get_id(),
     instructs_course=instructs_course,
     takes_course=takes_course, course_name=course.name,
     assignment_name=assignment.name,
-    stages=stages.stages.values(), output=output, errors=errors,
+    stages=stages.stages.values(), submission_output=submission_output,
+    submission_errors=submission_errors,
     stages_desc=stages.description, header_row=header_row, table=table)
 
 @app.route('/settings', methods=['GET', 'POST'])
