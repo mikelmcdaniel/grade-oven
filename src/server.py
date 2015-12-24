@@ -21,6 +21,7 @@ import bcrypt
 import flask
 
 import datastore as datastore_lib
+import escape_lib
 import executor
 import executor_queue_lib
 import grade_oven_lib
@@ -107,7 +108,7 @@ def admin_edit_user():
       return False
     return None
   form = flask.request.form
-  username = form.get('username')
+  username = escape_lib.safe_entity_name(form.get('username'))
   password = form.get('password')
   password2 = form.get('password2')
   is_admin = _select_to_bool(form.get('is_admin'))
@@ -166,22 +167,8 @@ def courses():
     'courses.html', username=login.current_user.get_id(),
     courses=grade_oven.course_names())
 
-BASE_FILENAME_CHARS = frozenset(
-  'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_.()')
-def base_filename_is_safe(filename):
-  return not (set(filename) - BASE_FILENAME_CHARS) and filename
-
-def safe_base_filename(filename):
-  if base_filename_is_safe(filename):
-    return filename
-  elif not filename:
-    return '_'
-  else:
-    return ''.join(c if c in BASE_FILENAME_CHARS else '%{!x}'.format(ord(c))
-                   for c in filename)
-
-# TODO: handle/return errors
 def save_files_in_dir(flask_files, dir_path):
+  errors = []
   try:
     os.makedirs(dir_path)
   except OSError as e:
@@ -189,8 +176,16 @@ def save_files_in_dir(flask_files, dir_path):
       raise e
   for f in flask_files:
     base_filename = os.path.basename(f.filename)
-    if base_filename_is_safe(base_filename):
+    if escape_lib.is_safe_entity_name(base_filename):
       f.save(os.path.join(dir_path, base_filename))
+    else:
+      safe_base_filename = escape_lib.safe_entity_name(base_filename)
+      logging.warning('Bad base_filename "{}" is bad.'.format(base_filename))
+      errors.append(
+        'Filename "{}" is unsafe.  File saved as "{}" instead.'.format(
+          base_filename, safe_base_filename))
+      f.save(os.path.join(dir_path, safe_base_filename))
+  return errors
 
 @app.route('/courses/<string:course_name>', methods=['GET', 'POST'])
 @login.login_required
@@ -202,17 +197,17 @@ def courses_x(course_name):
   if instructs_course:
     form = flask.request.form
     # Add/Edit assignment
-    assignment_name = form.get('assignment_name')
+    assignment_name = escape_lib.safe_entity_name(form.get('assignment_name'))
     if assignment_name:
       course.add_assignment(assignment_name)
       return flask.redirect(
         '/courses/{}/assignments/{}'.format(course_name, assignment_name))
     # Enroll students
-    add_students = form.get('add_students')
+    add_students = escape_lib.safe_entity_name(form.get('add_students'))
     if add_students:
       course.add_students(add_students.split())
     # Unenroll students
-    remove_students = form.get('remove_students')
+    remove_students = escape_lib.safe_entity_name(form.get('remove_students'))
     if remove_students:
       course.remove_students(remove_students.split())
     student_usernames = course.student_usernames()
@@ -235,7 +230,7 @@ def courses_x_assignments(course_name):
   # Add/Edit assignment
   if instructs_course:
     form = flask.request.form
-    assignment_name = form.get('assignment_name')
+    assignment_name = escape_lib.safe_entity_name(form.get('assignment_name'))
     if assignment_name:
       course.add_assignment(assignment_name)
       return flask.redirect(
@@ -254,20 +249,20 @@ def _edit_assignment(form, course_name, assignment_name, stages):
   course = grade_oven.course(course_name)
   course.add_assignment(assignment_name)
   assignment = course.assignment(assignment_name)
-  new_stage_name = form.get('new_stage_name')
+  new_stage_name = escape_lib.safe_entity_name(form.get('new_stage_name'))
   if new_stage_name:
-    new_stage_name = safe_base_filename(new_stage_name)
+    new_stage_name = escape_lib.safe_entity_name(new_stage_name)
     stages.add_stage(new_stage_name)
-  description = form.get('description')
+  description = escape_lib.safe_entity_name(form.get('description'))
   if description:
     stages.save_description(description)
-  delete_files = form.getlist('delete_files')
+  delete_files = [escape_lib.safe_entity_name(f) for f in form.getlist('delete_files')]
   for delete_file in delete_files:
     parts = delete_file.split('/', 1)
     if len(parts) == 2:
       df_stage_name, df_filename = parts
-      df_stage_name = safe_base_filename(df_stage_name)
-      df_filename = safe_base_filename(df_filename)
+      df_stage_name = escape_lib.safe_entity_name(df_stage_name)
+      df_filename = escape_lib.safe_entity_name(df_filename)
       try:
         df_stage = stages.stages[df_stage_name]
         try:
@@ -487,7 +482,7 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login_():
   form = flask.request.form
-  username = form.get('username')
+  username = escape_lib.safe_entity_name(form.get('username'))
   password = form.get('password')
   if username and password:
     user = grade_oven_lib.GradeOvenUser.load_and_authenticate_user(
