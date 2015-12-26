@@ -21,11 +21,12 @@ def is_safe_entity_name(entity):
 def safe_entity_name(entity):
   if entity is None:
     return None
-  if entity in BAD_ENTITY_NAMES:
+  if entity == '':
+    return '_'
+  elif entity in BAD_ENTITY_NAMES:
     return ''.join('{:02x}'.format(ord(c)) for c in entity)
   elif is_safe_entity_name(entity):
     return entity
-  else:
-    return ''.join(
-      c if c in SAFE_ENTITY_CHARS else '{:02x}'.format(ord(c))
-      for c in entity)
+  return ''.join(
+    c if c in SAFE_ENTITY_CHARS else '{:02x}'.format(ord(c))
+    for c in entity)

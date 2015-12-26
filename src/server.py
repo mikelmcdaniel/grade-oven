@@ -176,15 +176,16 @@ def save_files_in_dir(flask_files, dir_path):
       raise e
   for f in flask_files:
     base_filename = os.path.basename(f.filename)
-    if escape_lib.is_safe_entity_name(base_filename):
-      f.save(os.path.join(dir_path, base_filename))
-    else:
-      safe_base_filename = escape_lib.safe_entity_name(base_filename)
-      logging.warning('Bad base_filename "{}" is bad.'.format(base_filename))
-      errors.append(
-        'Filename "{}" is unsafe.  File saved as "{}" instead.'.format(
-          base_filename, safe_base_filename))
-      f.save(os.path.join(dir_path, safe_base_filename))
+    if base_filename:
+      if escape_lib.is_safe_entity_name(base_filename):
+        f.save(os.path.join(dir_path, base_filename))
+      else:
+        safe_base_filename = escape_lib.safe_entity_name(base_filename)
+        errors.append(
+          'Filename "{}" is unsafe.  File saved as "{}" instead.'.format(
+            base_filename, safe_base_filename))
+        logging.warning(errors[-1])
+        f.save(os.path.join(dir_path, safe_base_filename))
   return errors
 
 @app.route('/courses/<string:course_name>', methods=['GET', 'POST'])
@@ -234,7 +235,8 @@ def courses_x_assignments(course_name):
     if assignment_name:
       course.add_assignment(assignment_name)
       return flask.redirect(
-        '/courses/{}/assignments/{}'.format(course_name, assignment_name))
+        '/courses/{}/assignments/{}'.format(course_name, assignment_name),
+        code=303)
   assignment_names = course.assignment_names()
   return flask.render_template(
     'courses_x_assignments.html', username=login.current_user.get_id(),
@@ -249,14 +251,14 @@ def _edit_assignment(form, course_name, assignment_name, stages):
   course = grade_oven.course(course_name)
   course.add_assignment(assignment_name)
   assignment = course.assignment(assignment_name)
-  new_stage_name = escape_lib.safe_entity_name(form.get('new_stage_name'))
+  new_stage_name = form.get('new_stage_name')
   if new_stage_name:
     new_stage_name = escape_lib.safe_entity_name(new_stage_name)
     stages.add_stage(new_stage_name)
-  description = escape_lib.safe_entity_name(form.get('description'))
+  description = form.get('description')
   if description:
     stages.save_description(description)
-  delete_files = [escape_lib.safe_entity_name(f) for f in form.getlist('delete_files')]
+  delete_files = form.getlist('delete_files')
   for delete_file in delete_files:
     parts = delete_file.split('/', 1)
     if len(parts) == 2:
@@ -268,16 +270,15 @@ def _edit_assignment(form, course_name, assignment_name, stages):
         try:
           os.remove(os.path.join(df_stage.path, df_filename))
         except OSError as e:
-          logging.warning('OSError when deleting "%s": %s', delete_file, e)
-          errors.append('OSError when deleting "{}": {}'.format(delete_file, e))
+          errors.append('Could not delete "{}": {}'.format(delete_file, e))
+          logging.warning(errors[-1])
       except KeyError as e:
-        logging.warning('Could not find stage "%s" to delete "%s": %s',
-                        df_stage_name, delete_file, e)
         errors.append('Could not find stage "{}" to delete "{}": {}'.format(
                         df_stage_name, delete_file, e))
+        logging.warning(errors[-1])
     else:
-      logging.warning('Could not split "%s" to delete it.', delete_file)
       errors.append('Could not split "{}" to delete it.'.format(delete_file))
+      logging.warning(errors[-1])
   for stage in stages.stages.itervalues():
     description = form.get('description_{}'.format(stage.name))
     if description:
@@ -288,6 +289,9 @@ def _edit_assignment(form, course_name, assignment_name, stages):
     files = flask.request.files.getlist('files_{}[]'.format(stage.name))
     if files:
       save_files_in_dir(files, stage.path)
+  delete_stages  = form.getlist('delete_stages'.format(stage.name))
+  for delete_stage in delete_stages:
+    stages.remove_stage(delete_stage)
   return errors
 
 

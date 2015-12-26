@@ -12,6 +12,7 @@
   Description: <input name="description" type="text" placeholder="assignment description" value="{{ stages_desc|e }}"><br>
   {% for stage in stages %}
   <h4>{{ stage.name|e }}:</h4>
+  Delete {{ stage.name|e }} <input type="checkbox" name="delete_stages" value="{{ stage.name|e }}"><br>
   Description: <input name="description_{{ stage.name|e }}" placeholder="description of {{ stage.name|e }}" type="text" value="{{ stage.description|e }}"><br>
   Commands:<br>
   <textarea name="main_cmds_{{ stage.name|e }}" rows="5" cols="80">{{ stage.main_script|e }}</textarea><br>

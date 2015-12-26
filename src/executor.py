@@ -187,6 +187,16 @@ class Stages(object):
     self.save_stages()
     return self.stages[stage_name]
 
+  # TODO: return errors
+  def remove_stage(self, stage_name):
+    stage = self.stages[stage_name]
+    del self.stages[stage_name]
+    self.save_stages()
+    try:
+      shutil.rmtree(stage.path)
+    except (shutil.Error, OSError, IOError) as e:
+      pass
+
 
 def merge_tree(src, dst):
   "Like shutil.copytree, except it is not an error if the dst exists."
@@ -200,13 +210,7 @@ def merge_tree(src, dst):
     if os.path.isfile(src_filename):
       try:
         shutil.copy(src_filename, dst_filename)
-      except shutil.Error as e:
-        errors.append(repr(e))
-        errors.append(str(e))
-      except OSError as e:
-        errors.append(repr(e))
-        errors.append(str(e))
-      except IOError as e:
+      except (shutil.Error, OSError, IOError) as e:
         errors.append(repr(e))
         errors.append(str(e))
     elif os.path.isdir(src_filename):
