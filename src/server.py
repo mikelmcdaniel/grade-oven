@@ -11,6 +11,7 @@ import optparse
 import os
 import shlex
 import shutil
+import signal
 import tempfile
 import threading
 import time
@@ -102,6 +103,26 @@ def generate_csrf_token():
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
+SIGNALS = dict((signal_name, getattr(signal, signal_name))
+               for signal_name in dir(signal))
+
+@app.route('/admin')
+@admin_required
+def admin():
+  return flask.render_template(
+  'admin.html', username=login.current_user.get_id())
+
+@app.route('/admin/kill/<string:sig>')
+@admin_required
+def admin_kill_x(sig):
+  self_pid = os.getpid()
+  logging.warning('Sending signal (%s) to self (pid %s).', sig, self_pid)
+  sig = SIGNALS.get(sig, sig)
+  try:
+    sig = int(sig)
+  except ValueError:
+    pass
+  os.kill(self_pid, sig)
 
 @app.route('/admin/add_user')
 @admin_required
@@ -159,16 +180,20 @@ def admin_edit_user():
     'admin_edit_user.html', username=login.current_user.get_id(), errors=errors, msgs=msgs)
 
 
-@app.route('/admin/db/get/<path:key>')
+@app.route('/admin/db/<path:key>')
 @admin_required
-def admin_db_get(key):
-  return cgi.escape(repr(data_store.get(key.split('/'))))
-
-@app.route('/admin/db/get_all/<path:key>')
-@admin_required
-def admin_db_get_all(key):
-  return '<br>'.join(cgi.escape(repr(v))
-                     for v in data_store.get_all(key.split('/')))
+def admin_db(key):
+  key = key.split('/')
+  key_parts = []
+  parts_so_far = []
+  for part in key:
+    parts_so_far.append(part)
+    key_parts.append(('/'.join(parts_so_far), part))
+  data = repr(data_store.get(key))
+  sub_dirs = data_store.get_all(key)
+  return flask.render_template(
+    'admin_db.html', username=login.current_user.get_id(), key=key_parts,
+    data=data, sub_dirs=sub_dirs)
 
 @app.route('/monitor/variables')
 @monitor_required
@@ -502,7 +527,10 @@ def settings():
 @app.route('/')
 def index():
   if login.current_user.is_authenticated():
-    return flask.redirect('/courses')
+    if login.current_user.is_admin():
+      return flask.redirect('/admin')
+    else:
+      return flask.redirect('/courses')
   else:
     return flask.redirect('/login')
 

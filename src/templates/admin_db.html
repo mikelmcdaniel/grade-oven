@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>{% for part in key %}/<a href="/admin/db/{{ part[0]|e }}">{{ part[1]|e }}</a>{% endfor %}</h2>
+<h2>Data</h2>
+{{ data|e }}
+<h2>Sub Directories</h2>
+{% for sub_dir in sub_dirs %}
+<a href="/admin/db/{{ key[-1][0]|e }}/{{ sub_dir|e }}">{{ sub_dir|e }}</a><br>
+{% endfor %}
+{% endblock %}
