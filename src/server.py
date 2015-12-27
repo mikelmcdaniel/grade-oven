@@ -63,6 +63,16 @@ class ResourcePool(object):
 temp_dirs = ResourcePool(
   os.path.abspath(p) for p in glob.glob('../data/host_dirs/?'))
 
+def login_required(func):
+  @functools.wraps(func)
+  def login_required_func(*args, **kwargs):
+    if login.current_user.is_authenticated():
+      return func(*args, **kwargs)
+    else:
+      return flask.redirect(
+        '/login?redirect={}'.format(flask.request.path), code=303)
+  return login_required_func
+
 
 def admin_required(func):
   @functools.wraps(func)
@@ -71,7 +81,7 @@ def admin_required(func):
       return func(*args, **kwargs)
     else:
       return flask.abort(403)  # forbidden
-  return login.login_required(admin_required_func)
+  return login_required(admin_required_func)
 
 def monitor_required(func):
   @functools.wraps(func)
@@ -80,7 +90,7 @@ def monitor_required(func):
       return func(*args, **kwargs)
     else:
       return flask.abort(403)  # forbidden
-  return login.login_required(admin_required_func)
+  return login_required(admin_required_func)
 
 
 # Set function to load a user
@@ -203,12 +213,12 @@ def variables():
                     indent=2, separators=(',', ': '))
 
 @app.route('/debug/logged_in')
-@login.login_required
+@login_required
 def debug_logged_in():
   return 'Logged in as {}.'.format(cgi.escape(login.current_user.get_id()))
 
 @app.route('/courses')
-@login.login_required
+@login_required
 def courses():
   return flask.render_template(
     'courses.html', username=login.current_user.get_id(),
@@ -236,7 +246,7 @@ def save_files_in_dir(flask_files, dir_path):
   return errors
 
 @app.route('/courses/<string:course_name>', methods=['GET', 'POST'])
-@login.login_required
+@login_required
 def courses_x(course_name):
   user = login.current_user
   course = grade_oven.course(course_name)
@@ -269,7 +279,7 @@ def courses_x(course_name):
     assignments=assignment_names, course_name=course.name)
 
 @app.route('/courses/<string:course_name>/assignments', methods=['GET', 'POST'])
-@login.login_required
+@login_required
 def courses_x_assignments(course_name):
   user = login.current_user
   course = grade_oven.course(course_name)
@@ -410,7 +420,7 @@ def _make_grade_table(course, assignment):
 @app.route(
   '/courses/<string:course_name>/assignments/<string:assignment_name>/edit',
   methods=['POST'])
-@login.login_required
+@login_required
 def courses_x_assignments_x_edit(course_name, assignment_name):
   user = login.current_user
   course = grade_oven.course(course_name)
@@ -430,7 +440,7 @@ def courses_x_assignments_x_edit(course_name, assignment_name):
 @app.route(
   '/courses/<string:course_name>/assignments/<string:assignment_name>/submit',
   methods=['POST'])
-@login.login_required
+@login_required
 def courses_x_assignments_x_submit(course_name, assignment_name):
   user = login.current_user
   course = grade_oven.course(course_name)
@@ -477,7 +487,7 @@ def courses_x_assignments_x_submit(course_name, assignment_name):
     code=303)
 
 @app.route('/courses/<string:course_name>/assignments/<string:assignment_name>')
-@login.login_required
+@login_required
 def courses_x_assignments_x(course_name, assignment_name):
   user = login.current_user
   course = grade_oven.course(course_name)
@@ -503,7 +513,7 @@ def courses_x_assignments_x(course_name, assignment_name):
     stages_desc=stages.description, header_row=header_row, table=table)
 
 @app.route('/settings', methods=['GET', 'POST'])
-@login.login_required
+@login_required
 def settings():
   user = login.current_user
   errors = []
@@ -548,13 +558,14 @@ def login_():
     else:
       monitor_variables['login_successes'] += 1
       login.login_user(user, remember=True)
-      return flask.redirect('/', code=303)
+      redirect = flask.request.args.get('redirect', '/')
+      return flask.redirect(redirect, code=303)
   return flask.render_template(
     'login.html', username=login.current_user.get_id())
 
 
 @app.route('/logout')
-@login.login_required
+@login_required
 def logout():
   monitor_variables['logouts'] += 1
   login.logout_user()
