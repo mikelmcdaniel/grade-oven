@@ -541,7 +541,7 @@ def main():
 
   # TODO: add logging
   if options.port is None:
-    options.port = 4321 if options.debug else 433
+    options.port = 4321 if options.debug else 443
   if options.host is None:
     options.host = 'localhost' if options.debug else '0.0.0.0'
   app.run(
