@@ -17,6 +17,7 @@ courses[]
 users[]
   hashed_password
 admins
+monitors
 instructors
 
 File system schema:
@@ -63,6 +64,15 @@ class GradeOvenUser(object):
       self._data_store.put(('admins', self.username))
     else:
       del self._data_store['admins', self.username]
+
+  def is_monitor(self):
+    return ('monitors', self.username) in self._data_store or self.is_admin()
+
+  def set_is_monitor(self, is_monitor):
+    if is_monitor:
+      self._data_store.put(('monitors', self.username))
+    else:
+      del self._data_store['monitors', self.username]
 
   def is_instructor(self):
     return ('instructors', self.username) in self._data_store

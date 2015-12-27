@@ -14,6 +14,7 @@ import shutil
 import tempfile
 import threading
 import time
+import json
 
 from OpenSSL import SSL
 from flask.ext import login
@@ -35,7 +36,7 @@ login_manager.init_app(app)
 data_store = datastore_lib.DataStore(os.path.abspath('../data/db'))
 grade_oven = grade_oven_lib.GradeOven(data_store)
 executor_queue = executor_queue_lib.ExecutorQueue()
-
+monitor_variables = collections.defaultdict(int)
 
 class ResourcePool(object):
   def __init__(self, resources):
@@ -66,6 +67,15 @@ def admin_required(func):
   @functools.wraps(func)
   def admin_required_func(*args, **kwargs):
     if login.current_user.is_authenticated() and login.current_user.is_admin():
+      return func(*args, **kwargs)
+    else:
+      return flask.abort(403)  # forbidden
+  return login.login_required(admin_required_func)
+
+def monitor_required(func):
+  @functools.wraps(func)
+  def admin_required_func(*args, **kwargs):
+    if login.current_user.is_authenticated() and login.current_user.is_monitor():
       return func(*args, **kwargs)
     else:
       return flask.abort(403)  # forbidden
@@ -112,6 +122,7 @@ def admin_edit_user():
   password = form.get('password')
   password2 = form.get('password2')
   is_admin = _select_to_bool(form.get('is_admin'))
+  is_monitor = _select_to_bool(form.get('is_monitor'))
   is_instructor = _select_to_bool(form.get('is_instructor'))
   course = form.get('course')
   instructs_course = _select_to_bool(form.get('instructs_course'))
@@ -129,6 +140,9 @@ def admin_edit_user():
     if is_admin is not None:
       user.set_is_admin(is_admin)
       msgs.append('Set is_admin == {!r}'.format(is_admin))
+    if is_monitor is not None:
+      user.set_is_monitor(is_monitor)
+      msgs.append('Set is_monitor == {!r}'.format(is_monitor))
     if is_instructor is not None:
       user.set_is_instructor(is_instructor)
       msgs.append('Set is_instructor == {!r}'.format(is_instructor))
@@ -144,6 +158,7 @@ def admin_edit_user():
   return flask.render_template(
     'admin_edit_user.html', username=login.current_user.get_id(), errors=errors, msgs=msgs)
 
+
 @app.route('/admin/db/get/<path:key>')
 @admin_required
 def admin_db_get(key):
@@ -154,6 +169,13 @@ def admin_db_get(key):
 def admin_db_get_all(key):
   return '<br>'.join(cgi.escape(repr(v))
                      for v in data_store.get_all(key.split('/')))
+
+@app.route('/monitor/variables')
+@monitor_required
+def variables():
+  monitor_variables['monitor_vars_gets'] += 1
+  return json.dumps(monitor_variables, sort_keys=True,
+                    indent=2, separators=(',', ': '))
 
 @app.route('/debug/logged_in')
 @login.login_required
@@ -395,6 +417,7 @@ def courses_x_assignments_x_submit(course_name, assignment_name):
   if takes_course:
     files = flask.request.files.getlist('submission_files[]')
     if files:
+      monitor_variables['assignment_attempts'] += 1
       logging.info('Student "%s" is attempting assignment "%s/%s".',
                    user.username, course_name, assignment_name)
       submission_dir = os.path.join(
@@ -492,8 +515,10 @@ def login_():
     user = grade_oven_lib.GradeOvenUser.load_and_authenticate_user(
       data_store, username, password)
     if user is None:
+      monitor_variables['login_failures'] += 1
       return flask.abort(401)
     else:
+      monitor_variables['login_successes'] += 1
       login.login_user(user, remember=True)
       return flask.redirect('/', code=303)
   return flask.render_template(
@@ -503,8 +528,9 @@ def login_():
 @app.route('/logout')
 @login.login_required
 def logout():
-    login.logout_user()
-    return flask.redirect('/')
+  monitor_variables['logouts'] += 1
+  login.logout_user()
+  return flask.redirect('/')
 
 def get_command_line_options():
   parser = optparse.OptionParser()
@@ -530,6 +556,10 @@ def main():
     user = grade_oven.user('admin')
     user.set_password('admin')
     user.set_is_admin(True)
+  if not data_store.get_all(('monitors',)):
+    user = grade_oven.user('monitor')
+    user.set_password(open('../data/secret_key.txt').read())
+    user.set_is_monitor(True)
 
   context = SSL.Context(SSL.TLSv1_METHOD)
   # TODO: generate a legitimate server key and certificate
