@@ -43,24 +43,32 @@ def main():
 
   maybe_makedirs('../data/logs')
 
-  serverp = subprocess.Popen(
-    ['authbind', 'python2', 'server.py', prod_debug_flag,
-     '--host', host, '--port', str(port)],
-    stdout=open('../data/logs/server-stdout.txt', 'a'),
-    stderr=open('../data/logs/server-stderr.txt', 'a'),
-    close_fds=True, shell=False, env={})
+  def run_server():
+    return subprocess.Popen(
+      ['authbind', 'python2', 'server.py', prod_debug_flag,
+       '--host', host, '--port', str(port)],
+      stdout=open('../data/logs/server-stdout.txt', 'a'),
+      stderr=open('../data/logs/server-stderr.txt', 'a'),
+      close_fds=True, shell=False, env={})
 
-  time.sleep(3)
+  def run_monitor():
+    return subprocess.Popen(
+      ['python2', 'monitor.py', '--server_address', server_address,
+       '--log_file', '../data/logs/monitor-scrapes.txt'],
+      stdout=open('../data/logs/monitor-stdout.txt', 'a'),
+      stderr=open('../data/logs/monitor-stderr.txt', 'a'),
+      close_fds=True, shell=False, env={})
 
-  monitorp = subprocess.Popen(
-    ['python2', 'monitor.py', '--server_address', server_address,
-     '--log_file', '../data/logs/monitor-scrapes.txt'],
-    stdout=open('../data/logs/monitor-stdout.txt', 'a'),
-    stderr=open('../data/logs/monitor-stderr.txt', 'a'),
-    close_fds=True, shell=False, env={})
-
-  monitorp.wait()
-  serverp.wait()
+  server_proc = run_server()
+  monitor_proc = run_monitor()
+  while True:
+    if server_proc.poll() is not None:
+      time.sleep(1)
+      server_proc = run_server()
+    if monitor_proc.poll() is not None:
+      time.sleep(1)
+      monitor_proc = run_monitor()
+    time.sleep(1 + random.random())
 
 if __name__ == '__main__':
   main()
