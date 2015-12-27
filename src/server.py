@@ -116,6 +116,12 @@ app.jinja_env.globals['csrf_token'] = generate_csrf_token
 SIGNALS = dict((signal_name, getattr(signal, signal_name))
                for signal_name in dir(signal))
 
+
+@app.route('/favicon.ico')
+def favicon():
+  return flask.send_file('static/favicon.ico', mimetype='image/x-icon')
+
+
 @app.route('/admin')
 @admin_required
 def admin():
