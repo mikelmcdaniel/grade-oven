@@ -122,11 +122,17 @@ def favicon():
   return flask.send_file('static/favicon.ico', mimetype='image/x-icon')
 
 
+@app.route('/about')
+def about():
+  return flask.render_template(
+    'about.html', username=login.current_user.get_id())
+
+
 @app.route('/admin')
 @admin_required
 def admin():
   return flask.render_template(
-  'admin.html', username=login.current_user.get_id())
+    'admin.html', username=login.current_user.get_id())
 
 @app.route('/admin/kill/<string:sig>')
 @admin_required
