@@ -496,6 +496,9 @@ def courses_x_assignments_x_submit(course_name, assignment_name):
         '../data/files/courses', course_name, 'assignments', assignment_name,
         'submissions', user.username)
       desc = '{}_{}_{}'.format(course_name, assignment_name, user.username)
+      # TODO: Fix the quick hack below.  It is only in place to avoid "escaped"
+      # names that are not save docker container names.
+      desc = str(hash(desc))
       container_id = desc
       submission = GradeOvenSubmission(
         'priority', user.username, desc, submission_dir, container_id, stages,
