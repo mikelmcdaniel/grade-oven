@@ -6,16 +6,18 @@ import collections
 import errno
 import functools
 import glob
+import itertools
+import json
 import logging
 import optparse
 import os
+import re
 import shlex
 import shutil
 import signal
 import tempfile
 import threading
 import time
-import json
 
 from OpenSSL import SSL
 from flask.ext import login
@@ -151,17 +153,48 @@ def admin_kill_x(sig):
 def admin_add_user():
   return flask.redirect('/admin/edit_user')
 
+
+def _select_to_bool(value):
+  if value == 'set':
+    return True
+  elif value == 'unset':
+    return False
+  return None
+
+def _add_edit_user(username, password, is_admin, is_monitor, is_instructor,
+                   course, instructs_course, takes_course, msgs):
+  user = grade_oven.user(username)
+  msgs.append('Loaded user {!r}'.format(username))
+  if password is not None:
+    user.set_password(password)
+    msgs.append('Set password')
+  if is_admin is not None:
+    user.set_is_admin(is_admin)
+    msgs.append('Set is_admin == {!r}'.format(is_admin))
+  if is_monitor is not None:
+    user.set_is_monitor(is_monitor)
+    msgs.append('Set is_monitor == {!r}'.format(is_monitor))
+  if is_instructor is not None:
+    user.set_is_instructor(is_instructor)
+    msgs.append('Set is_instructor == {!r}'.format(is_instructor))
+  if course is not None:
+    if instructs_course:
+      user.set_instructs_course(course, instructs_course)
+      msgs.append('Set instructs_course {!r} == {!r}'.format(course, instructs_course))
+    if takes_course:
+      user.set_takes_course(course, takes_course)
+      msgs.append('Set takes_course {!r} == {!r}'.format(course, takes_course))
+
 @app.route('/admin/edit_user', methods=['GET', 'POST'])
 @admin_required
 def admin_edit_user():
-  def _select_to_bool(value):
-    if value == 'set':
-      return True
-    elif value == 'unset':
-      return False
-    return None
   form = flask.request.form
-  username = escape_lib.safe_entity_name(form.get('username'))
+  usernames = form.get('usernames')
+  if usernames:
+    usernames = [escape_lib.safe_entity_name(u)
+                 for u in re.split('\s|,|;', usernames) if u]
+  else:
+    usernames = []
   password = form.get('password')
   password2 = form.get('password2')
   is_admin = _select_to_bool(form.get('is_admin'))
@@ -172,35 +205,27 @@ def admin_edit_user():
   takes_course = _select_to_bool(form.get('takes_course'))
   errors = []
   msgs = []
-  if (password is None or password2 is None) and password != password2:
+  passwords = []
+  if not password and not password2:
+    if usernames:
+      msgs.append('"Username","Generated Password"')
+    for username in usernames:
+      user = grade_oven.user(username)
+      if not user.has_password():
+        generated_password = bcrypt.gensalt()[7:]
+        passwords.append(generated_password)
+        msgs.append('"{}","{}"'.format(username, generated_password))
+      else:
+        passwords.append(None)
+  elif password != password2:
     errors.append('Password and password confirmation do not match.')
-  if username is not None:
-    user = grade_oven.user(username)
-    msgs.append('Loaded user {!r}'.format(username))
-    if password is not None:
-      user.set_password(password)
-      msgs.append('Set password')
-    if is_admin is not None:
-      user.set_is_admin(is_admin)
-      msgs.append('Set is_admin == {!r}'.format(is_admin))
-    if is_monitor is not None:
-      user.set_is_monitor(is_monitor)
-      msgs.append('Set is_monitor == {!r}'.format(is_monitor))
-    if is_instructor is not None:
-      user.set_is_instructor(is_instructor)
-      msgs.append('Set is_instructor == {!r}'.format(is_instructor))
-    if course is not None:
-      if instructs_course:
-        user.set_instructs_course(course, instructs_course)
-        msgs.append('Set instructs_course {!r} == {!r}'.format(course, instructs_course))
-      if takes_course:
-        user.set_takes_course(course, takes_course)
-        msgs.append('Set takes_course {!r} == {!r}'.format(course, takes_course))
-  else:
-    errors.append('Username must be set.')
+  else:  # password == password2:
+    passwords = [password for _ in xrange(len(usernames))]
+  for username, password_ in itertools.izip(usernames, passwords):
+    _add_edit_user(username, password_, is_admin, is_monitor, is_instructor,
+                   course, instructs_course, takes_course, msgs)
   return flask.render_template(
     'admin_edit_user.html', username=login.current_user.get_id(), errors=errors, msgs=msgs)
-
 
 @app.route('/admin/db/<path:key>')
 @admin_required

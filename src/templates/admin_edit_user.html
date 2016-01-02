@@ -7,10 +7,11 @@
     {% endfor %}
   </ul>
 {% endif %}
-<h2>Add and/or Edit a User</h2>
+
+<h2>And/Edit Multiple Users</h2>
 <form method="post">
-<input autofocus="autofocus" autocapitalize="off" name="username" type="text" placeholder="username">
-<input name="password" type="password" placeholder="password">
+<input action="/admin/edit_user" autofocus="autofocus" autocapitalize="off" name="usernames" type="text" placeholder="usernames">
+<input name="password" type="password" placeholder="password (empty to autogenerate)">
 <input name="password2" type="password" placeholder="password (confirm)">
 <select name="is_admin">
   <option value=""/>
@@ -39,6 +40,6 @@
   <option value="unset">unset</option>
 </select> takes course
 <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-<input type="submit" value="Add/Edit User">
+<input type="submit" value="Add Users">
 </form>
 {% endblock %}

@@ -56,6 +56,9 @@ class GradeOvenUser(object):
     hpw = bcrypt.hashpw(password, bcrypt.gensalt())
     self._data_store['users', self.username, 'hashed_password'] = hpw
 
+  def has_password(self):
+    return self._data_store.get(('users', self.username, 'hashed_password')) is not None
+
   def is_admin(self):
     return ('admins', self.username) in self._data_store
 
