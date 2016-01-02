@@ -65,23 +65,39 @@ class ResourcePool(object):
 temp_dirs = ResourcePool(
   os.path.abspath(p) for p in glob.glob('../data/host_dirs/?'))
 
+
+def nothing_required(func):
+  @functools.wraps(func)
+  def nothing_required_func(*args, **kwargs):
+    logging.info('User "{}" accessed public page "{}"'.format(
+      flask.current_user.get_id(), flask.request.url))
+    return func(*args, **kwargs)
+  return nothing_required_func
+
 def login_required(func):
   @functools.wraps(func)
   def login_required_func(*args, **kwargs):
     if login.current_user.is_authenticated():
+      logging.info('User "{}" accessed "{}"'.format(
+        flask.current_user.get_id(), flask.request.url))
       return func(*args, **kwargs)
     else:
+      logging.info('Unknown user "{}" tried to access "{}"'.format(
+        flask.current_user.get_id(), flask.request.url))
       return flask.redirect(
         '/login?redirect={}'.format(flask.request.path), code=303)
   return login_required_func
-
 
 def admin_required(func):
   @functools.wraps(func)
   def admin_required_func(*args, **kwargs):
     if login.current_user.is_authenticated() and login.current_user.is_admin():
+      logging.info('Admin "{}" accessed "{}"'.format(
+        flask.current_user.get_id(), flask.request.url))
       return func(*args, **kwargs)
     else:
+      logging.warning('Unknown user "{}" tried to access admin page "{}"'.format(
+        flask.current_user.get_id(), flask.request.url))
       return flask.abort(403)  # forbidden
   return login_required(admin_required_func)
 
@@ -89,8 +105,12 @@ def monitor_required(func):
   @functools.wraps(func)
   def admin_required_func(*args, **kwargs):
     if login.current_user.is_authenticated() and login.current_user.is_monitor():
+      logging.info('Monitor "{}" accessed "{}"'.format(
+        flask.current_user.get_id(), flask.request.url))
       return func(*args, **kwargs)
     else:
+      logging.warning('Unknown user "{}" tried to access monitor page "{}"'.format(
+        flask.current_user.get_id(), flask.request.url))
       return flask.abort(403)  # forbidden
   return login_required(admin_required_func)
 
@@ -104,7 +124,12 @@ login_manager.user_loader(grade_oven.user)
 def csrf_protect():
   if flask.request.method != 'GET':
     token = flask.session.pop('_csrf_token', None)
-    if not token or token != flask.request.form.get('_csrf_token'):
+    if not token:
+      logging.warning('Missing _csrf_token for "{}"'.format(flask.request.url))
+      flask.abort(403)
+    elif token != flask.request.form.get('_csrf_token'):
+      logging.warning('Invalid _csrf_token "{}" for "{}"'.format(
+        flask.request.form.get('_csrf_token'), flask.request.url))
       flask.abort(403)
 
 def generate_csrf_token():
@@ -120,11 +145,13 @@ SIGNALS = dict((signal_name, getattr(signal, signal_name))
 
 
 @app.route('/favicon.ico')
+@nothing_required
 def favicon():
   return flask.send_file('static/favicon.ico', mimetype='image/x-icon')
 
 
 @app.route('/about')
+@nothing_required
 def about():
   return flask.render_template(
     'about.html', username=login.current_user.get_id())
@@ -575,6 +602,7 @@ def settings():
     avatar_name=user.avatar_name(), errors=errors)
 
 @app.route('/')
+@nothing_required
 def index():
   if login.current_user.is_authenticated():
     if login.current_user.is_admin():
@@ -585,6 +613,7 @@ def index():
     return flask.redirect('/login')
 
 @app.route('/login', methods=['GET', 'POST'])
+@nothing_required
 def login_():
   form = flask.request.form
   username = escape_lib.safe_entity_name(form.get('username'))
