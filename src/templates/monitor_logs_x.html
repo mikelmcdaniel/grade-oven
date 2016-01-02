@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>{{ log_name|e }}</h2>
+<div class="log"><pre><samp>
+{{ log_data|e }}
+</samp></pre></div>
+{% endblock %}

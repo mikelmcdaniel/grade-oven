@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>Logs</h2>
+<ul class="logs">
+  {% for log_name in log_names %}
+  <li class="log"><a href="/monitor/logs/{{ log_name|e }}">{{ log_name|e }}</a></li>
+  {% endfor %}
+</ul>
+{% endblock %}

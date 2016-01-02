@@ -70,7 +70,7 @@ def nothing_required(func):
   @functools.wraps(func)
   def nothing_required_func(*args, **kwargs):
     logging.info('User "{}" accessed public page "{}"'.format(
-      flask.current_user.get_id(), flask.request.url))
+      login.current_user.get_id(), flask.request.url))
     return func(*args, **kwargs)
   return nothing_required_func
 
@@ -79,11 +79,11 @@ def login_required(func):
   def login_required_func(*args, **kwargs):
     if login.current_user.is_authenticated():
       logging.info('User "{}" accessed "{}"'.format(
-        flask.current_user.get_id(), flask.request.url))
+        login.current_user.get_id(), flask.request.url))
       return func(*args, **kwargs)
     else:
       logging.info('Unknown user "{}" tried to access "{}"'.format(
-        flask.current_user.get_id(), flask.request.url))
+        login.current_user.get_id(), flask.request.url))
       return flask.redirect(
         '/login?redirect={}'.format(flask.request.path), code=303)
   return login_required_func
@@ -93,11 +93,11 @@ def admin_required(func):
   def admin_required_func(*args, **kwargs):
     if login.current_user.is_authenticated() and login.current_user.is_admin():
       logging.info('Admin "{}" accessed "{}"'.format(
-        flask.current_user.get_id(), flask.request.url))
+        login.current_user.get_id(), flask.request.url))
       return func(*args, **kwargs)
     else:
       logging.warning('Unknown user "{}" tried to access admin page "{}"'.format(
-        flask.current_user.get_id(), flask.request.url))
+        login.current_user.get_id(), flask.request.url))
       return flask.abort(403)  # forbidden
   return login_required(admin_required_func)
 
@@ -106,11 +106,11 @@ def monitor_required(func):
   def admin_required_func(*args, **kwargs):
     if login.current_user.is_authenticated() and login.current_user.is_monitor():
       logging.info('Monitor "{}" accessed "{}"'.format(
-        flask.current_user.get_id(), flask.request.url))
+        login.current_user.get_id(), flask.request.url))
       return func(*args, **kwargs)
     else:
       logging.warning('Unknown user "{}" tried to access monitor page "{}"'.format(
-        flask.current_user.get_id(), flask.request.url))
+        login.current_user.get_id(), flask.request.url))
       return flask.abort(403)  # forbidden
   return login_required(admin_required_func)
 
@@ -271,10 +271,41 @@ def admin_db(key):
 
 @app.route('/monitor/variables')
 @monitor_required
-def variables():
+def monitor_variables_():
   monitor_variables['monitor_vars_gets'] += 1
   return json.dumps(monitor_variables, sort_keys=True,
                     indent=2, separators=(',', ': '))
+
+@app.route('/monitor/logs')
+@monitor_required
+def monitor_logs():
+  log_names = os.listdir('../data/logs')
+  return flask.render_template(
+    'monitor_logs.html', username=login.current_user.get_id(),
+    log_names=log_names)
+
+@app.route('/monitor/logs/<string:log_name>')
+@monitor_required
+def monitor_logs_x(log_name):
+  safe_log_name = escape_lib.safe_entity_name(log_name)
+  if safe_log_name != log_name:
+    logging.error('User "{}" requsted bad log name "{}".'.format(
+      login.current_user.get_id(), log_name))
+    return flask.redirect('/monitor/logs/' + safe_log_name)
+
+  log_data = '<COULD NOT READ LOG>'
+  max_bytes = 100 * 1024
+  try:
+    with open(os.path.join('../data/logs', log_name)) as f:
+      f.seek(0, os.SEEK_END)
+      f_size = f.tell()
+      f.seek(max(0, f_size - max_bytes), os.SEEK_SET)
+      log_data = f.read(max_bytes)
+  except (OSError, IOError) as e:
+    log_data = 'COULD NOT READ LOG:\n{!r}\n{}'.format(e, e)
+  return flask.render_template(
+    'monitor_logs_x.html', username=login.current_user.get_id(),
+    log_name=log_name, log_data=log_data)
 
 @app.route('/debug/logged_in')
 @login_required
