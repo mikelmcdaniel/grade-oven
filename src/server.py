@@ -365,6 +365,12 @@ def courses_x(course_name):
     if remove_students:
       course.remove_students(remove_students.split())
     student_usernames = course.student_usernames()
+    psuedo_usernames = []
+    for student_username in student_usernames:
+      u = grade_oven.user(student_username)
+      psuedo_usernames.append(
+        '{} ({})'.format(student_username, u.avatar_name()))
+    student_usernames = psuedo_usernames
   else:
     student_usernames = None
   assignment_names = course.assignment_names()
