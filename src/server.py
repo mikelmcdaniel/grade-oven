@@ -510,7 +510,7 @@ def _make_grade_table(course, assignment):
                              time.localtime(submission.submit_time())))
     row.append(submission.num_submissions())
     table.append(row)
-  table = sorted(table, key=lambda row: (-row[1], row[3], row[4]))
+  table = sorted(table, key=lambda row: (-row[1], row[3], row[4], row[0]))
   return header_row, table
 
 @app.route(
