@@ -69,8 +69,8 @@ temp_dirs = ResourcePool(
 def nothing_required(func):
   @functools.wraps(func)
   def nothing_required_func(*args, **kwargs):
-    logging.info('User "{}" accessed public page "{}"'.format(
-      login.current_user.get_id(), flask.request.url))
+    logging.info('User "%s" accessed public page "%s"',
+      login.current_user.get_id(), flask.request.url)
     return func(*args, **kwargs)
   return nothing_required_func
 
@@ -78,12 +78,12 @@ def login_required(func):
   @functools.wraps(func)
   def login_required_func(*args, **kwargs):
     if login.current_user.is_authenticated():
-      logging.info('User "{}" accessed "{}"'.format(
-        login.current_user.get_id(), flask.request.url))
+      logging.info('User "%s" accessed "%s"',
+        login.current_user.get_id(), flask.request.url)
       return func(*args, **kwargs)
     else:
-      logging.info('Unknown user "{}" tried to access "{}"'.format(
-        login.current_user.get_id(), flask.request.url))
+      logging.info('Unknown user "%s" tried to access "%s"',
+        login.current_user.get_id(), flask.request.url)
       return flask.redirect(
         '/login?redirect={}'.format(flask.request.path), code=303)
   return login_required_func
@@ -92,27 +92,28 @@ def admin_required(func):
   @functools.wraps(func)
   def admin_required_func(*args, **kwargs):
     if login.current_user.is_authenticated() and login.current_user.is_admin():
-      logging.info('Admin "{}" accessed "{}"'.format(
-        login.current_user.get_id(), flask.request.url))
+      logging.info('Admin "%s" accessed "%s"',
+        login.current_user.get_id(), flask.request.url)
       return func(*args, **kwargs)
     else:
-      logging.warning('Unknown user "{}" tried to access admin page "{}"'.format(
-        login.current_user.get_id(), flask.request.url))
+      logging.warning('Unknown user "%s" tried to access admin page "%s"',
+        login.current_user.get_id(), flask.request.url)
       return flask.abort(403)  # forbidden
-  return login_required(admin_required_func)
+  return admin_required_func
 
 def monitor_required(func):
   @functools.wraps(func)
-  def admin_required_func(*args, **kwargs):
+  def monitor_required_func(*args, **kwargs):
     if login.current_user.is_authenticated() and login.current_user.is_monitor():
-      logging.info('Monitor "{}" accessed "{}"'.format(
-        login.current_user.get_id(), flask.request.url))
+      if login.current_user.get_id() != 'monitor':
+        logging.info('Monitor "%s" accessed "%s"',
+          login.current_user.get_id(), flask.request.url)
       return func(*args, **kwargs)
     else:
-      logging.warning('Unknown user "{}" tried to access monitor page "{}"'.format(
-        login.current_user.get_id(), flask.request.url))
+      logging.warning('Unknown user "%s" tried to access monitor page "%s"',
+        login.current_user.get_id(), flask.request.url)
       return flask.abort(403)  # forbidden
-  return login_required(admin_required_func)
+  return monitor_required_func
 
 
 # Set function to load a user
@@ -125,11 +126,11 @@ def csrf_protect():
   if flask.request.method != 'GET':
     token = flask.session.pop('_csrf_token', None)
     if not token:
-      logging.warning('Missing _csrf_token for "{}"'.format(flask.request.url))
+      logging.warning('Missing _csrf_token for "%s"', flask.request.url)
       flask.abort(403)
     elif token != flask.request.form.get('_csrf_token'):
-      logging.warning('Invalid _csrf_token "{}" for "{}"'.format(
-        flask.request.form.get('_csrf_token'), flask.request.url))
+      logging.warning('Invalid _csrf_token "%s" for "%s"',
+        flask.request.form.get('_csrf_token'), flask.request.url)
       flask.abort(403)
 
 def generate_csrf_token():
@@ -289,8 +290,8 @@ def monitor_logs():
 def monitor_logs_x(log_name):
   safe_log_name = escape_lib.safe_entity_name(log_name)
   if safe_log_name != log_name:
-    logging.error('User "{}" requsted bad log name "{}".'.format(
-      login.current_user.get_id(), log_name))
+    logging.error('User "%s" requsted bad log name "%s".',
+      login.current_user.get_id(), log_name)
     return flask.redirect('/monitor/logs/' + safe_log_name)
 
   log_data = '<COULD NOT READ LOG>'
