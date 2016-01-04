@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block body %}
 <h2>{{ log_name|e }}</h2>
+<form method="get">
+  <input name="max_bytes" type="text" placeholder="Max Bytes" value="{{ max_bytes|e }}">
+  <input autofocus="autofocus" name="line_regex" type="text" placeholder="Line RegEx" value="{{ line_regex|e }}">
+  <input type="submit" value="Filter Log">
+</form>
 <div class="log"><pre><samp>
 {{ log_data|e }}
 </samp></pre></div>

@@ -288,6 +288,7 @@ def monitor_logs():
 @app.route('/monitor/logs/<string:log_name>')
 @monitor_required
 def monitor_logs_x(log_name):
+  errors = []
   safe_log_name = escape_lib.safe_entity_name(log_name)
   if safe_log_name != log_name:
     logging.error('User "%s" requsted bad log name "%s".',
@@ -295,18 +296,31 @@ def monitor_logs_x(log_name):
     return flask.redirect('/monitor/logs/' + safe_log_name)
 
   log_data = '<COULD NOT READ LOG>'
-  max_bytes = 100 * 1024
+  max_bytes = flask.request.args.get('max_bytes', 100 * 1024)
+  try:
+    max_bytes = int(max_bytes)
+  except ValueError as e:
+    errors.append('max_bytes "{}" is not an int: {}'.fomrat(max_bytes, e))
+    logging.error(errors[-1])
+    max_bytes = 100 * 1024
+  line_regex = flask.request.args.get('line_regex', '')
   try:
     with open(os.path.join('../data/logs', log_name)) as f:
       f.seek(0, os.SEEK_END)
       f_size = f.tell()
       f.seek(max(0, f_size - max_bytes), os.SEEK_SET)
       log_data = f.read(max_bytes)
+      if line_regex:
+        compiled_line_regex = re.compile(line_regex)  # This may raise an exception.
+        log_data = '\n'.join(
+          line for line in log_data.split('\n') if compiled_line_regex.match(line))
   except (OSError, IOError) as e:
-    log_data = 'COULD NOT READ LOG:\n{!r}\n{}'.format(e, e)
+    errors.append('Could not read log:\n{!r}\n{}'.format(e, e))
+    log_data = ''
   return flask.render_template(
     'monitor_logs_x.html', username=login.current_user.get_id(),
-    log_name=log_name, log_data=log_data)
+    log_name=log_name, log_data=log_data, errors=errors, max_bytes=max_bytes,
+    line_regex=line_regex)
 
 @app.route('/debug/logged_in')
 @login_required
