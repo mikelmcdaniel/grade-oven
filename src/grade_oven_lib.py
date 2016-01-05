@@ -206,7 +206,7 @@ class GradeOvenStudentSubmission(object):
   def status(self):
     return str(self._data_store.get(
       ('courses', self.course_name, 'assignments', self.assignment_name,
-       'students', self.student_username, 'status'), 'NONE'))
+       'students', self.student_username, 'status'), 'never run'))
 
   def set_status(self, status):
     self._data_store.put(

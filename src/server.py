@@ -526,8 +526,12 @@ def _make_grade_table(course, assignment):
     submission = assignment.student_submission(username)
     row.append(submission.score())
     row.append(submission.status())
-    row.append(time.strftime('%Y-%m-%d %H:%M:%S',
-                             time.localtime(submission.submit_time())))
+    submit_time = submission.submit_time()
+    if submit_time:
+      row.append(time.strftime('%Y-%m-%d %H:%M:%S',
+                               time.localtime(submission.submit_time())))
+    else:
+      row.append('never')
     row.append(submission.num_submissions())
     table.append(row)
   table = sorted(table, key=lambda row: (-row[1], row[3], row[4], row[0]))
@@ -579,8 +583,10 @@ def courses_x_assignments_x_submit(course_name, assignment_name):
       # names that are not save docker container names.
       desc = str(hash(desc))
       container_id = desc
+      priority = (student_submission.num_submissions(),
+                  -student_submission.submit_time())
       submission = GradeOvenSubmission(
-        'priority', user.username, desc, submission_dir, container_id, stages,
+        priority, user.username, desc, submission_dir, container_id, stages,
         student_submission)
       if submission in executor_queue:
         logging.warning(
