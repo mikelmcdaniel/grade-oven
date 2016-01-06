@@ -581,7 +581,7 @@ def courses_x_assignments_x_submit(course_name, assignment_name):
       desc = '{}_{}_{}'.format(course_name, assignment_name, user.username)
       # TODO: Fix the quick hack below.  It is only in place to avoid "escaped"
       # names that are not save docker container names.
-      desc = str(hash(desc))
+      desc = str(abs(hash(desc)))[:32]
       container_id = desc
       priority = (student_submission.num_submissions(),
                   -student_submission.submit_time())
