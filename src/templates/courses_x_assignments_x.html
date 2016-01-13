@@ -25,6 +25,11 @@
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
   <input type="submit" value="Edit Assignment">
 </form>
+<br>
+<form method="post" action="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/resubmit_all">
+  <input type="submit" value="Resubmit All Student Submissions">
+  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+</form>
 {% endif %}
 
 {% if takes_course %}

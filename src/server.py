@@ -557,56 +557,80 @@ def courses_x_assignments_x_edit(course_name, assignment_name):
     '/courses/{}/assignments/{}'.format(course_name, assignment_name),
     code=303)
 
+def _enqueue_student_submission(course_name, assignment_name, username, files):
+  user = grade_oven.user(username)
+  course = grade_oven.course(course_name)
+  assignment = course.assignment(assignment_name)
+  student_submission = assignment.student_submission(username)
+  # If this is a resubmission, but there's no original submission, skip it.
+  if student_submission.num_submissions() == 0:
+    return
+  monitor_variables['assignment_attempts'] += 1
+  logging.info('Student "%s" is attempting assignment "%s/%s".',
+               username, course_name, assignment_name)
+  submission_dir = os.path.join(
+    '../data/files/courses', course_name, 'assignments', assignment_name,
+    'submissions', username)
+  desc = '{}_{}_{}'.format(course_name, assignment_name, username)
+  # TODO: Fix the quick hack below.  It is only in place to avoid "escaped"
+  # names that are not save docker container names.
+  desc = str(abs(hash(desc)))[:32]
+  container_id = desc
+  priority = (student_submission.num_submissions(),
+              student_submission.submit_time())
+  stages = executor.Stages(os.path.join(
+    '../data/files/courses', course_name, 'assignments', assignment_name))
+  submission = GradeOvenSubmission(
+    priority, username, desc, submission_dir, container_id, stages,
+    student_submission)
+  if submission in executor_queue:
+    logging.warning(
+      'Student "%s" submited assignment "%s/%s" while still in the queue.',
+      username, course_name, assignment_name)
+    flask.flash(
+      '{} cannot submit assignment {} for {} while in the queue.'.format(
+        username, assignment_name, course_name))
+  else:
+    if files:
+      try:
+        shutil.rmtree(submission_dir)
+      except OSError as e:
+        if e.errno != errno.ENOENT:
+          raise e
+      save_files_in_dir(files, submission_dir)
+      # If there are no files being uploaded, then this must be a resubmission.
+      student_submission.set_submit_time()
+      student_submission.set_num_submissions(
+        student_submission.num_submissions() + 1)
+    student_submission.set_status('queued')
+    executor_queue.enqueue(submission)
+
 @app.route(
   '/courses/<string:course_name>/assignments/<string:assignment_name>/submit',
   methods=['POST'])
 @login_required
 def courses_x_assignments_x_submit(course_name, assignment_name):
   user = login.current_user
-  course = grade_oven.course(course_name)
-  assignment = course.assignment(assignment_name)
-  student_submission = assignment.student_submission(user.username)
-  takes_course = user.takes_course(course.name)
-  stages = executor.Stages(os.path.join(
-    '../data/files/courses', course.name, 'assignments', assignment.name))
+  takes_course = user.takes_course(course_name)
   if takes_course:
     files = flask.request.files.getlist('submission_files[]')
     if files:
-      monitor_variables['assignment_attempts'] += 1
-      logging.info('Student "%s" is attempting assignment "%s/%s".',
-                   user.username, course_name, assignment_name)
-      submission_dir = os.path.join(
-        '../data/files/courses', course_name, 'assignments', assignment_name,
-        'submissions', user.username)
-      desc = '{}_{}_{}'.format(course_name, assignment_name, user.username)
-      # TODO: Fix the quick hack below.  It is only in place to avoid "escaped"
-      # names that are not save docker container names.
-      desc = str(abs(hash(desc)))[:32]
-      container_id = desc
-      priority = (student_submission.num_submissions(),
-                  -student_submission.submit_time())
-      submission = GradeOvenSubmission(
-        priority, user.username, desc, submission_dir, container_id, stages,
-        student_submission)
-      if submission in executor_queue:
-        logging.warning(
-          'Student "%s" submited assignment "%s/%s" while still in the queue.',
-          user.username, course_name, assignment_name)
-        flask.flash(
-          '{} cannot submit assignment {} for {} while in the queue.'.format(
-            user.username, assignment_name, course_name))
-      else:
-        try:
-          shutil.rmtree(submission_dir)
-        except OSError as e:
-          if e.errno != errno.ENOENT:
-            raise e
-        save_files_in_dir(files, submission_dir)
-        executor_queue.enqueue(submission)
-        student_submission.set_status('queued')
-        student_submission.set_submit_time()
-        student_submission.set_num_submissions(
-          student_submission.num_submissions() + 1)
+      _enqueue_student_submission(course_name, assignment_name, user.username, files)
+  return flask.redirect(
+    '/courses/{}/assignments/{}'.format(course_name, assignment_name),
+    code=303)
+
+@app.route(
+  '/courses/<string:course_name>/assignments/<string:assignment_name>/resubmit_all',
+  methods=['POST'])
+@login_required
+def courses_x_assignments_x_resubmit_all(course_name, assignment_name):
+  user = login.current_user
+  instructs_course = user.instructs_course(course_name)
+  files = None
+  if instructs_course:
+    for username in grade_oven.course(course_name).student_usernames():
+      _enqueue_student_submission(course_name, assignment_name, username, files)
   return flask.redirect(
     '/courses/{}/assignments/{}'.format(course_name, assignment_name),
     code=303)
