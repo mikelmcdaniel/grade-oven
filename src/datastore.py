@@ -40,8 +40,13 @@ class DataStore(object):
     real_key.write(chr(len(key)))
     real_key.write('\x00'.join(key))
     real_key.seek(0)
-    value = self.db.Get(real_key.read())
-    return json.loads(value)
+    raw_value = self.db.Get(real_key.read())
+    value = json.loads(raw_value)
+    # This is a workaround since Python Flask cannot properly escape non-ascii
+    # strings in HTML template expansion.
+    if isinstance(value, basestring):
+      value = value.encode('ascii', 'replace')
+    return value
 
   def get(self, key, default_value=None):
     try:

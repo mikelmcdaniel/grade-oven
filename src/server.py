@@ -563,8 +563,8 @@ def _enqueue_student_submission(course_name, assignment_name, username, files):
   assignment = course.assignment(assignment_name)
   student_submission = assignment.student_submission(username)
   # If this is a resubmission, but there's no original submission, skip it.
-  if student_submission.num_submissions() == 0:
-    return
+  # if student_submission.num_submissions() == 0 and not files:
+  #   return
   monitor_variables['assignment_attempts'] += 1
   logging.info('Student "%s" is attempting assignment "%s/%s".',
                username, course_name, assignment_name)
