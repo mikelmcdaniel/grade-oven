@@ -128,6 +128,12 @@ class GradeOvenUser(object):
   def set_avatar_name(self, avatar_name):
     return self._data_store.put(('users', self.username, 'avatar', 'name'), avatar_name)
 
+  def real_name(self):
+    return self._data_store.get(('users', self.username, 'real', 'name'), self.username)
+
+  def set_real_name(self, avatar_name):
+    return self._data_store.put(('users', self.username, 'real', 'name'), avatar_name)
+
 
 class GradeOvenAssignment(object):
   def __init__(self, data_store, course_name, assignment_name):

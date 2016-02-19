@@ -515,14 +515,17 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     self.student_submission.set_status('finished')
 
 
-def _make_grade_table(course, assignment):
+def _make_grade_table(course, assignment, show_real_names=False):
   header_row = ['Avatar Name', 'Score', 'Submission Status',
                 'Submit Time', 'Attempts']
   table = []
   for username in course.student_usernames():
     row = []
     user = grade_oven.user(username)
-    row.append(user.avatar_name())
+    if show_real_names:
+      row.append('{} ({})'.format(user.avatar_name(), user.real_name()))
+    else:
+      row.append(user.avatar_name())
     submission = assignment.student_submission(username)
     row.append(submission.score())
     row.append(submission.status())
@@ -573,7 +576,7 @@ def _enqueue_student_submission(course_name, assignment_name, username, files):
     'submissions', username)
   desc = '{}_{}_{}'.format(course_name, assignment_name, username)
   # TODO: Fix the quick hack below.  It is only in place to avoid "escaped"
-  # names that are not save docker container names.
+  # names that are not safe docker container names.
   desc = str(abs(hash(desc)))[:32]
   container_id = desc
   priority = (student_submission.num_submissions(),
@@ -651,7 +654,8 @@ def courses_x_assignments_x(course_name, assignment_name):
     submission_errors = student_submission.errors()
   else:
     submission_output, submission_errors = 'no output', 'no errors'
-  header_row, table = _make_grade_table(course, assignment)
+  header_row, table = _make_grade_table(
+    course, assignment, show_real_names=instructs_course)
   return flask.render_template(
     'courses_x_assignments_x.html', username=login.current_user.get_id(),
     instructs_course=instructs_course,
@@ -668,6 +672,9 @@ def settings():
   errors = []
 
   form = flask.request.form
+  real_name = form.get('real_name')
+  if real_name:
+    user.set_real_name(real_name)
   avatar_name = form.get('avatar_name')
   if avatar_name:
     user.set_avatar_name(avatar_name)
