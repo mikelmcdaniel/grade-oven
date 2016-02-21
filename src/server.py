@@ -394,6 +394,27 @@ def courses_x(course_name):
     takes_course=takes_course, students=student_usernames,
     assignments=assignment_names, course_name=course.name)
 
+def _make_grades_table(course, show_real_names=False):
+  header_row = ['Avatar Name']
+  assignment_names = course.assignment_names()
+  student_names = course.student_usernames()
+  header_row.extend(assignment_names)
+  assignments = [course.assignment(an) for an in assignment_names]
+  table = []
+  for student_name in student_names:
+    user = grade_oven.user(student_name)
+    row = []
+    if show_real_names:
+      row.append('{} ({})'.format(user.avatar_name(), user.real_name()))
+    else:
+      row.append(user.avatar_name())
+    for assignment in assignments:
+      submission = assignment.student_submission(student_name)
+      row.append('{}/{}'.format(submission.score(), submission.total()))
+    table.append(row)
+  table = sorted(table)
+  return header_row, table
+
 @app.route('/courses/<string:course_name>/assignments', methods=['GET', 'POST'])
 @login_required
 def courses_x_assignments(course_name):
@@ -401,6 +422,7 @@ def courses_x_assignments(course_name):
   course = grade_oven.course(course_name)
   instructs_course = user.instructs_course(course_name)
   takes_course = user.takes_course(course_name)
+  header_row, table = _make_grades_table(course, show_real_names=instructs_course)
   # Add/Edit assignment
   if instructs_course:
     form = flask.request.form
@@ -415,7 +437,7 @@ def courses_x_assignments(course_name):
     'courses_x_assignments.html', username=login.current_user.get_id(),
     instructs_course=instructs_course,
     takes_course=takes_course, assignments=assignment_names,
-    course_name=course.name)
+    course_name=course.name, header_row=header_row, table=table)
 
 def _edit_assignment(form, course_name, assignment_name, stages):
   errors = []
