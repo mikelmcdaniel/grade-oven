@@ -40,27 +40,45 @@
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
 </form>
 <h3>Previous Submission:</h3>
-<h4>Output:</h4>
-<code><pre>{{ submission_output|e }}</pre></code>
-<h4>Errors:</h4>
-<code><pre>{{ submission_errors|e }}</pre></code>
+<div class="panel panel-primary">
+  <div class="panel-heading">
+    <h3 class="panel-title">Output</h3>
+  </div>
+  <div class="panel-body">
+    <code><pre>{{ submission_output|e }}</pre></code>
+  </div>
+</div>
+{% if submission_errors %}
+<div class="panel panel-danger">
+  <div class="panel-heading">
+    <h3 class="panel-title">Errors</h3>
+  </div>
+  <div class="panel-body">
+    <code><pre>{{ submission_errors|e }}</pre></code>
+  </div>
+</div>
+{% endif %}
 {% endif %}
 
 {% if takes_course or instructs_course %}
 <h3>Scores:</h3>
-<table border="1">
-  <tr>
-    {% for col in header_row %}
-    <th>{{ col|e }}</th>
+<table class="table table-stripped">
+  <thead>
+    <tr>
+      {% for col in header_row %}
+      <th>{{ col|e }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in table %}
+    <tr>
+      {% for col in row %}
+      <td>{{ col|e }}</td>
+      {% endfor %}
+    </tr>
     {% endfor %}
-  </tr>
-  {% for row in table %}
-  <tr>
-    {% for col in row %}
-    <td>{{ col|e }}</td>
-    {% endfor %}
-  </tr>
-  {% endfor %}
+  </tbody>
 </table>
 {% endif %}
 

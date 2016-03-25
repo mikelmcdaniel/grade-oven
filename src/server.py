@@ -673,9 +673,9 @@ def courses_x_assignments_x(course_name, assignment_name):
     '../data/files/courses', course.name, 'assignments', assignment.name))
   if takes_course:
     submission_output = student_submission.output()
-    submission_errors = student_submission.errors()
+    submission_errors = student_submission.errors().strip()
   else:
-    submission_output, submission_errors = 'no output', 'no errors'
+    submission_output, submission_errors = '', ''
   header_row, table = _make_grade_table(
     course, assignment, show_real_names=instructs_course)
   return flask.render_template(

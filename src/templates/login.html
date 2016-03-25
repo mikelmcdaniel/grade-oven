@@ -1,10 +1,18 @@
 {% extends "base.html" %}
 {% block body %}
-<h2>Login</h2>
-<form method="post">
-<input autofocus="autofocus" autocapitalize="off" name="username" type="text" placeholder="username">
-<input name="password" type="password" placeholder="password">
-<input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-<input type="submit" value="Login">
-</form>
+<div class="page-header">
+  <h2>Login</h2>
+</div>
+
+<div class="container">
+  <form class="form-signin" method="post">
+    <label for="username" class="sr-only">Username</label>
+    <input class="form-control" autofocus="autofocus" autocapitalize="off" id="username" name="username" type="text" placeholder="Username" required>
+    <label for="password" class="sr-only">Password</label>
+    <input class="form-control" name="password" id="password" type="password" placeholder="Password" required>
+    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+    <button class="btn btn-lg btn-primary btn-block" type="submit">Login</button>
+  </form>
+</div> <!-- /container -->
+
 {% endblock %}
