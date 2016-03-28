@@ -1,15 +1,26 @@
 {% extends "base.html" %}
 {% block body %}
 <h2>Settings</h2>
-
 <form method="post">
-  Real/Full Name: <input name="real_name" type="text" placeholder="{{ real_name|e }}"><br><br>
-  Avatar Name: <input name="avatar_name" type="text" placeholder="{{ avatar_name|e }}"><br><br>
+  <div class="form-group">
+    <label for="real_name">Real/Full Name:</label>
+    <input type="text" class="form-control" placeholder="{{ real_name|e }}" id="real_name">
+  </div>
+  <div class="form-group">
+    <label for="avatar_name">Avatar Name:</label>
+    <input type="text" class="form-control" placeholder="{{ avatar_name|e }}" id="avatar_name">
+  </div>
 
-  Change password: <input name="password" type="password" placeholder="password"><br>
-  Verify Password: <input name="password2" type="password" placeholder="password (confirm)"><br>
+  <div class="form-group">
+    <label for="password">Password:</label>
+    <input type="password" class="form-control" id="password">
+  </div>
+  <div class="form-group">
+    <label for="password2">Confirm Password:</label>
+    <input type="password" class="form-control" id="password2">
+  </div>
 
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-  <input type="submit" value="Update Preferences">
+  <button type="submit" class="btn btn-default">Update Preferences</button>
 </form>
 {% endblock %}

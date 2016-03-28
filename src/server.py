@@ -710,7 +710,8 @@ def settings():
 
   return flask.render_template(
     'settings.html', username=login.current_user.get_id(),
-    avatar_name=user.avatar_name(), errors=errors)
+    real_name=user.real_name(), avatar_name=user.avatar_name(),
+    errors=errors)
 
 @app.route('/')
 @nothing_required
