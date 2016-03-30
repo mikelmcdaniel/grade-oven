@@ -7,6 +7,8 @@ This has only been tested on Ubuntu.  Adding support for other distributions of 
 
 #### Ubuntu
 1. Ensure you have root (in order to run sudo apt-get and create users)
+1. Create a random key (just a bunch of random bytes) at data/secret_key.txt
+1. Create an SSL key and certificate at data/ssl/server.key and data/ssl/server.crt
 1. Change into the "setup" directory in a shell
 1. Run ./setup.sh
 1. Change into the "src" directory
