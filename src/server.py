@@ -1,3 +1,11 @@
+"""This is the server modules which imports everything and handles requests.
+
+All UI is controlled via this module.
+
+This server enforces most of the security that isn't related to actually running
+code, such as input sanitazation (via escape_lib).
+"""
+
 # TODO: Validate course and assignment names
 # TODO: Restrict which users can see which pages more
 #   e.g. only admins, instructors, and enrolled students should see courses

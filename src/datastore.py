@@ -1,3 +1,18 @@
+"""This module provides a simple hierarchical DataStore where keys are tuples
+of ASCII strings and values are basic Python types (e.g. int, str, None).
+
+See the example at the bottom of datastore.py for an example of
+how to use it or look at this simple example:
+
+  key = ('courses', 'c++', 'assignments')
+  store = DataStore(temp_dir)
+  store.put(key, 'homework 1')
+  store.put(key, 'homework 2')
+  store[key3] = 'python 1'  # same as .put(...)
+  del store[('courses', 'c++')]  # same as .remove(...)
+  assert set(store.get_all(('courses',))) == set(['python'])
+"""
+
 import cStringIO
 import json
 import os
@@ -120,6 +135,6 @@ if __name__ == '__main__':
     del store[('courses', 'python', 'assignments', 'homework 1')]
     assert ('courses', 'python', 'assignments', 'homework 1') not in store
     assert set(store.get_all(('courses', 'nothing'))) == set()
-    assert store.get(('key', 'does', 'not', 'exist'), 'SPECIAL VALUE') == 'SPECIAL VALUE'
+    assert store.get(('does', 'not', 'exist'), 'DEFAULT VAL') == 'DEFAULT VAL'
   finally:
     shutil.rmtree(temp_dir)

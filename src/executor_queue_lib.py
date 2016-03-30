@@ -3,6 +3,8 @@ and run stages against student submissions in separate Python threads.
 
 Note that because executor mostly uses subprocess to run code, it is
 not necessary to use multiprocessing to get good parallism.
+
+See executor_queue_lib_test.py for example usage.
 """
 
 import collections
@@ -13,6 +15,7 @@ import logging
 
 @functools.total_ordering
 class Submission(object):
+  # Possible stages:
   QUEUED = 'queued'
   RUNNING = 'running'
   DONE = 'done'

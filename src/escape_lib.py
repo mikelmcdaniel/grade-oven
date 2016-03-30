@@ -4,7 +4,7 @@ A safe entity is something that should be able to safely appear in a
 URI or HTML without being escaped.
 """
 
-# Note that '.' is ok becuase '/' and is not
+# Note that '.' is ok becuase '/' is not
 SAFE_ENTITY_CHARS = frozenset(
   'abcdefghijklmnopqrstuvwxyz'
   'ABCDEFGHIJKLMNOPQRSTUVWXYZ'

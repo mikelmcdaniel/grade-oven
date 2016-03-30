@@ -1,3 +1,11 @@
+"""This script performs minimal setup, then starts the server and monitor.
+
+This script can run in --debug or --prod mode.
+The server and monitor are automatically restarted when the corresponding
+processes die and their STDOUT/STDERR are written out to .txt logs in
+../data/logs.
+"""
+
 import errno
 import optparse
 import os

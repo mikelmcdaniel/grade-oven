@@ -1,21 +1,14 @@
-"""The executor module knows how to build and test code.
+"""The executor module knows how to run stages.
 
-archive: a tar, zip, gzip, or single file
-code: an archive of source code
-build script: a archive of files and a series of commands to run
-(diff) test case: a set of 2 archives,
-  input files and expected output files,
-  and a series of commands to run that take the input and produce output.
+A Stage consists of a main script to run, some files, and some metadata such
+ as a description.  Stages, including metadata, are stored on disk.
 
-A typical (error free), flow looks like:
- - copy code archive to a special directory, that is mounted in a container
- - extract code archive in that special directory in that container
- - copy and extract build script archive to that mounted directory
- - run the build script
- - remove everything in the special directory, except expected_filenames
- - copy test input archive input to that mounted directory
- - run the test script commands with the test input
- - diff the test results against the expected test output
+When a Stage is run, its .output (StageOutput) contains basic information
+such as STDOUT and STDERR.
+
+A DockerExecutor uses Docker to run multiple Stages, one at a time.
+
+See executor_test.py for examples.
 """
 
 import collections
@@ -107,6 +100,11 @@ class Stage(object):
     self.output = None
 
   def save_main_script(self, contents):
+    """Save a main script to be run inside the Docker container.
+
+    Main scripts are markes as executable and run directly.  If BASH can run
+    your script, then it should work.
+    """
     maybe_makedirs(self.path)
     path = os.path.join(self.path, 'main')
     with open(path, 'w') as f:
@@ -222,7 +220,15 @@ def merge_tree(src, dst):
 
 
 class DockerExecutor(object):
-  """Thin, Grade Oven specific, Docker wrapper."""
+  """Thin, Grade Oven specific, Docker wrapper.
+
+  To use, create a DockerExecutor with
+  a unique Docker safe container_id such as a hex-string, and
+  a host_dir(ectory) that can be safely mounted inside of Docker.
+  Then, call .init(), .docker_run(...), .cleanup().
+
+  See executor_test.py for examples.
+  """
 
   def __init__(self, container_id, host_dir):
     self.container_id = container_id
@@ -244,7 +250,7 @@ class DockerExecutor(object):
       '--ulimit', 'nice=19:19',
       '--ulimit', 'nofile={}:{}'.format(self.max_num_files, self.max_num_files),
       '--name', self.container_id, '--net', 'none', '--read-only=true',
-      '--restart=no', '--user', user, '--detach',  # , '--rm=true'
+      '--restart=no', '--user', user, '--detach',
       '--volume', '{}/grade_oven:/grade_oven'.format(self.host_dir),
       '--volume', '{}/tmp:/tmp'.format(self.host_dir),
       '--workdir', '/grade_oven/submission', '--cpu-shares', '128']
@@ -252,7 +258,6 @@ class DockerExecutor(object):
       docker_cmd.append('--volume')
       docker_cmd.append('{}/root:/root'.format(self.host_dir))
     docker_cmd.append(docker_image_name)
-    # docker_cmd.extend(['od', '-c']) DO NOT SUBMIT
     docker_cmd.extend(cmd)
     logging.info('Starting Docker container: %s', docker_cmd)
     proc = subprocess.Popen(
@@ -350,6 +355,9 @@ class DockerExecutor(object):
     return output, errors
 
   def init(self):
+    """Remove any contaminated contents from self.host_dir in order
+    to .run_stages(...) stages safely.
+    """
     for sub_dir in (
         'tmp', 'grade_oven', 'grade_oven/output',
         'grade_oven/submission'):

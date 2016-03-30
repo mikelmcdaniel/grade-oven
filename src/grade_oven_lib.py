@@ -1,7 +1,3 @@
-import bcrypt
-import executor
-import os
-import time
 """ Classes to interact with a Grade Oven data_store.DataStore() instance.
 
 DataStore schema:
@@ -27,6 +23,11 @@ File system schema:
       stages
       submissions/<students>
 """
+
+import bcrypt
+import executor
+import os
+import time
 
 class GradeOvenUser(object):
   "Represents a logged in user, needed for flask.ext.login.LoginManager"

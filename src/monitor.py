@@ -1,3 +1,9 @@
+"""A simple program which probes the GradeOven --server_address
+and writes the results to --log_file.
+
+It's an incredibly simple and weak way to collect data for debugging.
+"""
+
 import collections
 import cookielib
 import json
