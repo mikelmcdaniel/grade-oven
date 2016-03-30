@@ -37,6 +37,7 @@ import escape_lib
 import executor
 import executor_queue_lib
 import grade_oven_lib
+import random_avatar_name_lib
 
 # globals
 app = flask.Flask(__name__)
@@ -198,7 +199,7 @@ def _select_to_bool(value):
   return None
 
 def _add_edit_user(username, password, is_admin, is_monitor, is_instructor,
-                   course, instructs_course, takes_course, msgs):
+                   course, instructs_course, takes_course, add_defaults, msgs):
   user = grade_oven.user(username)
   msgs.append('Loaded user {!r}'.format(username))
   if password is not None:
@@ -220,6 +221,10 @@ def _add_edit_user(username, password, is_admin, is_monitor, is_instructor,
     if takes_course:
       user.set_takes_course(course, takes_course)
       msgs.append('Set takes_course {!r} == {!r}'.format(course, takes_course))
+  if add_defaults:
+    name = random_avatar_name_lib.random_name()
+    user.set_avatar_name(name)
+    user.set_real_name(name)
 
 @app.route('/admin/edit_user', methods=['GET', 'POST'])
 @admin_required
@@ -259,7 +264,7 @@ def admin_edit_user():
     passwords = [password for _ in xrange(len(usernames))]
   for username, password_ in itertools.izip(usernames, passwords):
     _add_edit_user(username, password_, is_admin, is_monitor, is_instructor,
-                   course, instructs_course, takes_course, msgs)
+                   course, instructs_course, takes_course, True, msgs)
   return flask.render_template(
     'admin_edit_user.html', username=login.current_user.get_id(), errors=errors, msgs=msgs)
 
