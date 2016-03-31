@@ -3,23 +3,19 @@
 <h2>Settings</h2>
 <form method="post">
   <div class="form-group">
-    <label for="real_name">Real/Full Name:</label>
-    <input type="text" class="form-control" placeholder="{{ real_name|e }}" id="real_name">
-  </div>
-  <div class="form-group">
     <label for="avatar_name">Avatar Name:</label>
-    <input type="text" class="form-control" placeholder="{{ avatar_name|e }}" id="avatar_name">
-  </div>
-
-  <div class="form-group">
-    <label for="password">Password:</label>
-    <input type="password" class="form-control" id="password">
+    <input type="text" class="form-control" placeholder="{{ avatar_name|e }}" id="avatar_name" name="avatar_name" autofocus>
   </div>
   <div class="form-group">
-    <label for="password2">Confirm Password:</label>
-    <input type="password" class="form-control" id="password2">
+    <label for="real_name">Real/Full Name:</label>
+    <input type="text" class="form-control" placeholder="{{ real_name|e }}" id="real_name" name="real_name">
   </div>
-
+  <div class="form-group">
+    <label for="password">New Password:</label>
+    <input type="password" class="form-control" id="password" name="password">
+    <label for="password2">Confirm New Password:</label>
+    <input type="password" class="form-control" id="password2" name="password2">
+  </div>
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
   <button type="submit" class="btn btn-default">Update Preferences</button>
 </form>
