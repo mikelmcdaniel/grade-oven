@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# output about 4MB
+s="0123456789abcdef"  # 16 chars
+s=${s}${s}${s}${s}  # 64 chars
+s=${s}${s}${s}${s}  # 256 chars
+s=${s}${s}${s}${s}  # 1KB chars
+s=${s}${s}${s}${s}  # 4KB chars
+for((j=0;j<1024;j++)); do
+  echo "${s}"
+done

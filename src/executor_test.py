@@ -80,6 +80,20 @@ class TestExecutor(unittest.TestCase):
       self.assertEqual(stages.stages['score'].output.score, 12345)
       self.assertEqual(stages.stages['score'].output.total, 67890)
 
+  def test_big_output(self):
+    host_dir = 'testdata/executor/HOST_DIR/big_output'
+    stages_dir = 'testdata/executor/big_output'
+    code_path = None
+    with EphemeralDir(host_dir):
+      c = executor.DockerExecutor('test_big_output', host_dir)
+      c.init()
+      stages = executor.Stages(stages_dir)
+      output, errors = c.run_stages(code_path, stages)
+      self.assertEqual(errors, [])
+      stage_output = stages.stages['make_output'].output.stdout
+      self.assertGreater(len(stage_output), 1024)  # greater than 1KB output
+      self.assertLess(len(stage_output), 1024**2)  # less than 1MB output
+
 
 if __name__ == '__main__':
   unittest.main()
