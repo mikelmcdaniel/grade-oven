@@ -91,8 +91,8 @@ class TestExecutor(unittest.TestCase):
       output, errors = c.run_stages(code_path, stages)
       self.assertEqual(errors, [])
       stage_output = stages.stages['make_output'].output.stdout
-      self.assertGreater(len(stage_output), 1024)  # greater than 1KB output
-      self.assertLess(len(stage_output), 1024**2)  # less than 1MB output
+      self.assertGreaterEqual(len(stage_output), 128 * 1024)  # >= than 128KB output
+      self.assertLessEqual(len(stage_output), 132 * 1024)  # <= than 128KB + 4KB output
 
 
 if __name__ == '__main__':

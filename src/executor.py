@@ -221,24 +221,23 @@ def merge_tree(src, dst):
   return errors
 
 
-def read_proc_summarized_stdout(proc):
+def read_proc_summarized_stdout(proc, bufsize):
   """Given a subprocess.Popen object, read it's stdout until the process dies
   and return a summarized version of the output.
+
+  bufsize is the buffer size of the 'file' object
+  (unbuffered and line buffering are not supported)
   """
-  output = collections.deque()
-  output_len = 0
+  if bufsize < 2:
+    raise ValueError(
+      'This function does not support unbuffered or line-buffered files '
+      '(bufsize must be >= 2).')
+  # between 128KB and 128KB + bufsize
+  output = collections.deque(maxlen=131072 / bufsize + 1)
   while True:
-    partial_read = proc.stdout.read(4096)  # 4KB chosen semi-arbitrarily
-    poll_sleep_seconds = 0.000001  # 1 microsecond chosen arbitrarily
+    partial_read = proc.stdout.read(bufsize)
     if partial_read:
       output.append(partial_read)
-      output_len += len(partial_read)
-      while output_len > 131072:  # 128KB chosen semi-arbitrarily
-        output_len -= len(output.popleft())
-      poll_sleep_seconds = max(poll_sleep_seconds / 2, 0.000001)
-    elif proc.poll() is None:  # elif the proc is still running
-      time.sleep(poll_sleep_seconds)
-      poll_sleep_seconds = min(2 * poll_sleep_seconds, 10)
     else:  # else there's no data left to read and proc is done running
       break
   return ''.join(output)
@@ -313,9 +312,9 @@ class DockerExecutor(object):
     logging.info('Reading Docker logs from container: %s', self.container_id)
     docker_cmd = ['docker', 'logs', self.container_id]
     proc = subprocess.Popen(
-      docker_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=-1,
+      docker_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=4096,
       close_fds=True, cwd=self.host_dir, env={})
-    output = read_proc_summarized_stdout(proc)
+    output = read_proc_summarized_stdout(proc, 4096)
 
     logging.info('Removing Docker container: %s', self.container_id)
     docker_cmd = ['docker', 'rm', '--force', self.container_id]
