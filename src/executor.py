@@ -223,7 +223,7 @@ def merge_tree(src, dst):
 
 def read_proc_summarized_stdout(proc, bufsize):
   """Given a subprocess.Popen object, read it's stdout until the process dies
-  and return a summarized version of the output.
+  and return a summarized version of the output and an error string or None.
 
   bufsize is the buffer size of the 'file' object
   (unbuffered and line buffering are not supported)
@@ -234,13 +234,17 @@ def read_proc_summarized_stdout(proc, bufsize):
       '(bufsize must be >= 2).')
   # between 128KB and 128KB + bufsize
   output = collections.deque(maxlen=131072 / bufsize + 1)
-  while True:
-    partial_read = proc.stdout.read(bufsize)
-    if partial_read:
-      output.append(partial_read)
-    else:  # else there's no data left to read and proc is done running
-      break
-  return ''.join(output)
+  error = None
+  try:
+    while True:
+      partial_read = proc.stdout.read(bufsize)
+      if partial_read:
+        output.append(partial_read)
+      else:  # else there's no data left to read and proc is done running
+        break
+  except EnvironmentError as e:
+    error = str(e)
+  return ''.join(output), error
 
 
 class DockerExecutor(object):
@@ -314,7 +318,9 @@ class DockerExecutor(object):
     proc = subprocess.Popen(
       docker_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=4096,
       close_fds=True, cwd=self.host_dir, env={})
-    output = read_proc_summarized_stdout(proc, 4096)
+    output, err = read_proc_summarized_stdout(proc, 4096)
+    if err:
+      errors.append(err)
 
     logging.info('Removing Docker container: %s', self.container_id)
     docker_cmd = ['docker', 'rm', '--force', self.container_id]
