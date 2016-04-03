@@ -86,6 +86,8 @@ class StageOutput(object):
     else:
       self.score = None
       self.total = None
+    self.output_html = file_contents_or(
+      os.path.join(output_path, 'output.html'), None)
     self.stdout = None
     self.errors = None
 

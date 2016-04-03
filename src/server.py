@@ -521,6 +521,8 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     logging.info('GradeOvenSubmission._run_stages_callback %s', stage.name)
     self.student_submission.set_score(stage.name, stage.output.score)
     self.student_submission.set_total(stage.name, stage.output.total)
+    self.student_submission.set_output_html(
+      stage.name, stage.output.output_html)
     self.student_submission.set_output(stage.name, stage.output.stdout)
     errors = '\n'.join(stage.output.errors)
     self.student_submission.set_errors(stage.name, errors)
@@ -686,19 +688,40 @@ def courses_x_assignments_x(course_name, assignment_name):
     '../data/files/courses', course.name, 'assignments', assignment.name))
   if takes_course:
     submission_output = student_submission.output()
+    submission_has_output_html = bool(student_submission.output_html())
     submission_errors = student_submission.errors().strip()
   else:
     submission_output, submission_errors = '', ''
+    submission_has_output_html = False
   header_row, table = _make_grade_table(
     course, assignment, show_real_names=instructs_course)
   return flask.render_template(
-    'courses_x_assignments_x.html', username=login.current_user.get_id(),
+    'courses_x_assignments_x.html',
+    username=login.current_user.get_id(),
     instructs_course=instructs_course,
-    takes_course=takes_course, course_name=course.name,
+    takes_course=takes_course,
+    course_name=course.name,
     assignment_name=assignment.name,
-    stages=stages.stages.values(), submission_output=submission_output,
+    stages=stages.stages.values(),
+    submission_output=submission_output,
+    submission_has_output_html=submission_has_output_html,
     submission_errors=submission_errors,
-    stages_desc=stages.description, header_row=header_row, table=table)
+    stages_desc=stages.description,
+    header_row=header_row,
+    table=table)
+
+@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>/output_html')
+@login_required
+def courses_x_assignments_x_output_html(course_name, assignment_name):
+  user = login.current_user
+  course = grade_oven.course(course_name)
+  assignment = course.assignment(assignment_name)
+  student_submission = assignment.student_submission(user.username)
+  submission_output_html = student_submission.output_html()
+  return flask.render_template(
+    'courses_x_assignments_x_output_html.html',
+    username=login.current_user.get_id(),
+    submission_output_html=submission_output_html)
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
