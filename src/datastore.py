@@ -13,7 +13,6 @@ how to use it or look at this simple example:
   assert set(store.get_all(('courses',))) == set(['python'])
 """
 
-import cStringIO
 import json
 import os
 import shutil
@@ -33,34 +32,27 @@ class DataStore(object):
 
   def put(self, key, value=None):
     mods = leveldb.WriteBatch()
-    partial_key = cStringIO.StringIO()
+    partial_key = []
     for j, key_part in enumerate(key, 1):
-      partial_key.write('\x00')
-      len_partial = partial_key.tell()
-      partial_key.seek(0)
-      partial_key.write(chr(j))
-      partial_key.seek(len_partial)
-      partial_key.write(key_part)
-      partial_key.seek(0)
-      mods.Put(partial_key.read(), _JSON_NULL)
-    partial_key.seek(0)
-    mods.Put(partial_key.read(), json.dumps(value))
+      partial_key.append('\x00')
+      partial_key[0] = unichr(j)
+      partial_key.append(key_part)
+      pk = bytearray(''.join(partial_key), 'utf-8')
+      mods.Put(pk, _JSON_NULL)
+    mods.Put(pk, json.dumps(value))
     self.db.Write(mods)
 
   def __setitem__(self, key, value):
     return self.put(key, value)
 
   def __getitem__(self, key):
-    real_key = cStringIO.StringIO()
-    real_key.write(chr(len(key)))
-    real_key.write('\x00'.join(key))
-    real_key.seek(0)
-    raw_value = self.db.Get(real_key.read())
+    real_key = []
+    for key_part in key:
+      real_key.append('\x00')
+      real_key.append(key_part)
+    real_key[0] = unichr(len(key))
+    raw_value = self.db.Get(bytearray(''.join(real_key), 'utf-8'))
     value = json.loads(raw_value)
-    # This is a workaround since Python Flask cannot properly escape non-ascii
-    # strings in HTML template expansion.
-    if isinstance(value, basestring):
-      value = value.encode('ascii', 'replace')
     return value
 
   def get(self, key, default_value=None):
@@ -77,33 +69,32 @@ class DataStore(object):
       return False
 
   def get_all(self, key):
-    real_key = cStringIO.StringIO()
-    real_key.write(chr(len(key) + 1))
-    real_key.write('\x00'.join(key))
-    real_key.seek(0)
-    start_key = real_key.read()
-    real_key.write('\x01')
-    real_key.seek(0)
-    end_key = real_key.read()
+    real_key = []
+    real_key.append(chr(len(key) + 1))
+    real_key.append('\x00'.join(key))
+    start_key = ''.join(real_key)
+    real_key.append('\x01')
+    end_key = ''.join(real_key)
     sub_keys = []
-    for sub_key in self.db.RangeIter(start_key, end_key, include_value=False):
-      sub_keys.append(sub_key[sub_key.rfind('\x00') + 1:])
+    for sub_key in self.db.RangeIter(
+        bytearray(start_key, 'utf-8'), bytearray(end_key, 'utf-8'),
+        include_value=False):
+      sub_keys.append(sub_key[sub_key.rfind('\x00') + 1:].decode('utf-8'))
     return sub_keys
 
   def remove(self, key):
-    real_key = cStringIO.StringIO()
-    real_key.write(chr(len(key)))
-    real_key.write('\x00'.join(key))
-    real_key.seek(0)
+    real_key = []
+    real_key.append(unichr(len(key)))
+    real_key.append('\x00'.join(key))
     mods = leveldb.WriteBatch()
     for j in xrange(len(key), 256):
-      real_key.seek(0)
-      real_key.write(chr(j))
-      real_key.seek(0)
-      start_key = real_key.read()
+      real_key[0] = unichr(j)
+      start_key = ''.join(real_key)
       end_key = start_key + '\x01'
       found_keys = False
-      for k in self.db.RangeIter(start_key, end_key, include_value=False):
+      for k in self.db.RangeIter(
+          bytearray(start_key, 'utf-8'), bytearray(end_key, 'utf-8'),
+          include_value=False):
         mods.Delete(k)
         found_keys = True
       if not found_keys:
@@ -115,8 +106,8 @@ class DataStore(object):
 
 
 if __name__ == '__main__':
-  key1 = ('courses', 'c++',    'assignments', 'homework 1')
-  key2 = ('courses', 'c++',    'assignments', 'homework 2')
+  key1 = ('courses', unichr(9835), 'assignments', 'homework 1')
+  key2 = ('courses', unichr(9835), 'assignments', 'homework 2' + unichr(9835))
   key3 = ('courses', 'python', 'assignments', 'homework 1')
   temp_dir = tempfile.mkdtemp()
   try:
@@ -124,10 +115,10 @@ if __name__ == '__main__':
     store.put(key1, 'c++ 1')
     store.put(key2, 'c++ 2')
     store[key3] = 'python 1'
-    assert set(store.get_all(('courses',))) == set(['c++', 'python'])
+    assert set(store.get_all(('courses',))) == set([unichr(9835), 'python'])
     assert store.get(key1) == 'c++ 1'
     assert store[key3] == 'python 1'
-    store.remove(('courses', 'c++'))
+    store.remove(('courses', unichr(9835)))
     assert set(store.get_all(('courses',))) == set(['python'])
     assert ('courses',) in store
     assert ('courses', 'python') in store
@@ -135,6 +126,7 @@ if __name__ == '__main__':
     del store[('courses', 'python', 'assignments', 'homework 1')]
     assert ('courses', 'python', 'assignments', 'homework 1') not in store
     assert set(store.get_all(('courses', 'nothing'))) == set()
-    assert store.get(('does', 'not', 'exist'), 'DEFAULT VAL') == 'DEFAULT VAL'
+    assert store.get(
+      ('does', 'not', 'exist' + unichr(9835)), 'DEFAULT VAL') == 'DEFAULT VAL'
   finally:
     shutil.rmtree(temp_dir)
