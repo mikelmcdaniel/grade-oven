@@ -730,10 +730,10 @@ def settings():
   errors = []
 
   form = flask.request.form
-  real_name = form.get('real_name')
+  real_name = form.get('real_name')[:256]
   if real_name:
     user.set_real_name(real_name)
-  avatar_name = form.get('avatar_name')
+  avatar_name = form.get('avatar_name')[:256]
   if avatar_name:
     user.set_avatar_name(avatar_name)
   password = form.get('password')
