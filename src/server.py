@@ -414,7 +414,7 @@ def _make_grades_table(course, show_real_names=False):
     header_row.append('Real Name')
   header_row.append('Avatar Name')
   assignment_names = course.assignment_names()
-  student_names = course.student_usernames()
+  student_names = sorted(course.student_usernames())
   header_row.extend(assignment_names)
   assignments = [course.assignment(an) for an in assignment_names]
   table = []
@@ -427,7 +427,7 @@ def _make_grades_table(course, show_real_names=False):
     row.append(user.avatar_name())
     for assignment in assignments:
       submission = assignment.student_submission(student_name)
-      row.append(u'{}/{}'.format(submission.score(), submission.total()))
+      row.append(unicode(submission.score()))
     table.append(row)
   table = sorted(table)
   return header_row, table
