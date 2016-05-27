@@ -408,7 +408,11 @@ def courses_x(course_name):
     assignments=assignment_names, course_name=course.name)
 
 def _make_grades_table(course, show_real_names=False):
-  header_row = ['Avatar Name']
+  header_row = []
+  if show_real_names:
+    header_row.append('Username')
+    header_row.append('Real Name')
+  header_row.append('Avatar Name')
   assignment_names = course.assignment_names()
   student_names = course.student_usernames()
   header_row.extend(assignment_names)
@@ -418,9 +422,9 @@ def _make_grades_table(course, show_real_names=False):
     user = grade_oven.user(student_name)
     row = []
     if show_real_names:
-      row.append(u'{} ({})'.format(user.avatar_name(), user.real_name()))
-    else:
-      row.append(user.avatar_name())
+      row.append(user.username)
+      row.append(user.real_name())
+    row.append(user.avatar_name())
     for assignment in assignments:
       submission = assignment.student_submission(student_name)
       row.append(u'{}/{}'.format(submission.score(), submission.total()))
