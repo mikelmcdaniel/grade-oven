@@ -462,6 +462,14 @@ def _edit_assignment(form, course_name, assignment_name, stages):
   description = form.get('description')
   if description:
     stages.save_description(description)
+  due_date = form.get('due_date')
+  try:
+    assignment.set_due_date(time.mktime(time.strptime(due_date, '%Y-%m-%d %H:%M')))
+  except TypeError:
+    pass # None passed in (no date)
+  except ValueError:
+    errors.append(
+      'Due date "{}" is not formatted like "YYYY-MM-DD HH:MM".'.format(due_date))
   delete_files = form.getlist('delete_files')
   for delete_file in delete_files:
     parts = delete_file.split('/', 1)
@@ -683,10 +691,17 @@ def courses_x_assignments_x(course_name, assignment_name):
   stages = executor.Stages(os.path.join(
     '../data/files/courses', course.name, 'assignments', assignment.name))
   if takes_course:
+    due_date = assignment.due_date()
+    if due_date is None:
+      formatted_due_date = ''
+    else:
+      formatted_due_date = time.strftime('%Y-%m-%d %H:%M',
+                                         time.localtime(due_date))
     submission_output = student_submission.output()
     submission_has_output_html = bool(student_submission.output_html())
     submission_errors = student_submission.errors().strip()
   else:
+    formatted_due_date = ''
     submission_output, submission_errors = '', ''
     submission_has_output_html = False
   header_row, table = _make_grade_table(
@@ -698,6 +713,7 @@ def courses_x_assignments_x(course_name, assignment_name):
     takes_course=takes_course,
     course_name=course.name,
     assignment_name=assignment.name,
+    formatted_due_date=formatted_due_date,
     stages=stages.stages.values(),
     submission_output=submission_output,
     submission_has_output_html=submission_has_output_html,

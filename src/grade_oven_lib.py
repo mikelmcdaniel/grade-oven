@@ -150,6 +150,17 @@ class GradeOvenAssignment(object):
   def stages_dir(self):
     return os.path.join(self.root_dir(), 'stages')
 
+  def due_date(self):
+    # float unix epoch (same format as time.time())
+    return self._data_store.get(
+      ('courses', self.course_name, 'assignments', self.name, 'due_date'), None)
+
+  def set_due_date(self, due_date):
+    # float unix epoch (same format as time.time())
+    return self._data_store.put(
+      ('courses', self.course_name, 'assignments', self.name, 'due_date'),
+      due_date)
+
   def student_submission(self, student_username):
     return GradeOvenStudentSubmission(self._data_store, self.course_name,
                                       self.name, student_username)

@@ -2,7 +2,8 @@
 {% block body %}
 <h2>Course {{ course_name|e }} Assignment {{ assignment_name|e }}</h2>
 <h3>{{ assignment_name|e }}:</h3>
-<pre>{{ stages_desc|e }}</pre>
+<pre>{{ stages_desc|e }}{% if formatted_due_date %}
+Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
 <pre>{% for stage in stages %}{{ stage.name|e }}:
 {{ stage.description|e }}
 {% endfor %}</pre>
@@ -10,6 +11,7 @@
 {% if instructs_course %}
 <form method="post" enctype="multipart/form-data" action="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/edit">
   Description: <input name="description" type="text" placeholder="assignment description" value="{{ stages_desc|e }}"><br>
+  Due Date: <input name="due_date" type="text" placeholder="YYYY-MM-DD HH:MM" value="{{ formatted_due_date|e }}"><br>
   {% for stage in stages %}
   <h4>{{ stage.name|e }}:</h4>
   Delete {{ stage.name|e }} <input type="checkbox" name="delete_stages" value="{{ stage.name|e }}"><br>
