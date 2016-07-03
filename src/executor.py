@@ -87,7 +87,7 @@ class StageOutput(object):
     except (TypeError, ValueError):
       self.score = None
     self.output_html = file_contents_or(
-      os.path.join(output_path, 'output.html'), None)
+      os.path.join(output_path, 'output.html'), '')
     self.stdout = None
     self.errors = None
 
