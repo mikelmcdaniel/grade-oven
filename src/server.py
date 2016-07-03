@@ -400,12 +400,14 @@ def courses_x(course_name):
     student_usernames = psuedo_usernames
   else:
     student_usernames = None
+  grades_header_row, grades_table = _make_grades_table(course, show_real_names=instructs_course)
   assignment_names = course.assignment_names()
   return flask.render_template(
     'courses_x.html', username=login.current_user.get_id(),
     instructs_course=instructs_course,
     takes_course=takes_course, students=student_usernames,
-    assignments=assignment_names, course_name=course.name)
+    assignments=assignment_names, course_name=course.name,
+    grades_header_row=grades_header_row, grades_table=grades_table)
 
 def _make_grades_table(course, show_real_names=False):
   header_row = []
@@ -439,22 +441,12 @@ def courses_x_assignments(course_name):
   course = grade_oven.course(course_name)
   instructs_course = user.instructs_course(course_name)
   takes_course = user.takes_course(course_name)
-  header_row, table = _make_grades_table(course, show_real_names=instructs_course)
-  # Add/Edit assignment
-  if instructs_course:
-    form = flask.request.form
-    assignment_name = escape_lib.safe_entity_name(form.get('assignment_name'))
-    if assignment_name:
-      course.add_assignment(assignment_name)
-      return flask.redirect(
-        u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
-        code=303)
   assignment_names = course.assignment_names()
   return flask.render_template(
     'courses_x_assignments.html', username=login.current_user.get_id(),
     instructs_course=instructs_course,
     takes_course=takes_course, assignments=assignment_names,
-    course_name=course.name, header_row=header_row, table=table)
+    course_name=course.name)
 
 def _edit_assignment(form, course_name, assignment_name, stages):
   errors = []

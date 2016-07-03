@@ -8,12 +8,30 @@
   {% endfor %}
 </ul>
 {% if instructs_course %}
-<h3>Add/Edit Assignment:</h3>
+<h3>Add Assignment:</h3>
 <form method="post" enctype="multipart/form-data">
   <input autofocus="autofocus" name="assignment_name" type="text" placeholder="assignment name">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
   <input type="submit" value="Add Assignment">
 </form>
+
+{% if takes_course or instructs_course %}
+<h3>Grades:</h3>
+<table class="table table-bordered">
+  <tr>
+    {% for col in grades_header_row %}
+    <th>{{ col|e }}</th>
+    {% endfor %}
+  </tr>
+  {% for row in grades_table %}
+  <tr>
+    {% for col in row %}
+    <td>{{ col|e }}</td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
 
 <h3>Students:</h3>
 <ul class="students">
