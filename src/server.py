@@ -417,7 +417,9 @@ def _make_grades_table(course, show_real_names=False):
   header_row.append('Avatar Name')
   assignment_names = course.assignment_names()
   student_names = sorted(course.student_usernames())
-  header_row.extend(assignment_names)
+  for assignment_name in assignment_names:
+    header_row.append(assignment_name)
+    header_row.append(assignment_name + ' (after due date)')
   assignments = [course.assignment(an) for an in assignment_names]
   table = []
   for student_name in student_names:
@@ -430,6 +432,7 @@ def _make_grades_table(course, show_real_names=False):
     for assignment in assignments:
       submission = assignment.student_submission(student_name)
       row.append(unicode(submission.score()))
+      row.append(unicode(submission.past_due_date_score()))
     table.append(row)
   table = sorted(table)
   return header_row, table
@@ -523,7 +526,12 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
 
   def _run_stages_callback(self, stage):
     logging.info(u'GradeOvenSubmission._run_stages_callback %s', stage.name)
-    self.student_submission.set_score(stage.name, stage.output.score)
+    if self.student_submission.assignment.due_date() is None or (
+        self.student_submission.submit_time()
+        <= self.student_submission.assignment.due_date()):
+      self.student_submission.set_score(stage.name, stage.output.score)
+    else:
+      self.student_submission.set_past_due_date_score(stage.name, stage.output.score)
     self.student_submission.set_output_html(
       stage.name, stage.output.output_html)
     self.student_submission.set_output(stage.name, stage.output.stdout)
@@ -556,7 +564,7 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
 
 
 def _make_grade_table(course, assignment, show_real_names=False):
-  header_row = ['Avatar Name', 'Score', 'Submission Status',
+  header_row = ['Avatar Name', 'Score', 'Score (after due date)', 'Submission Status',
                 'Submit Time', 'Attempts']
   table = []
   for username in course.student_usernames():
@@ -568,6 +576,7 @@ def _make_grade_table(course, assignment, show_real_names=False):
       row.append(user.avatar_name())
     submission = assignment.student_submission(username)
     row.append(submission.score())
+    row.append(submission.past_due_date_score())
     row.append(submission.status())
     submit_time = submission.submit_time()
     if submit_time:
