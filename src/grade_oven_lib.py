@@ -26,6 +26,7 @@ File system schema:
 
 import bcrypt
 import executor
+import itertools
 import os
 import time
 
@@ -189,10 +190,10 @@ class GradeOvenStudentSubmission(object):
        'students', self.student_username, 'stages', stage_name, 'total'), total)
 
   def output_html(self):
-    return '\n'.join(unicode(self._data_store.get(
+    return '\n'.join(itertools.ifilter(bool, (unicode(self._data_store.get(
       ('courses', self.course_name, 'assignments', self.assignment_name,
-       'students', self.student_username, 'stages', stage_name, 'output_html'), '') or '')
-                   for stage_name in self.stage_names())
+       'students', self.student_username, 'stages', stage_name, 'output_html'), ''))
+                   for stage_name in self.stage_names())))
 
   def set_output_html(self, stage_name, output_html):
     self._data_store.put(
