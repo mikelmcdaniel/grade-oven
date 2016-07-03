@@ -424,6 +424,8 @@ def _make_grades_table(course, show_real_names=False):
   table = []
   for student_name in student_names:
     user = grade_oven.user(student_name)
+    if not show_real_names and user.prefers_anonymity():
+      continue
     row = []
     if show_real_names:
       row.append(user.username)
@@ -570,6 +572,8 @@ def _make_grade_table(course, assignment, show_real_names=False):
   for username in course.student_usernames():
     row = []
     user = grade_oven.user(username)
+    if not show_real_names and user.prefers_anonymity():
+      continue
     if show_real_names:
       row.append(u'{} ({})'.format(user.avatar_name(), user.real_name()))
     else:
@@ -758,6 +762,11 @@ def settings():
   if avatar_name:
     avatar_name = avatar_name[:256]
     user.set_avatar_name(avatar_name)
+  prefers_anonymity = form.get('prefers_anonymity')
+  if prefers_anonymity:
+    user.set_prefers_anonymity(True)
+  else:
+    user.set_prefers_anonymity(False)
   password = form.get('password')
   password2 = form.get('password2')
   if password or password2:
@@ -769,7 +778,7 @@ def settings():
   return flask.render_template(
     'settings.html', username=login.current_user.get_id(),
     real_name=user.real_name(), avatar_name=user.avatar_name(),
-    errors=errors)
+    prefers_anonymity=user.prefers_anonymity(), errors=errors)
 
 @app.route('/')
 @nothing_required

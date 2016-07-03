@@ -135,6 +135,14 @@ class GradeOvenUser(object):
   def set_real_name(self, real_name):
     return self._data_store.put(('users', self.username, 'real', 'name'), real_name)
 
+  def prefers_anonymity(self):
+    return bool(self._data_store.get(
+      ('users', self.username, 'prefers_anonymity'), False))
+
+  def set_prefers_anonymity(self, prefers_anonymity):
+    return self._data_store.put(('users', self.username, 'prefers_anonymity'),
+                                bool(prefers_anonymity))
+
 
 class GradeOvenAssignment(object):
   def __init__(self, data_store, course_name, assignment_name):
