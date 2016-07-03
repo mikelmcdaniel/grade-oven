@@ -78,7 +78,6 @@ class TestExecutor(unittest.TestCase):
       self.assertEqual(output.strip(), '')
       self.assertIn('score', stages.stages)
       self.assertEqual(stages.stages['score'].output.score, 12345)
-      self.assertEqual(stages.stages['score'].output.total, 67890)
 
   def test_big_output(self):
     host_dir = 'testdata/executor/HOST_DIR/big_output'

@@ -524,7 +524,6 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
   def _run_stages_callback(self, stage):
     logging.info(u'GradeOvenSubmission._run_stages_callback %s', stage.name)
     self.student_submission.set_score(stage.name, stage.output.score)
-    self.student_submission.set_total(stage.name, stage.output.total)
     self.student_submission.set_output_html(
       stage.name, stage.output.output_html)
     self.student_submission.set_output(stage.name, stage.output.stdout)

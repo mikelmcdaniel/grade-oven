@@ -8,7 +8,6 @@ courses[]
     students[]
       stages[]
         score
-        total
     due_date
 users[]
   hashed_password
@@ -188,17 +187,6 @@ class GradeOvenStudentSubmission(object):
     self._data_store.put(
       ('courses', self.course_name, 'assignments', self.assignment_name,
        'students', self.student_username, 'stages', stage_name, 'score'), score)
-
-  def total(self):
-    return sum(int(self._data_store.get(
-      ('courses', self.course_name, 'assignments', self.assignment_name,
-       'students', self.student_username, 'stages', stage_name, 'total'), 0) or 0)
-                   for stage_name in self.stage_names())
-
-  def set_total(self, stage_name, total):
-    self._data_store.put(
-      ('courses', self.course_name, 'assignments', self.assignment_name,
-       'students', self.student_username, 'stages', stage_name, 'total'), total)
 
   def output_html(self):
     return '\n'.join(itertools.ifilter(bool, (unicode(self._data_store.get(

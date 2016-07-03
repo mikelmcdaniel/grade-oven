@@ -1,2 +1,2 @@
 #!/bin/bash
-echo 12345/67890 > /grade_oven/output/score
+echo 12345 > /grade_oven/output/score
