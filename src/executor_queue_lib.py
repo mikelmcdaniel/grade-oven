@@ -42,10 +42,10 @@ class Submission(object):
     return not self == other
 
   def __eq__(self, other):
-    return self.name == other
+    return self.name == other.name
 
   def __le__(self, other):
-    return self.name < other
+    return self.name < other.name
 
 
 class ExecutorThread(threading.Thread):
@@ -67,15 +67,28 @@ class ExecutorThread(threading.Thread):
       self.submission.after_run()
       self._release_func()
 
-
 class ExecutorQueue(object):
   def __init__(self, max_threads=3):
     # priority queue picks things with a lesser value first
     self._submission_queue = queue.PriorityQueue()
     self._submission_set = set()
     self._threads_semaphore = threading.BoundedSemaphore(max_threads)
-    self._running_threads = collections.deque()
-    self._running_threads_lock = threading.Lock()
+    self._thread = threading.Thread(None, self.__run, 'ExecutorQueue.__run')
+    self._thread.daemon = True
+    self._thread.start()
+
+  def __run(self):
+    while True:
+      self._threads_semaphore.acquire()
+      _, submission = self._submission_queue.get()
+      t = ExecutorThread(submission,
+                         functools.partial(self.__release_func, submission))
+      t.start()
+
+  def __release_func(self, submission):
+    self._submission_set.discard(submission)
+    self._submission_queue.task_done()
+    self._threads_semaphore.release()
 
   def __contains__(self, submission):
     return submission in self._submission_set
@@ -84,49 +97,9 @@ class ExecutorQueue(object):
     if submission not in self._submission_set:
       self._submission_set.add(submission)
       self._submission_queue.put((submission.priority, submission))
-      self.maybe_execute()
       return True
     else:
       return False
 
-  def _maybe_cleanup_threads(self):
-    threads_to_remove = 0
-    with self._running_threads_lock:
-      for t in self._running_threads:
-        if t.is_alive():
-          break
-        threads_to_remove += 1
-      for _ in xrange(threads_to_remove):
-        self._running_threads.popleft()
-
   def join(self):
-    while True:
-      with self._running_threads_lock:
-        try:
-          t = self._running_threads[0]
-        except IndexError:  # no threads are running
-          break
-          t.join()
-      self._maybe_cleanup_threads()
-
-  def _release_func(self, submission):
-    self._submission_set.discard(submission)
-    self._submission_queue.task_done()
-    self._threads_semaphore.release()
-    self.maybe_execute()
-
-  def maybe_execute(self):
-    if self._threads_semaphore.acquire(blocking=False):
-      try:
-        _, submission = self._submission_queue.get(block=False)
-      except queue.Empty:
-        submission = None
-        self._threads_semaphore.release()
-      if submission is not None:
-        t = ExecutorThread(
-          submission, functools.partial(self._release_func, submission))
-        t.start()
-        with self._running_threads_lock:
-          self._running_threads.append(t)
-
-
+    self._submission_queue.join()

@@ -26,11 +26,11 @@ class TestExecutor(unittest.TestCase):
     def closure3():
       nonce.add('three')
     submission1 = executor_queue_lib.Submission(
-      'arbitrary priority', 'name', 'first description', closure1)
+      'arbitrary priority', 'one', 'first description', closure1)
     submission2 = executor_queue_lib.Submission(
-      'arbitrary priority', 'name', 'second description', closure2)
+      'arbitrary priority', 'two', 'second description', closure2)
     submission3 = executor_queue_lib.Submission(
-      'arbitrary priority', 'name', 'third description', closure3)
+      'arbitrary priority', 'three', 'third description', closure3)
     executor_queue = executor_queue_lib.ExecutorQueue()
     executor_queue.enqueue(submission1)
     executor_queue.enqueue(submission2)
@@ -74,7 +74,7 @@ class TestExecutor(unittest.TestCase):
     # The null submission is necessary since as soon as it's queued, it will
     # be started since nothing else is in the queue and max_threads == 1.
     null_submission = executor_queue_lib.Submission(
-      1000, 'null submission', 'null submission', null_closure)
+      0, 'null submission', 'null submission', null_closure)
     submission1 = executor_queue_lib.Submission(
       1, 'most important', 'most important', closure1)
     submission2 = executor_queue_lib.Submission(
@@ -126,7 +126,7 @@ class TestExecutor(unittest.TestCase):
     # The null submission is necessary since as soon as it's queued, it will
     # be started since nothing else is in the queue and max_threads == 1.
     null_submission = executor_queue_lib.Submission(
-      1000, 'null submission', 'null submission', null_closure)
+      0, 'null submission', 'null submission', null_closure)
     submission1 = executor_queue_lib.Submission(
       3, 'same name', 'most important', closure1)
     submission2 = executor_queue_lib.Submission(
