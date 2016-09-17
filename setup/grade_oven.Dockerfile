@@ -15,8 +15,6 @@ VOLUME ["/grade_oven"]
 VOLUME ["/tmp"]
 WORKDIR ["/grade_oven"]
 
-# Note that there is no "clang-format" package, but "clang-3.4" happens to be
-# the latest version of clang in the repo as of 2015-11-27.
-RUN ["apt-get", "--assume-yes", "install", "binutils", "clang", "make", "clang-format-3.4"]
+RUN ["apt-get", "--assume-yes", "install", "binutils", "clang", "make", "clang-format"]
 
 USER grade_oven

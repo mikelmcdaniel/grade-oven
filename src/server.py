@@ -27,7 +27,6 @@ import tempfile
 import threading
 import time
 
-from OpenSSL import SSL
 from flask.ext import login
 import bcrypt
 import flask
@@ -848,10 +847,7 @@ def main():
     user.set_password(open('../data/secret_key.txt').read())
     user.set_is_monitor(True)
 
-  context = SSL.Context(SSL.TLSv1_METHOD)
-  # TODO: generate a legitimate server key and certificate
-  context.use_privatekey_file('../data/ssl/server.key')
-  context.use_certificate_file('../data/ssl/server.crt')
+  context = ('../data/ssl/server.crt', '../data/ssl/server.key')
 
   # logging.basicConfig(filename='../data/server.log', level=logging.DEBUG)
   logging.basicConfig(level=logging.DEBUG)

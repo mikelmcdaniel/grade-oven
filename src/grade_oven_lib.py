@@ -23,6 +23,8 @@ File system schema:
       submissions/<students>
 """
 
+# TODO: Add logging statements, especially near exceptions.
+
 import bcrypt
 import executor
 import itertools
@@ -37,11 +39,13 @@ class GradeOvenUser(object):
 
   def check_password(self, password):
     try:
-      hashed_password = self._data_store['users', self.username, 'hashed_password']
+      hashed_password = self._data_store[
+        'users', self.username, 'hashed_password']
     except KeyError:
       return False
     try:
-      return bcrypt.checkpw(password, hashed_password)
+      return bcrypt.checkpw(
+        password.encode('utf-8'), hashed_password.encode('utf-8'))
     except (ValueError, TypeError) as e:
       return False
 
@@ -54,7 +58,7 @@ class GradeOvenUser(object):
     return None
 
   def set_password(self, password):
-    hpw = bcrypt.hashpw(password, bcrypt.gensalt())
+    hpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     self._data_store['users', self.username, 'hashed_password'] = hpw
 
   def has_password(self):

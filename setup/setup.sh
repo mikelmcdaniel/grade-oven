@@ -3,7 +3,9 @@ set -e  # exit on error
 
 ./mount.sh
 
-sudo apt-get --assume-yes install python2.7 python-flask python-flask-login docker python-bcrypt python-leveldb authbind
+sudo apt-get --assume-yes install python2.7 python-flask python-flask-login docker python-bcrypt python-leveldb authbind docker.io
+
+sudo service docker start
 
 if [ "${USER?}" != 'gradeoven' ]; then
     sudo adduser gradeoven --disabled-password --disabled-login
