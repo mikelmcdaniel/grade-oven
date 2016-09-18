@@ -62,6 +62,8 @@ class ExecutorThread(threading.Thread):
     try:
       self.submission.before_run()
       self.submission.run()
+    except Exception as e:
+      logging.error('Submission failed to run: {!r}'.format(e))
     finally:
       self.submission.status = Submission.DONE
       self.submission.after_run()

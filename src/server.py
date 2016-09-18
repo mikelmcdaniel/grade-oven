@@ -69,9 +69,13 @@ class ResourcePool(object):
       self._used_resources.remove(resource)
       self._free_resources.append(resource)
 
+  def __len__(self):
+    return len(self._free_resources)
+
 
 temp_dirs = ResourcePool(
   os.path.abspath(p) for p in glob.glob('../data/host_dirs/?'))
+assert len(temp_dirs) > 0
 
 
 def nothing_required(func):
@@ -545,7 +549,8 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     logging.info(u'GradeOvenSubmission.before_run %s', self.description)
     self.student_submission.set_status('setting up')
     self._temp_dir = temp_dirs.get()
-    assert self._temp_dir is not None
+    if self._temp_dir is None:
+      raise RuntimeError('No temporary directories available.')
 
   def run(self):
     logging.info(u'GradeOvenSubmission.run %s', self.description)

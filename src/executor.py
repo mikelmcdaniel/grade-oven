@@ -178,7 +178,6 @@ class Stages(object):
       f.write(desc)
 
   def save_stages(self):
-    assert self._stages is not None
     maybe_makedirs(self.path)
     with open(os.path.join(self.path, 'stages'), 'w') as f:
       f.write('\n'.join(self.stages.iterkeys()))
@@ -271,7 +270,8 @@ class DockerExecutor(object):
     errors = []
     if user is None:
       user = 'grade_oven'
-    assert user in ('grade_oven', 'root')
+    if user not in ('grade_oven', 'root'):
+      raise ValueError('User "{}" must be "grade_oven" or "root".'.format(user))
     docker_cmd = [
       'docker', 'run', '--hostname', 'grade_oven', '--memory', '256m',
       # TODO: figure out why I need to set nproc so high
