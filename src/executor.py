@@ -273,7 +273,7 @@ class DockerExecutor(object):
     if user not in ('grade_oven', 'root'):
       raise ValueError('User "{}" must be "grade_oven" or "root".'.format(user))
     docker_cmd = [
-      'docker', 'run', '--hostname', 'grade_oven', '--memory', '256m',
+      'docker', 'run', '--hostname', 'gradeoven', '--memory', '256m',
       # TODO: figure out why I need to set nproc so high
       #  If I didn't set nproc > 500 docker wouldn't even start
       '--ulimit', 'nproc=1000:1000',
