@@ -206,7 +206,7 @@ class GradeOvenStudentSubmission(object):
   def __past_due_date_score(self):
     return sum(int(self._data_store.get(
       ('courses', self.course_name, 'assignments', self.assignment_name,
-       'students', self.student_username, 'stages', stage_name, 'past_due_date_score'), 0))
+       'students', self.student_username, 'stages', stage_name, 'past_due_date_score'), 0) or 0)
                    for stage_name in self.stage_names())
 
   def past_due_date_score(self):
