@@ -7,7 +7,8 @@ sudo apt-get --assume-yes install python2.7 python-flask python-flask-login dock
 
 sudo service docker start
 
-if [ "${USER?}" != 'gradeoven' ]; then
+# if the user grade oven does not exist *or* is not able to use docker
+if ! groups gradeoven | grep docker; then
     sudo adduser gradeoven --disabled-password --disabled-login
     sudo adduser gradeoven docker
 fi
@@ -16,7 +17,7 @@ sudo touch /etc/authbind/byport/443
 sudo chown gradeoven:gradeoven /etc/authbind/byport/443
 sudo chmod 755 /etc/authbind/byport/443
 
-docker build --build-arg GRADE_OVEN_UID="$(id -u gradeoven)" -t grade_oven/grade_oven -f grade_oven.Dockerfile --rm --memory-swap=-1 .
+sudo docker build --build-arg GRADE_OVEN_UID="$(id -u gradeoven)" -t grade_oven/grade_oven -f grade_oven.Dockerfile --rm --memory-swap=-1 .
 
 
 
