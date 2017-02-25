@@ -38,14 +38,15 @@ class GradeOvenUser(object):
     self._data_store = data_store
 
   def check_password(self, password):
+    password = password.encode('utf-8')
     try:
       hashed_password = self._data_store[
         'users', self.username, 'hashed_password']
     except KeyError:
       return False
     try:
-      return bcrypt.checkpw(
-        password.encode('utf-8'), hashed_password.encode('utf-8'))
+      hashed_password = hashed_password.encode('utf-8')
+      return hashed_password == bcrypt.hashpw(password, hashed_password)
     except (ValueError, TypeError) as e:
       return False
 
