@@ -1,8 +1,9 @@
-import os
-import unittest
+import errno
 import executor
-import shutil
+import os
 import re
+import shutil
+import unittest
 
 
 class EphemeralDir(object):
@@ -11,7 +12,11 @@ class EphemeralDir(object):
 
   def __enter__(self):
     shutil.rmtree(self.path, ignore_errors=True)
-    os.makedirs(self.path)
+    try:
+      os.makedirs(self.path)
+    except OSError as e:
+      if e.errno != errno.EEXIST:
+        raise e
 
   def __exit__(self, exc_type, exc_value, traceback):
     if exc_value is None:
@@ -43,14 +48,12 @@ class TestExecutor(unittest.TestCase):
       c.init()
       output, errors = c.run_stages(code_path, executor.Stages(stages_dir))
       self.assertEqual(errors, [])
-      self.assertEqual(output, '')
+      self.assertEqual(output.strip(), '')
 
   def test_evil_cpp(self):
     host_dir = 'testdata/executor/HOST_DIR/evil'
     stages_dir = 'testdata/executor/evil'
     code_path = None
-    bash_sub_cmd_killed_re = re.compile(
-      '/grade_oven/[^/]+/main: line \d+:\s+\d+ Killed\s+./[a-z_]+\n')
     with EphemeralDir(host_dir):
       c = executor.DockerExecutor('test_evil', host_dir)
       c.init()
@@ -60,10 +63,10 @@ class TestExecutor(unittest.TestCase):
       self.assertEqual(stages.stages['fork_bomb'].output.errors, [
         'Command "/grade_oven/fork_bomb/main" did not finish in '
         '5 seconds and timed out.'])
-      self.assertTrue(re.match(bash_sub_cmd_killed_re,
-                               stages.stages['many_open_files'].output.stdout))
-      self.assertTrue(re.match(bash_sub_cmd_killed_re,
-                               stages.stages['much_ram'].output.stdout))
+      self.assertEqual(
+        stages.stages['many_open_files'].output.stdout, 'many_open_files\n')
+      self.assertEqual(
+        stages.stages['much_ram'].output.stdout, 'much_ram\n')
 
   def test_hello_world_cpp(self):
     host_dir = 'testdata/executor/HOST_DIR/score'
