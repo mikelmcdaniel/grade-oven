@@ -1,6 +1,20 @@
 #!/bin/bash
 set -e  # exit on error
 
+cd "$(dirname "$0")"
+
+for f in secret_key.txt ssl/server.key ssl/server.crt; do
+    f="../data/${f?}"
+    if ! [ -e "${f?}" ]; then
+        echo "${f?}" does not exist.
+        must_exit=true
+    fi
+done
+if [ "${must_exit}" == "true" ]; then
+    echo You must generate a random secret key and SSL key/certificate.
+    exit 1
+fi
+
 ./mount.sh
 
 sudo apt-get --assume-yes install python2.7 python-flask python-flask-login docker python-bcrypt python-leveldb authbind docker.io
