@@ -7,13 +7,25 @@ It's an incredibly simple and weak way to collect data for debugging.
 import collections
 import cookielib
 import json
+import logging
 import mechanize
 import optparse
 import random
+import ssl
 import time
 import urllib2
 import urlparse
-import logging
+
+# Attempt to make Python to not verify SSL
+# Ideally, this would check that the certificate from Grade Oven matches
+# what's expected instead of ignoring it altogether.
+try:
+  _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+  # We're running a legacy Python version that doesn't verify HTTPS certificates
+  pass
+else:
+  ssl._create_default_https_context = _create_unverified_https_context
 
 def scrape_variables(host, logs_file):
   br = mechanize.Browser()
