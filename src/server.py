@@ -634,8 +634,7 @@ def _enqueue_student_submission(course_name, assignment_name, username, files):
   desc = u'{}_{}_{}'.format(course_name, assignment_name, username)
   # TODO: Fix the quick hack below.  It is only in place to avoid "escaped"
   # names that are not safe docker container names.
-  desc = str(abs(hash(desc)))[:32]
-  container_id = desc
+  container_id = str(abs(hash(desc)))[:32]
   priority = (student_submission.num_submissions(),
               student_submission.submit_time())
   stages = executor.Stages(os.path.join(
