@@ -1,0 +1,13 @@
+{
+    "stages": [
+        {
+            "directory_name": "fork_bomb"
+        },
+        {
+            "directory_name": "many_open_files"
+        },
+        {
+            "directory_name": "much_ram"
+        }
+    ]
+}

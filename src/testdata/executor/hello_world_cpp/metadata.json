@@ -1,0 +1,10 @@
+{
+    "stages": [
+        {
+            "directory_name": "build"
+        },
+        {
+            "directory_name": "test"
+        }
+    ]
+}

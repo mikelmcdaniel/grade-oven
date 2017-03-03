@@ -1,0 +1,8 @@
+{
+    "stages": [
+        {
+            "directory_name": "stage0",
+            "description": "Just prints Hello, World!"
+        }
+    ]
+}
