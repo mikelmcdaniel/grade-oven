@@ -1,9 +1,11 @@
+import cStringIO
 import errno
 import executor
 import os
 import re
 import shutil
 import unittest
+import zipfile
 
 
 class EphemeralDir(object):
@@ -95,6 +97,23 @@ class TestExecutor(unittest.TestCase):
       stage_output = stages.stages['make_output'].output.stdout
       self.assertGreaterEqual(len(stage_output), 128 * 1024)  # >= than 128KB output
       self.assertLessEqual(len(stage_output), 132 * 1024)  # <= than 128KB + 4KB output
+
+  def test_save_zip(self):
+    # use the "evil" test case because it has multiple stages
+    stages_dir = 'testdata/executor/evil'
+    stages = executor.Stages(stages_dir)
+    fake_file = cStringIO.StringIO()
+    stages.save_zip(fake_file)
+    # If this fails, then something's gone terribly wrong
+    self.assertGreaterEqual(len(fake_file.getvalue()), 100)
+    expected_files = [
+      'metadata.json',
+      'fork_bomb/', 'fork_bomb/fork_bomb.cpp', 'fork_bomb/main',
+      'many_open_files/', 'many_open_files/main',
+      'many_open_files/many_open_files.cpp',
+      'much_ram/', 'much_ram/much_ram.cpp', 'much_ram/main']
+    with zipfile.ZipFile(fake_file, 'r') as zf:
+      self.assertEqual(zf.namelist(), expected_files)
 
 
 if __name__ == '__main__':

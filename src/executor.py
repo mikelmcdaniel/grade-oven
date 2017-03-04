@@ -23,6 +23,7 @@ import shlex
 import shutil
 import subprocess
 import time
+import zipfile
 
 
 class Error(Exception):
@@ -156,6 +157,12 @@ class Stage(object):
     self._raw_stage_json()['description'] = desc
     _save_stages_metadata(self._stages_path, self._raw_json)
 
+  def _save_zip(self, zip_file):
+    zip_file.write(self.path, self.name) # directory
+    for root, dirs, files in os.walk(self.path):
+        for basename in files:
+          path = os.path.join(root, basename)
+          zip_file.write(path, os.path.join(self.name, basename))
 
 class Stages(object):
   def __init__(self, stages_path):
@@ -223,6 +230,12 @@ class Stages(object):
       shutil.rmtree(stage.path)
     except (shutil.Error, OSError, IOError) as e:
       pass
+
+  def save_zip(self, file_obj):
+    with zipfile.ZipFile(file_obj, 'a') as zf:
+      zf.write(os.path.join(self.path, 'metadata.json'), 'metadata.json')
+      for stage in self.stages.itervalues():
+        stage._save_zip(zf)
 
 
 def merge_tree(src, dst):
