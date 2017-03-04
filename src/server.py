@@ -9,8 +9,10 @@ code, such as input sanitazation (via escape_lib).
 # TODO: Validate course and assignment names
 # TODO: Restrict which users can see which pages more
 #   e.g. only admins, instructors, and enrolled students should see courses
+import cStringIO
 import cgi
 import collections
+import csv
 import errno
 import functools
 import glob
@@ -370,6 +372,26 @@ def save_files_in_dir(flask_files, dir_path):
         logging.warning(errors[-1])
         f.save(os.path.join(dir_path, safe_base_filename))
   return errors
+
+@app.route('/courses/<string:course_name>/download_grades', methods=['GET'])
+@login_required
+def courses_x_download_grades(course_name):
+  user = login.current_user
+  course = grade_oven.course(course_name)
+  instructs_course = user.instructs_course(course_name)
+  takes_course = user.takes_course(course_name)
+  if instructs_course:
+    header_row, table = _make_grades_table(course, instructs_course)
+    buf = cStringIO.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(header_row)
+    for row in table:
+      writer.writerow(row)
+    response = flask.make_response(buf.getvalue())
+    response.headers["Content-Disposition"] = "attachment; filename=grades.csv"
+    return response
+  else:
+    return flask.redirect(u'/courses/{}'.format(course_name), code=303)
 
 @app.route('/courses/<string:course_name>', methods=['GET', 'POST'])
 @login_required

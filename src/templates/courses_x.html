@@ -17,6 +17,7 @@
 
 {% if takes_course or instructs_course %}
 <h3>Grades:</h3>
+<p><a href="/courses/{{ course_name|e }}/download_grades">Download as CSV.</a></p>
 <table class="table table-bordered">
   <tr>
     {% for col in grades_header_row %}
