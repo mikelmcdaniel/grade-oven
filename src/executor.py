@@ -157,12 +157,12 @@ class Stage(object):
     self._raw_stage_json()['description'] = desc
     _save_stages_metadata(self._stages_path, self._raw_json)
 
-  def _save_zip(self, zip_file):
-    zip_file.write(self.path, self.name) # directory
+  def _save_zip(self, stages_name, zip_file):
+    zip_file.write(self.path, os.path.join(stages_name, self.name)) # directory
     for root, dirs, files in os.walk(self.path):
         for basename in files:
           path = os.path.join(root, basename)
-          zip_file.write(path, os.path.join(self.name, basename))
+          zip_file.write(path, os.path.join(stages_name, self.name, basename))
 
 class Stages(object):
   def __init__(self, stages_path):
@@ -233,10 +233,30 @@ class Stages(object):
 
   def save_zip(self, file_obj):
     with zipfile.ZipFile(file_obj, 'a') as zf:
-      zf.write(os.path.join(self.path, 'metadata.json'), 'metadata.json')
+      zf.write(self.path, self.name)
+      zf.write(os.path.join(self.path, 'metadata.json'),
+               os.path.join(self.name, 'metadata.json'))
       for stage in self.stages.itervalues():
-        stage._save_zip(zf)
+        stage._save_zip(self.name, zf)
 
+  @classmethod
+  def from_zip(cls, file_obj, stages_root):
+    try:
+      with zipfile.ZipFile(file_obj, 'r') as zf:
+        bad_filename = zf.testzip()
+        if bad_filename is not None:
+          raise Error('Corrupt file in zip: ' + bad_filename)
+        # TODO: Handle case where zf.namelist() uses a lot of memory
+        archived_files = zf.namelist()
+        stages_name = os.path.dirname(os.path.commonprefix(archived_files))
+        if os.path.dirname(stages_name):
+          raise Error(
+            'Name in zip file should be single directory: ' + stages_name)
+        for af in archived_files:
+          zf.extract(af, stages_root)
+        return cls(os.path.join(stages_root, stages_name))
+    except (zipfile.BadZipfile, zipfile.LargeZipFile) as e:
+      raise Error(e)
 
 def merge_tree(src, dst):
   "Like shutil.copytree, except it is not an error if the dst exists."
