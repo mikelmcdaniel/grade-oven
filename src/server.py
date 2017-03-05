@@ -388,7 +388,7 @@ def courses_x_download_grades(course_name):
     for row in table:
       writer.writerow(row)
     response = flask.make_response(buf.getvalue())
-    response.headers["Content-Disposition"] = "attachment; filename=grades.csv"
+    response.headers['Content-Disposition'] = 'attachment; filename=grades.csv'
     return response
   else:
     return flask.redirect(u'/courses/{}'.format(course_name), code=303)
@@ -408,6 +408,13 @@ def courses_x(course_name):
       course.add_assignment(assignment_name)
       return flask.redirect(
         u'/courses/{}/assignments/{}'.format(course_name, assignment_name))
+    assignment_zips = flask.request.files.getlist('assignment_zips[]')
+    if assignment_zips:
+      for file_obj in assignment_zips:
+        course.add_assignment_from_zip(
+          file_obj, '../data/files/courses/{}/assignments'.format(course_name))
+      return flask.redirect(
+        u'/courses/{}/assignments'.format(course_name))
     # Enroll students
     add_students = escape_lib.safe_entity_name(form.get('add_students'))
     if add_students:
@@ -620,18 +627,35 @@ def _make_grade_table(course, assignment, show_real_names=False):
   return header_row, table
 
 @app.route(
+  '/courses/<string:course_name>/assignments/<string:assignment_name>/download')
+@login_required
+def courses_x_assignments_x_download(course_name, assignment_name):
+  user = login.current_user
+  instructs_course = user.instructs_course(course_name)
+  if instructs_course:
+    stages = executor.Stages(os.path.join(
+      '../data/files/courses', course_name, 'assignments', assignment_name))
+    buf = cStringIO.StringIO()
+    stages.save_zip(buf)
+    response = flask.make_response(buf.getvalue())
+    response.headers['Content-Disposition'] = (
+      'attachment; filename={}.zip'.format(assignment_name))
+    return response
+  else:
+    return flask.redirect(
+      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+      code=303)
+
+@app.route(
   '/courses/<string:course_name>/assignments/<string:assignment_name>/edit',
   methods=['POST'])
 @login_required
 def courses_x_assignments_x_edit(course_name, assignment_name):
   user = login.current_user
-  course = grade_oven.course(course_name)
-  assignment = course.assignment(assignment_name)
-  student_submission = assignment.student_submission(user.username)
-  instructs_course = user.instructs_course(course.name)
-  stages = executor.Stages(os.path.join(
-    '../data/files/courses', course.name, 'assignments', assignment.name))
+  instructs_course = user.instructs_course(course_name)
   if instructs_course:
+    stages = executor.Stages(os.path.join(
+      '../data/files/courses', course_name, 'assignments', assignment_name))
     form = flask.request.form
     for error in _edit_assignment(form, course_name, assignment_name, stages):
       flask.flash(error)

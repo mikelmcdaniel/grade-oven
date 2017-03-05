@@ -15,6 +15,13 @@
   <input type="submit" value="Add Assignment">
 </form>
 
+<h3>Upload Assignment:</h3>
+<form method="post" enctype="multipart/form-data">
+  Zip File: <input type="file" multiple="multiple" name="assignment_zips[]">
+  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+  <input type="submit" value="Upload Assignment">
+</form>
+
 {% if takes_course or instructs_course %}
 <h3>Grades:</h3>
 <p><a href="/courses/{{ course_name|e }}/download_grades">Download as CSV.</a></p>

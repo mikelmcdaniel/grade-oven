@@ -116,7 +116,7 @@ class Stage(object):
       if stage['directory_name'] == self.name:
         return stage
 
-  def save_main_script(self, contents):
+  def save_main_script(self, contents=None):
     """Save a main script to be run inside the Docker container.
 
     Main scripts are markes as executable and run directly. If BASH can run
@@ -124,9 +124,10 @@ class Stage(object):
     """
     maybe_makedirs(self.path)
     path = os.path.join(self.path, 'main')
-    with open(path, 'w') as f:
-      # remove bad line-endings
-      f.write(contents.replace('\r\n', '\n'))
+    if contents is not None:
+      with open(path, 'w') as f:
+        # remove bad line-endings
+        f.write(contents.replace('\r\n', '\n'))
     make_file_executable(path)
 
   @property
@@ -254,7 +255,13 @@ class Stages(object):
             'Name in zip file should be single directory: ' + stages_name)
         for af in archived_files:
           zf.extract(af, stages_root)
-        return cls(os.path.join(stages_root, stages_name))
+        # TODO: The stage.save_main_script() code below is used as a workaround
+        # to ensure that the main script is executable. Ideally, file
+        # permissions would be preserved.
+        stages = cls(os.path.join(stages_root, stages_name))
+        for stage in stages.stages.itervalues():
+          stage.save_main_script()
+        return stages
     except (zipfile.BadZipfile, zipfile.LargeZipFile) as e:
       raise Error(e)
 
