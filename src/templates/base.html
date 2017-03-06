@@ -38,7 +38,7 @@
 </nav>
 
 {% with flash_errors = get_flashed_messages() %}
-  {% if errors or flash_errors or True%}
+  {% if errors or flash_errors %}
     <div id="errors">
     {% for error in flash_errors %}<div class="alert alert-danger">{{ error|e }}</div>{% endfor %}
     {% for error in errors %}<div class="alert alert-danger">{{ error|e }}</div>{% endfor %}
