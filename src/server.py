@@ -137,7 +137,7 @@ login_manager.user_loader(grade_oven.user)
 # Prevent cross-site scripting attacks
 @app.before_request
 def csrf_protect():
-  if flask.request.method != 'GET':
+  if flask.request.method != 'GET' and flask.request.path != '/login':
     token = flask.session.pop('_csrf_token', None)
     if not token:
       logging.warning(u'Missing _csrf_token for "%s"', flask.request.url)

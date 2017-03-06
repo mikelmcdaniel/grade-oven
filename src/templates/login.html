@@ -7,10 +7,9 @@
 <div class="container">
   <form class="form-signin" method="post">
     <label for="username" class="sr-only">Username</label>
-    <input class="form-control" autofocus="autofocus" autocapitalize="off" id="username" name="username" type="text" placeholder="Username" required>
+    <input class="form-control" autofocus="autofocus" autocapitalize="off" id="username" name="username" type="text" placeholder="Username" autocomplete="on" required>
     <label for="password" class="sr-only">Password</label>
-    <input class="form-control" name="password" id="password" type="password" placeholder="Password" required>
-    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+    <input class="form-control" name="password" id="password" type="password" placeholder="Password" autocomplete="on" required>
     <button class="btn btn-lg btn-primary btn-block" type="submit">Login</button>
   </form>
 </div> <!-- /container -->
