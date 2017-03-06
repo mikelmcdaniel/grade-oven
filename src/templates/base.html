@@ -38,12 +38,13 @@
 </nav>
 
 {% with flash_errors = get_flashed_messages() %}
-  {% if errors or flash_errors %}
-<h2>Errors:</h2>
-<ul class="error">
-  {% for error in flash_errors %}<li>{{ error|e }}</li>{% endfor %}
-  {% for error in errors %}<li>{{ error|e }}</li>{% endfor %}
-</ul>
+  {% if errors or flash_errors or True%}
+    <div id="errors">
+    {% for error in flash_errors %}<div class="alert alert-danger">{{ error|e }}</div>{% endfor %}
+    {% for error in errors %}<div class="alert alert-danger">{{ error|e }}</div>{% endfor %}
+    <button type="button" class="btn btn-default" autofocus onclick="document.getElementById('main').hidden = false; document.getElementById('errors').hidden = true;">Dismiss Errors</button>
+    </div>
+    {% set main_hidden = "hidden" %}
   {% endif %}
+    <div class="container" role="main" id="main" {{ main_hidden }}>{% block body %}{% endblock %}</div>
 {% endwith %}
-<div class="container" role="main">{% block body %}{% endblock %}</div>
