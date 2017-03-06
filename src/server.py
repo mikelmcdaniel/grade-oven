@@ -681,8 +681,11 @@ def _enqueue_student_submission(course_name, assignment_name, username, files):
   # TODO: Fix the quick hack below.  It is only in place to avoid "escaped"
   # names that are not safe docker container names.
   container_id = str(abs(hash(desc)))[:32]
-  priority = (student_submission.num_submissions(),
-              student_submission.submit_time())
+  num_submissions = student_submission.num_submissions()
+  submit_time = student_submission.submit_time() or 0
+  cur_time = time.time()
+  min_seconds_since_last_submission = min(num_submissions**3, 3600)
+  priority = (num_submissions, submit_time)
   stages = executor.Stages(os.path.join(
     '../data/files/courses', course_name, 'assignments', assignment_name))
   submission = GradeOvenSubmission(
@@ -695,6 +698,18 @@ def _enqueue_student_submission(course_name, assignment_name, username, files):
     flask.flash(
       u'{} cannot submit assignment {} for {} while in the queue.'.format(
         username, assignment_name, course_name))
+  elif cur_time < submit_time + min_seconds_since_last_submission:
+    seconds_left = min_seconds_since_last_submission - (cur_time - submit_time)
+    formatted_time = time.strftime(
+      '%Y-%m-%d %H:%M:%S',
+      time.localtime(submit_time + min_seconds_since_last_submission))
+    logging.info(
+      u'Student "%s" submitted assignment "%s/%s" '
+      'but needs to wait until %s (%s seconds).',
+      username, course_name, assignment_name, formatted_time, seconds_left)
+    flask.flash(
+      u'Please wait until {} ({:.0f} seconds) to submit {} again.'.format(
+        formatted_time, seconds_left, assignment_name))
   else:
     if files:
       try:
