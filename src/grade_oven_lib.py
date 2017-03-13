@@ -30,6 +30,7 @@ import executor
 import itertools
 import os
 import time
+import zipfile
 
 class GradeOvenUser(object):
   "Represents a logged in user, needed for flask.ext.login.LoginManager"
@@ -161,6 +162,19 @@ class GradeOvenAssignment(object):
 
   def stages_dir(self):
     return os.path.join(self.root_dir(), 'stages')
+
+  def submissions_dir(self):
+    return os.path.join(self.root_dir(), 'submissions')
+
+  def save_submissions_zip(self, file_obj):
+    with zipfile.ZipFile(file_obj, 'a') as zf:
+      sub_root_dir = self.submissions_dir()
+      for root, dirs, files in os.walk(sub_root_dir):
+        if root != sub_root_dir:
+          zf.write(root, root[len(sub_root_dir):])
+        for basename in files:
+          path = os.path.join(root, basename)
+          zf.write(path, path[len(sub_root_dir):])
 
   def due_date(self):
     # float unix epoch (same format as time.time())

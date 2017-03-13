@@ -647,6 +647,26 @@ def courses_x_assignments_x_download(course_name, assignment_name):
       code=303)
 
 @app.route(
+  '/courses/<string:course_name>/assignments/<string:assignment_name>/download_submissions')
+@login_required
+def courses_x_assignments_x_download_submissions(course_name, assignment_name):
+  user = login.current_user
+  instructs_course = user.instructs_course(course_name)
+  if instructs_course:
+    course = grade_oven.course(course_name)
+    assignment = course.assignment(assignment_name)
+    buf = cStringIO.StringIO()
+    assignment.save_submissions_zip(buf)
+    response = flask.make_response(buf.getvalue())
+    response.headers['Content-Disposition'] = (
+      'attachment; filename={} subissions.zip'.format(assignment_name))
+    return response
+  else:
+    return flask.redirect(
+      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+      code=303)
+
+@app.route(
   '/courses/<string:course_name>/assignments/<string:assignment_name>/edit',
   methods=['POST'])
 @login_required
