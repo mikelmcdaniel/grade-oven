@@ -44,6 +44,7 @@ Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
 </form>
 <h3>Previous Submission:</h3>
+<p><a href="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/download_previous_submission">Download previous submission.</a></p>
 <div class="panel panel-primary">
   <div class="panel-heading">
     <h3 class="panel-title">Output</h3>

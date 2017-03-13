@@ -296,6 +296,17 @@ class GradeOvenStudentSubmission(object):
       ('courses', self.course_name, 'assignments', self.assignment_name,
        'students', self.student_username, 'num_submissions'), int(num_submissions))
 
+  def save_submissions_zip(self, file_obj):
+    with zipfile.ZipFile(file_obj, 'a') as zf:
+      submission_dir = os.path.join(
+        self.assignment.submissions_dir(), self.student_username)
+      for root, dirs, files in os.walk(submission_dir):
+        if root != submission_dir:
+          zf.write(root, root[len(submission_dir):])
+        for basename in files:
+          path = os.path.join(root, basename)
+          zf.write(path, path[len(submission_dir):])
+
 
 class GradeOvenCourse(object):
   "Represents a course"
