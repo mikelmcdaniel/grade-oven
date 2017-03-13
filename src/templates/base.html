@@ -23,17 +23,20 @@
       </button>
       <a class="navbar-brand" href="/">Grade Oven</a> {% if username %}<span class="navbar-brand">(logged in as {{ username|e }})</span>{% endif %}
     </div>
-    {% if username %}
     <div class="navbar-collapse collapse" aria-expanded="false" style="height: 0.8px;">
       <ul class="nav navbar-nav">
+    {% if username %}
         <li><a href="/">Home</a></li>
         <li><a href="/courses">Courses</a></li>
         <li><a href="/settings">Settings</a></li>
         <li><a href="/about">About</a></li>
         <li><a href="/logout">Logout</a></li>
+    {% else %}
+        <li><a href="/about">About</a></li>
+        <li><a href="/login">Login</a></li>
+    {% endif %}
       </ul>
     </div><!--/.nav-collapse -->
-    {% endif %}
   </div>
 </nav>
 
