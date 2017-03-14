@@ -38,7 +38,7 @@ import escape_lib
 import executor
 import executor_queue_lib
 import grade_oven_lib
-import random_avatar_name_lib
+import random_display_name_lib
 
 # globals
 app = flask.Flask(__name__)
@@ -227,8 +227,8 @@ def _add_edit_user(username, password, is_admin, is_monitor, is_instructor,
       user.set_takes_course(course, takes_course)
       msgs.append('Set takes_course {!r} == {!r}'.format(course, takes_course))
   if add_defaults:
-    name = random_avatar_name_lib.random_name()
-    user.set_avatar_name(name)
+    name = random_display_name_lib.random_name()
+    user.set_display_name(name)
     user.set_real_name(name)
 
 @app.route('/admin/edit_user', methods=['GET', 'POST'])
@@ -428,7 +428,7 @@ def courses_x(course_name):
     for student_username in student_usernames:
       u = grade_oven.user(student_username)
       psuedo_usernames.append(
-        u'{} ({})'.format(student_username, u.avatar_name()))
+        u'{} ({})'.format(student_username, u.display_name()))
     student_usernames = psuedo_usernames
   else:
     student_usernames = None
@@ -446,7 +446,7 @@ def _make_grades_table(course, show_real_names=False):
   if show_real_names:
     header_row.append('Username')
     header_row.append('Real Name')
-  header_row.append('Avatar Name')
+  header_row.append('Display Name')
   assignment_names = course.assignment_names()
   student_names = sorted(course.student_usernames())
   for assignment_name in assignment_names:
@@ -462,7 +462,7 @@ def _make_grades_table(course, show_real_names=False):
     if show_real_names:
       row.append(user.username)
       row.append(user.real_name())
-    row.append(user.avatar_name())
+    row.append(user.display_name())
     for assignment in assignments:
       submission = assignment.student_submission(student_name)
       row.append(unicode(submission.score()))
@@ -599,7 +599,7 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
 
 
 def _make_grade_table(course, assignment, show_real_names=False):
-  header_row = ['Avatar Name', 'Score', 'Score (after due date)', 'Submission Status',
+  header_row = ['Display Name', 'Score', 'Score (after due date)', 'Submission Status',
                 'Submit Time', 'Attempts']
   table = []
   for username in course.student_usernames():
@@ -608,9 +608,9 @@ def _make_grade_table(course, assignment, show_real_names=False):
     if not show_real_names and user.prefers_anonymity():
       continue
     if show_real_names:
-      row.append(u'{} ({})'.format(user.avatar_name(), user.real_name()))
+      row.append(u'{} ({})'.format(user.display_name(), user.real_name()))
     else:
-      row.append(user.avatar_name())
+      row.append(user.display_name())
     submission = assignment.student_submission(username)
     row.append(submission.score())
     row.append(submission.past_due_date_score())
@@ -862,10 +862,10 @@ def settings():
   if real_name:
     real_name = real_name[:256]
     user.set_real_name(real_name)
-  avatar_name = form.get('avatar_name')
-  if avatar_name:
-    avatar_name = avatar_name[:256]
-    user.set_avatar_name(avatar_name)
+  display_name = form.get('display_name')
+  if display_name:
+    display_name = display_name[:256]
+    user.set_display_name(display_name)
   prefers_anonymity = form.get('prefers_anonymity')
   if prefers_anonymity:
     user.set_prefers_anonymity(True)
@@ -881,7 +881,7 @@ def settings():
 
   return flask.render_template(
     'settings.html', username=login.current_user.get_id(),
-    real_name=user.real_name(), avatar_name=user.avatar_name(),
+    real_name=user.real_name(), display_name=user.display_name(),
     prefers_anonymity=user.prefers_anonymity(), errors=errors)
 
 @app.route('/')
