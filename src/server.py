@@ -501,12 +501,14 @@ def _edit_assignment(form, course_name, assignment_name, stages):
     stages.save_description(description)
   due_date = form.get('due_date')
   try:
-    assignment.set_due_date(time.mktime(time.strptime(due_date, '%Y-%m-%d %H:%M')))
+    assignment.set_due_date(
+      time.mktime(time.strptime(due_date, '%Y-%m-%d %H:%M')))
   except TypeError:
     pass # None passed in (no date)
   except ValueError:
-    errors.append(
-      'Due date "{}" is not formatted like "YYYY-MM-DD HH:MM".'.format(due_date))
+    if due_date:
+      errors.append(
+        'Due date "{}" not formatted like "YYYY-MM-DD HH:MM".'.format(due_date))
   delete_files = form.getlist('delete_files')
   for delete_file in delete_files:
     parts = delete_file.split('/', 1)
