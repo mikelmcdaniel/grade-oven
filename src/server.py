@@ -437,7 +437,7 @@ def courses_x(course_name):
   return flask.render_template(
     'courses_x.html', username=login.current_user.get_id(),
     instructs_course=instructs_course,
-    takes_course=takes_course, students=student_usernames,
+    takes_course=takes_course,
     assignments=assignment_names, course_name=course.name,
     grades_header_row=grades_header_row, grades_table=grades_table)
 

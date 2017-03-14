@@ -22,7 +22,6 @@
   <input type="submit" value="Upload Assignment">
 </form>
 
-{% if takes_course or instructs_course %}
 <h3>Grades:</h3>
 <p><a href="/courses/{{ course_name|e }}/download_grades">Download as CSV.</a></p>
 <table class="table table-bordered">
@@ -39,27 +38,18 @@
   </tr>
   {% endfor %}
 </table>
-{% endif %}
 
-<h3>Students:</h3>
-<ul class="students">
-  {% for name in students %}
-  <li class="student">{{ name|e }}</li>
-  {% endfor %}
-</ul>
-<h4>Add Students:</h4>
+<h4>Add Students by Username:</h4>
 <form method="post">
   <input name="add_students" type="text" placeholder="space separated student usernames">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
   <input type="submit" value="Add Students">
 </form>
-<h4>Remove Students:</h4>
+<h4>Remove Students by Username:</h4>
 <form method="post">
   <input name="remove_students" type="text" placeholder="space separated student usernames">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
   <input type="submit" value="Remove Students">
 </form>
-
 {% endif %}
-
 {% endblock %}
