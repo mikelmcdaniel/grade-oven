@@ -405,16 +405,17 @@ def courses_x(course_name):
     # Add/Edit assignment
     assignment_name = escape_lib.safe_entity_name(form.get('assignment_name'))
     if assignment_name:
-      course.add_assignment(assignment_name)
+      assignment_zips = flask.request.files.getlist('assignment_zips[]')
+      if assignment_zips:
+        for file_obj in assignment_zips:
+          course.add_assignment_from_zip(
+            file_obj,
+            assignment_name,
+            '../data/files/courses/{}/assignments'.format(course_name))
+      else:
+        course.add_assignment(assignment_name)
       return flask.redirect(
         u'/courses/{}/assignments/{}'.format(course_name, assignment_name))
-    assignment_zips = flask.request.files.getlist('assignment_zips[]')
-    if assignment_zips:
-      for file_obj in assignment_zips:
-        course.add_assignment_from_zip(
-          file_obj, '../data/files/courses/{}/assignments'.format(course_name))
-      return flask.redirect(
-        u'/courses/{}/assignments'.format(course_name))
     # Enroll students
     add_students = escape_lib.safe_entity_name(form.get('add_students'))
     if add_students:

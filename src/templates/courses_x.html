@@ -17,7 +17,9 @@
 
 <h3>Upload Assignment:</h3>
 <form method="post" enctype="multipart/form-data">
-  Zip File: <input type="file" multiple="multiple" name="assignment_zips[]">
+  <input name="assignment_name" type="text" placeholder="assignment name"><br>
+  <label for="assignment_zips[]">Zip File: </label>
+  <input type="file" multiple="multiple" name="assignment_zips[]">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
   <input type="submit" value="Upload Assignment">
 </form>

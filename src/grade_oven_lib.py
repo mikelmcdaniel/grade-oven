@@ -329,8 +329,8 @@ class GradeOvenCourse(object):
   def add_assignment(self, assignment_name):
     self._data_store.put(('courses', self.name, 'assignments', assignment_name))
 
-  def add_assignment_from_zip(self, file_obj, stages_root):
-    stages = executor.Stages.from_zip(file_obj, stages_root)
+  def add_assignment_from_zip(self, file_obj, stages_name, stages_root):
+    stages = executor.Stages.from_zip(file_obj, stages_name, stages_root)
     self.add_assignment(stages.name)
 
   def add_students(self, student_usernames):
