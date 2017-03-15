@@ -1,35 +1,44 @@
 {% extends "base.html" %}
 {% block body %}
 <h2>Course {{ course_name|e }} Assignment {{ assignment_name|e }}</h2>
-<h3>{{ assignment_name|e }}:</h3>
 <pre>{{ stages_desc|e }}{% if formatted_due_date %}
 Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
-<pre>{% for stage in stages %}{{ stage.name|e }}:
-{{ stage.description|e }}
-{% endfor %}</pre>
+
 
 {% if instructs_course %}
 <p><a href="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/download">Download {{ assignment_name|e }}.</a></p>
 <p><a href="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/download_submissions">Download {{ assignment_name|e }} submissions.</a></p>
 <form method="post" enctype="multipart/form-data" action="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/edit">
-  Description: <input name="description" type="text" placeholder="assignment description" value="{{ stages_desc|e }}"><br>
-  Due Date: <input name="due_date" type="text" placeholder="YYYY-MM-DD HH:MM" value="{{ formatted_due_date|e }}"><br>
+  <label for="description">Description</label>
+  <input name="description" type="text" placeholder="assignment description" value="{{ stages_desc|e }}"><br>
+  <label for="due_date">Due Date</label>
+  <input name="due_date" type="text" placeholder="YYYY-MM-DD HH:MM" value="{{ formatted_due_date|e }}"><br>
+  <h3>Stages</h3>
   {% for stage in stages %}
   <h4>{{ stage.name|e }}:</h4>
-  Delete {{ stage.name|e }} <input type="checkbox" name="delete_stages" value="{{ stage.name|e }}"><br>
-  Description: <input name="description_{{ stage.name|e }}" placeholder="description of {{ stage.name|e }}" type="text" value="{{ stage.description|e }}"><br>
-  Commands:<br>
-  <textarea name="main_cmds_{{ stage.name|e }}" rows="5" cols="80">{{ stage.main_script|e }}</textarea><br>
+  <div id="edit_{{ stage.name|e }}_button">
+    <button type="button" onclick="document.getElementById('edit_{{ stage.name|e }}').hidden = false; document.getElementById('edit_{{ stage.name|e }}_button').hidden = true;">Edit {{ stage.name|e }}</button>
+  </div>
+  <div id="edit_{{ stage.name|e }}" hidden>
+    <label for="delete_stages">Delete Stage: {{ stage.name|e }}</label>
+    <input type="checkbox" name="delete_stages" value="{{ stage.name|e }}" onchange="document.getElementById('edit_{{ stage.name|e }}').hidden = true;"><br>
+    <label for="description_{{ stage.name|e }}">Description</label>
+    <input name="description_{{ stage.name|e }}" placeholder="description of {{ stage.name|e }}" type="text" value="{{ stage.description|e }}"><br>
+    <label for="main_cmds_{{ stage.name|e }}">Script</label><br>
+    <textarea name="main_cmds_{{ stage.name|e }}" rows="5" cols="80">{{ stage.main_script|e }}</textarea><br>
   {% for filename in stage.filenames_except_meta %}
-  Delete File: {{ filename|e }} <input type="checkbox" name="delete_files" value="{{ stage.name|e }}/{{ filename|e }}"><br>
+    <label for="delete_files">Delete File: {{ filename|e }}</label> <input type="checkbox" name="delete_files" value="{{ stage.name|e }}/{{ filename|e }}"><br>
   {% endfor %}
-  File Upload: <input type="file" multiple="multiple" name="files_{{ stage.name|e }}[]"><br>
+    <label for=="files_{{ stage.name|e }}[]">File Upload</label> <input type="file" multiple="multiple" name="files_{{ stage.name|e }}[]"><br>
+  </div>
   {% endfor %}
+  <h4>New Stage</h4>
   <input name="new_stage_name" type="text" placeholder="new stage name">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
   <input type="submit" value="Edit Assignment">
 </form>
 <br>
+<h3>Resubmit Student Submissions</h3>
 <form method="post" action="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/resubmit_all">
   <input type="submit" value="Resubmit All Student Submissions">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
