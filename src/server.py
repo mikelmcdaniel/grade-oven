@@ -589,8 +589,17 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     self.container = executor.DockerExecutor(self.container_id, self._temp_dir)
     self.container.init()
     self.student_submission.set_status('running')
-    output, errs = self.container.run_stages(self.submission_dir, self.stages,
-                                             self._run_stages_callback)
+    username = self.student_submission.student_username
+    user = grade_oven.user(username)
+    env = {
+      'GRADEOVEN_USERNAME': username,
+      'GRADEOVEN_REAL_NAME': user.real_name(),
+      'GRADEOVEN_DISPLAY_NAME': user.display_name(),
+      'GRADEOVEN_COURSE_NAME': self.student_submission.course_name,
+      'GRADEOVEN_ASSIGNMENT_NAME': self.student_submission.assignment_name,
+    }
+    output, errs = self.container.run_stages(
+      self.submission_dir, self.stages, self._run_stages_callback, env=env)
     self.outputs.append(output)
     self.errors.extend(errs)
 

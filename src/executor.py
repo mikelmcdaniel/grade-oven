@@ -327,13 +327,15 @@ class DockerExecutor(object):
     self.timeout_seconds = 30
     self.max_num_files = 1000
 
-  def _docker_run(self, docker_image_name, cmd, user=None):
+  def _docker_run(self, docker_image_name, cmd, user=None, env=None):
     "Runs a command and returns the return code or None if it timed out."
     errors = []
     if user is None:
       user = 'grade_oven'
     if user not in ('grade_oven', 'root'):
       raise ValueError('User "{}" must be "grade_oven" or "root".'.format(user))
+    if env is None:
+      env = {}
     docker_cmd = [
       'docker', 'run', '--hostname', 'gradeoven', '--memory', '256m',
       # TODO: figure out why I need to set nproc so high
@@ -346,6 +348,9 @@ class DockerExecutor(object):
       '--volume', '{}/grade_oven:/grade_oven'.format(self.host_dir),
       '--volume', '{}/tmp:/tmp'.format(self.host_dir),
       '--workdir', '/grade_oven/submission', '--cpu-shares', '128']
+    for key, val in env.iteritems():
+      docker_cmd.append('--env')
+      docker_cmd.append('{}={}'.format(key, val))
     if user == 'root':
       docker_cmd.append('--volume')
       docker_cmd.append('{}/root:/root'.format(self.host_dir))
@@ -461,7 +466,8 @@ class DockerExecutor(object):
       shutil.rmtree(os.path.join(self.host_dir, sub_dir))
       os.mkdir(os.path.join(self.host_dir, sub_dir))
 
-  def run_stages(self, submission_path, stages, stage_done_callback=None):
+  def run_stages(
+      self, submission_path, stages, stage_done_callback=None, env=None):
     """Run stages, copying submission_path to /grade_oven/submission inside the
     container.  When a stage is done running, stage_done_callback is called
     with the stage that has completed.
@@ -480,7 +486,8 @@ class DockerExecutor(object):
       errors.extend(errs)
       return_code, output, errs = self._docker_run(
         'grade_oven/grade_oven',
-        [os.path.join('/grade_oven', stage.name, 'main')])
+        [os.path.join('/grade_oven', stage.name, 'main')],
+        env=env)
       stage.output = StageOutput(
         os.path.join(self.host_dir, 'grade_oven/output'))
       stage.output.stdout = output
