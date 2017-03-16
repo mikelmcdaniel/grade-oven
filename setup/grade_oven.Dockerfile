@@ -15,6 +15,6 @@ VOLUME ["/grade_oven"]
 VOLUME ["/tmp"]
 WORKDIR ["/grade_oven"]
 
-RUN ["apt-get", "--assume-yes", "install", "binutils", "clang", "make", "clang-format"]
+RUN ["apt-get", "--assume-yes", "install", "binutils", "clang", "make", "clang-format", "default-jdk"]
 
 USER grade_oven
