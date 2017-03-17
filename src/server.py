@@ -850,10 +850,11 @@ def courses_x_assignments_x(course_name, assignment_name):
     header_row=header_row,
     table=table)
 
-@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>/output_html')
+@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>/output_html/<string:username>')
 @login_required
-def courses_x_assignments_x_output_html(course_name, assignment_name):
-  user = login.current_user
+def courses_x_assignments_x_output_html_x(
+    course_name, assignment_name, username=None):
+  user = login.current_user if username is None else grade_oven.user(username)
   if user.instructs_course(course_name) or user.takes_course(course_name):
     course = grade_oven.course(course_name)
     assignment = course.assignment(assignment_name)
@@ -867,6 +868,11 @@ def courses_x_assignments_x_output_html(course_name, assignment_name):
     return flask.redirect(
       u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
       code=303)
+
+@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>/output_html')
+@login_required
+def courses_x_assignments_x_output_html(course_name, assignment_name):
+  return courses_x_assignments_x_output_html_x(course_name, assignment_name)
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
