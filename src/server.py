@@ -854,14 +854,19 @@ def courses_x_assignments_x(course_name, assignment_name):
 @login_required
 def courses_x_assignments_x_output_html(course_name, assignment_name):
   user = login.current_user
-  course = grade_oven.course(course_name)
-  assignment = course.assignment(assignment_name)
-  student_submission = assignment.student_submission(user.username)
-  submission_output_html = student_submission.output_html()
-  return flask.render_template(
-    'courses_x_assignments_x_output_html.html',
-    username=login.current_user.get_id(),
-    submission_output_html=submission_output_html)
+  if user.instructs_course(course_name) or user.takes_course(course_name):
+    course = grade_oven.course(course_name)
+    assignment = course.assignment(assignment_name)
+    student_submission = assignment.student_submission(user.username)
+    submission_output_html = student_submission.output_html()
+    return flask.render_template(
+      'courses_x_assignments_x_output_html.html',
+      username=login.current_user.get_id(),
+      submission_output_html=submission_output_html)
+  else:
+    return flask.redirect(
+      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+      code=303)
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
