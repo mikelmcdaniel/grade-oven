@@ -8,6 +8,7 @@ Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
 {% if instructs_course %}
 <p><a href="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/download">Download {{ assignment_name|e }}.</a></p>
 <p><a href="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/download_submissions">Download {{ assignment_name|e }} submissions.</a></p>
+<p><a href="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/submissions">View {{ assignment_name|e }} submissions.</a></p>
 <form method="post" enctype="multipart/form-data" action="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/edit">
   <label for="description">Description</label>
   <input name="description" type="text" placeholder="assignment description" value="{{ stages_desc|e }}"><br>

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>Course {{ course_name|e }} Assignment {{ assignment_name|e }} Submissions</h2>
+
+{% if instructs_course %}
+{% for student_submission in student_submissions %}
+<div class="panel panel-primary">
+  <div class="panel-heading">
+    <h3 class="panel-title">{{ student_submission.student_username|e }} Output</h3>
+  </div>
+  <div class="panel-body">
+    <code><pre>{{ student_submission.output()|e }}</pre></code>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% endblock %}

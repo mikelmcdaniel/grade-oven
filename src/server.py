@@ -874,6 +874,24 @@ def courses_x_assignments_x_output_html_x(
 def courses_x_assignments_x_output_html(course_name, assignment_name):
   return courses_x_assignments_x_output_html_x(course_name, assignment_name)
 
+@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>/submissions')
+@login_required
+def courses_x_assignments_x_submissions(course_name, assignment_name):
+  user = login.current_user
+  course = grade_oven.course(course_name)
+  assignment = course.assignment(assignment_name)
+  instructs_course = user.instructs_course(course.name)
+  student_submissions = []
+  for student_username in course.student_usernames():
+    student_submissions.append(assignment.student_submission(student_username))
+  return flask.render_template(
+    'courses_x_assignments_x_submissions.html',
+    username=login.current_user.get_id(),
+    instructs_course=instructs_course,
+    course_name=course.name,
+    assignment_name=assignment.name,
+    student_submissions=student_submissions)
+
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
