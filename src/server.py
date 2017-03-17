@@ -683,8 +683,8 @@ def courses_x_assignments_x_download_submissions(course_name, assignment_name):
 @login_required
 def courses_x_assignments_x_download_previous_submission(course_name, assignment_name):
   user = login.current_user
-  instructs_course = user.instructs_course(course_name)
-  if instructs_course:
+  takes_course = user.takes_course(course_name)
+  if takes_course:
     course = grade_oven.course(course_name)
     assignment = course.assignment(assignment_name)
     buf = cStringIO.StringIO()
