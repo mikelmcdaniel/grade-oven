@@ -11,6 +11,9 @@
   <div class="panel-body">
     <code><pre>{{ student_submission.output()|e }}</pre></code>
   </div>
+  <div class="panel-body">
+    <iframe id="output_html" name="output_html" width="100%" height="480px" seamless="seamless" sandbox="allow-scripts" src="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/output_html/{{ student_submission.student_username|e }}"></iframe>
+  </div>
 </div>
 {% endfor %}
 {% endif %}
