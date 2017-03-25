@@ -612,12 +612,21 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     temp_dirs.free(self._temp_dir)
     self.student_submission.set_status('finished')
 
+def _int_or_0(x):
+  try:
+    return int(x)
+  except ValueError:
+    return 0
 
 def _make_grade_table(course, assignment, show_real_names=False):
   header_row = [
     'Display Name', 'Score', 'Score (after due date)', 'Days Late',
-    'Submission Status', 'Submit Time', 'Attempts']
+    'Submit Time', 'Attempts']
   table = []
+  due_date = assignment.due_date()
+  if not due_date:
+    header_row.remove('Score (after due date)')
+    header_row.remove('Days Late')
   for username in course.student_usernames():
     row = []
     user = grade_oven.user(username)
@@ -628,24 +637,28 @@ def _make_grade_table(course, assignment, show_real_names=False):
     else:
       row.append(user.display_name())
     submission = assignment.student_submission(username)
-    row.append(submission.score())
-    row.append(submission.past_due_date_score() or '')
-    submit_time = submission.submit_time()
-    due_date = assignment.due_date()
-    if submit_time and due_date:
-      days_late = max(0, (submit_time - due_date) / SECONDS_PER_DAY)
-      row.append('{:.0f}'.format(math.floor(days_late)))
+    submission_status = submission.status()
+    if submission_status and submission_status not in ('finished', 'never run'):
+      row.append(submission_status)
     else:
-      row.append('')
-    row.append(submission.status())
+      row.append(submission.score())
+    submit_time = submission.submit_time()
+    if due_date:
+      row.append(submission.past_due_date_score() or '')
+      if submit_time and due_date:
+        days_late = max(0, (submit_time - due_date) / SECONDS_PER_DAY)
+        row.append('{:.0f}'.format(math.floor(days_late)))
+      else:
+        row.append('')
     if submit_time:
       row.append(
         time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(submit_time)))
     else:
-      row.append('never')
+      row.append('')
     row.append(submission.num_submissions())
     table.append(row)
-  table = sorted(table, key=lambda row: (-row[1], row[3], row[4], row[0]))
+  table = sorted(
+    table, key=lambda row: (-_int_or_0(row[1]), row[-2], row[-1], row[0]))
   return header_row, table
 
 @app.route(
