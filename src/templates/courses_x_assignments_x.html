@@ -11,12 +11,18 @@ Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
 <p><a href="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/download">Download {{ assignment_name|e }}.</a></p>
 <p><a href="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/download_submissions">Download {{ assignment_name|e }} submissions.</a></p>
 <p><a href="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/submissions">View {{ assignment_name|e }} submissions.</a></p>
+<h3>Submit Student Solutions</h3>
+<form method="post" enctype="multipart/form-data" action="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/submit_all">
+  <input type="file" name="all_submission_files[]">
+  <input type="submit" value="Submit Student Submissions">
+  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+</form>
 <form method="post" enctype="multipart/form-data" action="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/edit">
+  <h3>Stages</h3>
   <label for="description">Description</label>
   <input name="description" type="text" placeholder="assignment description" value="{{ stages_desc|e }}"><br>
   <label for="due_date">Due Date</label>
   <input name="due_date" type="text" placeholder="YYYY-MM-DD HH:MM" value="{{ formatted_due_date|e }}"><br>
-  <h3>Stages</h3>
   {% for stage in stages %}
   <h4>{{ stage.name|e }}:</h4>
   <div id="edit_{{ stage.name|e }}_button">

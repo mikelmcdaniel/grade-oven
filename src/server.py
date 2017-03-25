@@ -29,6 +29,7 @@ import signal
 import tempfile
 import threading
 import time
+import zipfile
 
 from flask.ext import login
 import bcrypt
@@ -811,6 +812,68 @@ def courses_x_assignments_x_submit(course_name, assignment_name):
     files = flask.request.files.getlist('submission_files[]')
     if files:
       _enqueue_student_submission(course_name, assignment_name, user.username, files)
+  return flask.redirect(
+    u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+    code=303)
+
+# TODO: This is very specific to Canvas as of 2017-03. Make it generic.
+# TODO: This function exposes too many internals. Encapsulate them.
+# TODO: This function reimplements logic that is elsewhere. Reuse code.
+@app.route(
+  '/courses/<string:course_name>/assignments/<string:assignment_name>/submit_all',
+  methods=['POST'])
+@login_required
+def courses_x_assignments_x_submit_all(course_name, assignment_name):
+  user = login.current_user
+  instructs_course = user.instructs_course(course_name)
+  files = None
+  if instructs_course: # OREO
+    student_usernames = frozenset(
+      grade_oven.course(course_name).student_usernames())
+    # Build map of normalized_student_real_names to potential student_usernames
+    normalized_student_real_names = collections.defaultdict(set)
+    for student_username in student_usernames:
+      student_user = grade_oven.user(student_username)
+      real_name = student_user.real_name()
+      normalized_student_real_names[real_name].add(student_username)
+      real_name_parts = real_name.lower().split()
+      for name_parts in itertools.permutations(
+          real_name_parts, min(4, len(real_name_parts))):
+        normalized_student_real_names[''.join(name_parts)].add(student_username)
+    files = flask.request.files.getlist('all_submission_files[]')
+    temp_dirname = tempfile.mkdtemp()
+    if 1:
+      for f in files:
+        with zipfile.ZipFile(f.stream, 'r') as zf:
+          for filename in zf.namelist():
+            normalized_real_name = filename.split('_', 1)[0]
+            student_usernames = normalized_student_real_names[normalized_real_name]
+            if len(student_usernames) == 0:
+              flask.flash(
+                'Zipped file "{}" could not be associated with any student.'.format(
+                  filename))
+            elif len(student_usernames) > 1:
+              flask.flash(
+                'Zipped file "{}" associated with multiple students: {}.'.format(
+                  filename, ', '.join(student_usernames)))
+            else:
+              student_username = student_usernames.pop()
+              submission_dir = os.path.join(
+                '../data/files/courses', course_name, 'assignments',
+                assignment_name, 'submissions', student_username)
+              try:
+                shutil.rmtree(submission_dir)
+              except OSError as e:
+                if e.errno != errno.ENOENT:
+                  raise e
+              try:
+                os.makedirs(submission_dir)
+              except OSError as e:
+                if e.errno != errno.EEXIST:
+                  raise e
+              _enqueue_student_submission(
+                course_name, assignment_name, student_username, None)
+    shutil.rmtree(temp_dirname)
   return flask.redirect(
     u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
     code=303)
