@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% block body %}
 <h2>Course {{ course_name|e }} Assignment {{ assignment_name|e }}</h2>
+{% if stages_desc or formatted_due_date %}
 <pre>{{ stages_desc|e }}{% if formatted_due_date %}
 Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
+{% endif %}
 
 
 {% if instructs_course %}
@@ -39,9 +41,9 @@ Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
   <input type="submit" value="Edit Assignment">
 </form>
 <br>
-<h3>Resubmit Student Submissions</h3>
+<h3>Rerun Student Submissions</h3>
 <form method="post" action="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/resubmit_all">
-  <input type="submit" value="Resubmit All Student Submissions">
+  <input type="submit" value="Rerun All Student Submissions">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
 </form>
 {% endif %}
@@ -55,6 +57,7 @@ Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
 </form>
 <h3>Previous Submission:</h3>
 <p><a href="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/download_previous_submission">Download previous submission.</a></p>
+{% if submission_output %}
 <div class="panel panel-primary">
   <div class="panel-heading">
     <h3 class="panel-title">Output</h3>
@@ -63,6 +66,7 @@ Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
     <code><pre>{{ submission_output|e }}</pre></code>
   </div>
 </div>
+{% endif %}
 {% if submission_has_output_html %}
 <div class="panel panel-primary">
   <div class="panel-heading">
