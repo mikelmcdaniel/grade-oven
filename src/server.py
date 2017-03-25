@@ -629,14 +629,14 @@ def _make_grade_table(course, assignment, show_real_names=False):
       row.append(user.display_name())
     submission = assignment.student_submission(username)
     row.append(submission.score())
-    row.append(submission.past_due_date_score())
+    row.append(submission.past_due_date_score() or '')
     submit_time = submission.submit_time()
     due_date = assignment.due_date()
     if submit_time and due_date:
       days_late = max(0, (submit_time - due_date) / SECONDS_PER_DAY)
       row.append('{:.0f}'.format(math.floor(days_late)))
     else:
-      row.append('0')
+      row.append('')
     row.append(submission.status())
     if submit_time:
       row.append(
