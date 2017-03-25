@@ -71,17 +71,12 @@ Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
   <div class="panel-body">
     <code><pre>{{ submission_output|e }}</pre></code>
   </div>
-</div>
-{% endif %}
 {% if submission_has_output_html %}
-<div class="panel panel-primary">
-  <div class="panel-heading">
-    <h3 class="panel-title">Output</h3>
-  </div>
   <div class="panel-body">
     <!-- TODO: Make iframe resize automatically. -->
     <iframe id="output_html" name="output_html" width="100%" height="480px" seamless="seamless" sandbox="allow-scripts" src="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/output_html"></iframe>
   </div>
+{% endif %}
 </div>
 {% endif %}
 {% if submission_errors %}
