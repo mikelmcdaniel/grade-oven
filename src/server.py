@@ -19,6 +19,7 @@ import glob
 import itertools
 import json
 import logging
+import math
 import optparse
 import os
 import re
@@ -39,6 +40,8 @@ import executor
 import executor_queue_lib
 import grade_oven_lib
 import random_display_name_lib
+
+SECONDS_PER_DAY = 24 * 60 * 60
 
 # globals
 app = flask.Flask(__name__)
@@ -611,8 +614,9 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
 
 
 def _make_grade_table(course, assignment, show_real_names=False):
-  header_row = ['Display Name', 'Score', 'Score (after due date)', 'Submission Status',
-                'Submit Time', 'Attempts']
+  header_row = [
+    'Display Name', 'Score', 'Score (after due date)', 'Days Late',
+    'Submission Status', 'Submit Time', 'Attempts']
   table = []
   for username in course.student_usernames():
     row = []
@@ -626,11 +630,17 @@ def _make_grade_table(course, assignment, show_real_names=False):
     submission = assignment.student_submission(username)
     row.append(submission.score())
     row.append(submission.past_due_date_score())
-    row.append(submission.status())
     submit_time = submission.submit_time()
+    due_date = assignment.due_date()
+    if submit_time and due_date:
+      days_late = max(0, (submit_time - due_date) / SECONDS_PER_DAY)
+      row.append('{:.0f}'.format(math.floor(days_late)))
+    else:
+      row.append('0')
+    row.append(submission.status())
     if submit_time:
-      row.append(time.strftime('%Y-%m-%d %H:%M:%S',
-                               time.localtime(submission.submit_time())))
+      row.append(
+        time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(submit_time)))
     else:
       row.append('never')
     row.append(submission.num_submissions())
