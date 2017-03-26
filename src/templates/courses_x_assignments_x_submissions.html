@@ -1,12 +1,19 @@
 {% extends "base.html" %}
 {% block body %}
 <h2>Course {{ course_name|e }} Assignment {{ assignment_name|e }} Submissions</h2>
-
 {% if instructs_course %}
 {% for student_submission in student_submissions %}
-<div class="panel panel-primary">
+<div id="{{ student_submission.student_username|e }}" class="panel panel-primary">
   <div class="panel-heading">
     <h3 class="panel-title">{{ student_submission.student_username|e }} Output</h3>
+  </div>
+  <div class="panel-body">
+    <form method="post" enctype="multipart/form-data" action="#{{ student_submission.student_username|e }}">
+      <input autofocus="autofocus" name="manual_score" type="text" placeholder="score (manual portion)">
+      <input name="_student_username" type="hidden" value="{{ student_submission.student_username|e }}">
+      <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+      <input type="submit" value="Update Score">
+    </form>
   </div>
   <div class="panel-body">
     <code><pre>{{ student_submission.output()|e }}</pre></code>

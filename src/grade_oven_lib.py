@@ -230,6 +230,13 @@ class GradeOvenStudentSubmission(object):
        'students', self.student_username, 'stages', stage_name, 'past_due_date_score'),
       past_due_date_score)
 
+  def set_manual_score_portion(self, manual_score):
+    due_date = self.assignment.due_date()
+    if not due_date or self.submit_time() <= due_date:
+      self.set_score('__manual__', manual_score)
+    else:
+      self.set_past_due_date_score('__manual__', manual_score)
+
   def output_html(self):
     return '\n'.join(itertools.ifilter(bool, (unicode(self._data_store.get(
       ('courses', self.course_name, 'assignments', self.assignment_name,

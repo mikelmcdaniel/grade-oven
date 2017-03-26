@@ -827,7 +827,7 @@ def courses_x_assignments_x_submit_all(course_name, assignment_name):
   user = login.current_user
   instructs_course = user.instructs_course(course_name)
   files = None
-  if instructs_course: # OREO
+  if instructs_course:
     student_usernames = frozenset(
       grade_oven.course(course_name).student_usernames())
     # Build map of normalized_student_real_names to potential student_usernames
@@ -960,7 +960,7 @@ def courses_x_assignments_x_output_html_x(
 def courses_x_assignments_x_output_html(course_name, assignment_name):
   return courses_x_assignments_x_output_html_x(course_name, assignment_name)
 
-@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>/submissions')
+@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>/submissions', methods=['GET', 'POST'])
 @login_required
 def courses_x_assignments_x_submissions(course_name, assignment_name):
   user = login.current_user
@@ -968,8 +968,18 @@ def courses_x_assignments_x_submissions(course_name, assignment_name):
   assignment = course.assignment(assignment_name)
   instructs_course = user.instructs_course(course.name)
   student_submissions = []
-  for student_username in course.student_usernames():
-    student_submissions.append(assignment.student_submission(student_username))
+  if instructs_course:
+    form = flask.request.form
+    student_username = form.get('_student_username')
+    manual_score = form.get('manual_score')
+    if student_username and manual_score is not None:
+      submission = assignment.student_submission(student_username)
+      try:
+        submission.set_manual_score_portion(int(manual_score))
+      except ValueError:
+        flask.flash('Manual score "{}" is not an integer.'.format(manual_score))
+    for student_username in course.student_usernames():
+      student_submissions.append(assignment.student_submission(student_username))
   return flask.render_template(
     'courses_x_assignments_x_submissions.html',
     username=login.current_user.get_id(),
