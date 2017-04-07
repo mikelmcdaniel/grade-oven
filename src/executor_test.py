@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import cStringIO
 import errno
 import executor
@@ -38,6 +39,21 @@ class TestExecutor(unittest.TestCase):
       c.init()
       stages = executor.Stages(stages_dir)
       output, errors = c.run_stages(code_path, stages)
+      self.assertEqual(errors, [])
+      self.assertEqual(stages.stages['stage0'].output.stdout, 'HELLO WORLD\n')
+
+  def test_unicode_in_env(self):
+    host_dir = 'testdata/executor/HOST_DIR/hello_world'
+    stages_dir = 'testdata/executor/hello_world'
+    code_path = None
+    with EphemeralDir(host_dir):
+      c = executor.DockerExecutor('test_hello_world', host_dir)
+      c.init()
+      stages = executor.Stages(stages_dir)
+      env = {
+        'FOOBAR': u'┻━┻ ︵﻿ ¯\(ツ)/¯ ︵ ┻━┻',
+      }
+      output, errors = c.run_stages(code_path, stages, env=env)
       self.assertEqual(errors, [])
       self.assertEqual(stages.stages['stage0'].output.stdout, 'HELLO WORLD\n')
 
