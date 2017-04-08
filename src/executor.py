@@ -350,7 +350,11 @@ class DockerExecutor(object):
       '--workdir', '/grade_oven/submission', '--cpu-shares', '128']
     for key, val in env.iteritems():
       docker_cmd.append('--env')
-      docker_cmd.append(u'{}={}'.format(key, val))
+      try:
+        val = unicode(val, errors='replace')
+      except TypeError:
+        pass
+      docker_cmd.append('{}={}'.format(key, val.encode('utf-8')))
     if user == 'root':
       docker_cmd.append('--volume')
       docker_cmd.append(u'{}/root:/root'.format(self.host_dir))

@@ -47,11 +47,12 @@ class TestExecutor(unittest.TestCase):
     stages_dir = 'testdata/executor/hello_world'
     code_path = None
     with EphemeralDir(host_dir):
-      c = executor.DockerExecutor('test_hello_world', host_dir)
+      c = executor.DockerExecutor('test_unicode_in_env', host_dir)
       c.init()
       stages = executor.Stages(stages_dir)
       env = {
-        'FOOBAR': u'┻━┻ ︵﻿ ¯\(ツ)/¯ ︵ ┻━┻',
+        'DECODED': u'┻━┻ ︵﻿ ¯\(ツ)/¯ ︵ ┻━┻',
+        'ENCODED': '┻━┻ ︵﻿ ¯\(ツ)/¯ ︵ ┻━┻',
       }
       output, errors = c.run_stages(code_path, stages, env=env)
       self.assertEqual(errors, [])
