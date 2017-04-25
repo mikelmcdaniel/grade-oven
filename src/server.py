@@ -695,7 +695,7 @@ def courses_x_assignments_x_download_submissions(course_name, assignment_name):
     assignment.save_submissions_zip(buf)
     response = flask.make_response(buf.getvalue())
     response.headers['Content-Disposition'] = (
-      'attachment; filename={} subissions.zip'.format(assignment_name))
+      'attachment; filename={} submissions.zip'.format(assignment_name))
     return response
   else:
     return flask.redirect(
@@ -716,7 +716,7 @@ def courses_x_assignments_x_download_previous_submission(course_name, assignment
     submission.save_submissions_zip(buf)
     response = flask.make_response(buf.getvalue())
     response.headers['Content-Disposition'] = (
-      'attachment; filename={} subissions.zip'.format(assignment_name))
+      'attachment; filename={} submissions.zip'.format(assignment_name))
     return response
   else:
     return flask.redirect(
