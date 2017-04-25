@@ -712,7 +712,8 @@ def courses_x_assignments_x_download_previous_submission(course_name, assignment
     course = grade_oven.course(course_name)
     assignment = course.assignment(assignment_name)
     buf = cStringIO.StringIO()
-    assignment.save_submissions_zip(buf)
+    submission = assignment.student_submission(user.username)
+    submission.save_submissions_zip(buf)
     response = flask.make_response(buf.getvalue())
     response.headers['Content-Disposition'] = (
       'attachment; filename={} subissions.zip'.format(assignment_name))
