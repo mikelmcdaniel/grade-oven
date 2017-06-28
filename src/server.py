@@ -390,7 +390,7 @@ def courses_x_download_grades(course_name):
     writer = csv.writer(buf)
     writer.writerow(header_row)
     for row in table:
-      writer.writerow(row)
+      writer.writerow([x.encode('utf-8') for x in row])
     response = flask.make_response(buf.getvalue())
     response.headers['Content-Disposition'] = 'attachment; filename=grades.csv'
     return response
