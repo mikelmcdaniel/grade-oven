@@ -30,14 +30,16 @@ else:
 
 def ping(url, expected_response=None):
   'Open a URL, with some retrying, and check the response.'
+  resp = None
   for j in xrange(3):
     try:
-      resp = urllib2.urlopen(url)
+      resp = urllib2.urlopen(url, timeout=3.0)
       break
     except urllib2.URLError as e:
       logging.error(e)
       time.sleep(2**j)
-  return expected_response is None or resp.read() == expected_response
+  return resp is not None and (
+    expected_response is None or resp.read() == expected_response)
 
 
 def server_is_up(host):

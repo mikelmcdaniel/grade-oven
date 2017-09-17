@@ -7,6 +7,7 @@ processes die and their STDOUT/STDERR are written out to .txt logs in
 """
 
 import errno
+import logging
 import optparse
 import os
 import random
@@ -72,17 +73,22 @@ def main():
 
   server_proc = run_server()
   monitor_proc = run_monitor()
+  time.sleep(3)
 
   while True:
-    # Poll the processes frequently and do a proper ping about once a minute.
-    for j in xrange(40):
+    # Poll the processes frequently and do a proper ping infrequently.
+    for j in xrange(10):
       if server_proc.poll() is not None:
+        logging.warning('Restarting server')
         server_proc = run_server()
       if monitor_proc.poll() is not None:
+        logging.warning('Restarting monitor')
         monitor_proc = run_monitor()
       time.sleep(1 + random.random())
     if not monitor.server_is_up(server_address):
-      server_proc = run_server()
+      logging.error('Server is not up. Killing server...')
+      server_proc.kill()
+      logging.error('Server killed.')
 
 
 if __name__ == '__main__':
