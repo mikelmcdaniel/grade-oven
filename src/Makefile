@@ -3,6 +3,9 @@
 run_prod:
 	nohup authbind python2 run.py --prod &
 
+run_debug:
+	nohup authbind python2 run.py --debug &
+
 run_prod_basic:
 	python2 server.py --prod
 

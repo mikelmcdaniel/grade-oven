@@ -13,6 +13,8 @@ import random
 import time
 import subprocess
 
+import monitor
+
 
 def maybe_makedirs(path):
   try:
@@ -70,14 +72,18 @@ def main():
 
   server_proc = run_server()
   monitor_proc = run_monitor()
+
   while True:
-    if server_proc.poll() is not None:
-      time.sleep(1)
+    # Poll the processes frequently and do a proper ping about once a minute.
+    for j in xrange(40):
+      if server_proc.poll() is not None:
+        server_proc = run_server()
+      if monitor_proc.poll() is not None:
+        monitor_proc = run_monitor()
+      time.sleep(1 + random.random())
+    if not monitor.server_is_up(server_address):
       server_proc = run_server()
-    if monitor_proc.poll() is not None:
-      time.sleep(1)
-      monitor_proc = run_monitor()
-    time.sleep(1 + random.random())
+
 
 if __name__ == '__main__':
   main()

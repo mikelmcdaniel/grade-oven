@@ -27,6 +27,23 @@ except AttributeError:
 else:
   ssl._create_default_https_context = _create_unverified_https_context
 
+
+def ping(url, expected_response=None):
+  'Open a URL, with some retrying, and check the response.'
+  for j in xrange(3):
+    try:
+      resp = urllib2.urlopen(url)
+      break
+    except urllib2.URLError as e:
+      logging.error(e)
+      time.sleep(2**j)
+  return expected_response is None or resp.read() == expected_response
+
+
+def server_is_up(host):
+  return ping(urlparse.urljoin(host, '/debug/ping'), 'pong')
+
+
 def scrape_variables(host, logs_file):
   br = mechanize.Browser()
   cj = cookielib.LWPCookieJar()

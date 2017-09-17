@@ -349,6 +349,11 @@ def monitor_logs_x(log_name):
 def debug_logged_in():
   return u'Logged in as {}.'.format(cgi.escape(login.current_user.get_id()))
 
+@app.route('/debug/ping')
+@nothing_required
+def debug_ping():
+  return 'pong'
+
 @app.route('/courses')
 @login_required
 def courses():
