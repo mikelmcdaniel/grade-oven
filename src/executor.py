@@ -330,9 +330,7 @@ class DockerExecutor(object):
   def _docker_run(self, docker_image_name, cmd, user=None, env=None):
     "Runs a command and returns the return code or None if it timed out."
     errors = []
-    if user is None:
-      user = 'grade_oven'
-    if user not in ('grade_oven', 'root'):
+    if user not in ('grade_oven', 'root', None):
       raise ValueError('User "{}" must be "grade_oven" or "root".'.format(user))
     if env is None:
       env = {}
@@ -344,10 +342,14 @@ class DockerExecutor(object):
       '--ulimit', 'nice=19:19',
       '--ulimit', 'nofile={}:{}'.format(self.max_num_files, self.max_num_files),
       '--name', self.container_id, '--net', 'none', '--read-only=true',
-      '--restart=no', '--user', user, '--detach',
+      '--restart=no', '--detach',
       '--volume', u'{}/grade_oven:/grade_oven'.format(self.host_dir),
       '--volume', u'{}/tmp:/tmp'.format(self.host_dir),
       '--workdir', '/grade_oven/submission', '--cpu-shares', '128']
+    # If a user is not specified, run as the effective user of this process.
+    # If this code breaks, you can use 'grade_oven' in a --prod run but not
+    # a --debug run.
+    docker_cmd.extend(['--user', user or str(os.geteuid())])
     for key, val in env.iteritems():
       docker_cmd.append('--env')
       try:
@@ -406,8 +408,6 @@ class DockerExecutor(object):
   def _extract_archive(self, archive_path, user=None):
     output = ''
     errors = []
-    if user is None:
-      user = 'grade_oven'
     if archive_path is not None:
       unarchive_cmd = {
         '.tar': ['/bin/tar', '-xf', '--'],
@@ -428,11 +428,9 @@ class DockerExecutor(object):
   def _copy_and_extract_archive(self, archive_path, dst_path=None, user=None):
     output = ''
     errors = []
-    if user is None:
-      user = 'grade_oven'
     if archive_path is not None:
       if dst_path is None:
-        dst_path = os.path.join(self.host_dir, user)
+        dst_path = os.path.join(self.host_dir, user or 'grade_oven')
       if os.path.isfile(archive_path):
         logging.info('Copying file "%s" to "%s"', archive_path, dst_path)
         shutil.copy(archive_path, dst_path)
