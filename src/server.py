@@ -1010,7 +1010,7 @@ def settings():
     user.set_real_name(real_name)
   display_name = form.get('display_name')
   if display_name:
-    display_name = display_name[:256]
+    display_name = display_name[:30]
     user.set_display_name(display_name)
   prefers_anonymity = form.get('prefers_anonymity')
   if prefers_anonymity:

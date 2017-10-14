@@ -4,11 +4,11 @@
 <form method="post">
   <div class="form-group">
     <label for="display_name">Display Name:</label>
-    <input type="text" class="form-control" placeholder="{{ display_name|e }}" id="display_name" name="display_name" autofocus>
+    <input type="text" class="form-control" placeholder="{{ display_name|e }}" id="display_name" maxlength="30" name="display_name" autofocus>
   </div>
   <div class="form-group">
     <label for="real_name">Real/Full Name:</label>
-    <input type="text" class="form-control" placeholder="{{ real_name|e }}" id="real_name" name="real_name">
+    <input type="text" class="form-control" placeholder="{{ real_name|e }}" id="real_name" maxlength="256" name="real_name">
   </div>
   <div class="form-group">
     <label for="prefers_anonymity">Hide Score from Others:</label>
