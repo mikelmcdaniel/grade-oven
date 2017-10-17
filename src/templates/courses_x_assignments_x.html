@@ -92,6 +92,12 @@ Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
 {% endif %}
 
 {% if takes_course or instructs_course %}
+<style type="text/css">
+.table td:first-child {
+  overflow-x: auto;
+  max-width: 25em;
+}
+</style>
 <h3>Scores:</h3>
 <table class="table table-stripped">
   <thead>
