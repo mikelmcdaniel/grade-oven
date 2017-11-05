@@ -547,6 +547,9 @@ def _edit_assignment(form, course_name, assignment_name, stages):
     main_cmds = form.get(u'main_cmds_{}'.format(stage.name))
     if main_cmds:
       stage.save_main_script(main_cmds)
+    is_trusted_stage = form.get(
+      u'is_trusted_stage_{}'.format(stage.name)) is not None
+    stage.save_is_trusted_stage(is_trusted_stage)
     files = flask.request.files.getlist(u'files_{}[]'.format(stage.name))
     if files:
       save_files_in_dir(files, stage.path)

@@ -33,6 +33,8 @@ Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
     <input type="checkbox" name="delete_stages" value="{{ stage.name|e }}" onchange="document.getElementById('edit_{{ stage.name|e }}').hidden = true;"><br>
     <label for="description_{{ stage.name|e }}">Description</label>
     <input name="description_{{ stage.name|e }}" placeholder="description of {{ stage.name|e }}" type="text" value="{{ stage.description|e }}"><br>
+    <label for="is_trusted_stage_{{ stage.name|e }}">Stage only runs trusted code: {{ stage.name|e }}</label>
+    <input type="checkbox" name="is_trusted_stage_{{ stage.name|e }}" value="{{ stage.name|e }}" {% if stage.is_trusted_stage %}checked{% endif %}><br>
     <label for="main_cmds_{{ stage.name|e }}">Script</label><br>
     <textarea name="main_cmds_{{ stage.name|e }}" rows="5" cols="80">{{ stage.main_script|e }}</textarea><br>
   {% for filename in stage.filenames_except_meta %}
