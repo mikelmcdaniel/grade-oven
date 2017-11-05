@@ -767,9 +767,9 @@ def _enqueue_student_submission(course_name, assignment_name, username, files):
   submit_time = student_submission.submit_time() or 0
   cur_time = time.time()
   if cur_time > assignment.due_date():
-    min_seconds_since_last_submission = 60.0
+    min_seconds_since_last_submission = 5.0
   else:
-    min_seconds_since_last_submission = min(num_submissions**3, 600.0)
+    min_seconds_since_last_submission = min(num_submissions**3, 5.0)
   priority = (num_submissions, submit_time)
   stages = executor.Stages(os.path.join(
     '../data/files/courses', course_name, 'assignments', assignment_name))
