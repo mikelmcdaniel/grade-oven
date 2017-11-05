@@ -337,6 +337,7 @@ class DockerExecutor(object):
     self.host_dir = os.path.abspath(host_dir)
     self.timeout_seconds = 30
     self.max_num_files = 1000
+    self.max_mem_bytes = 256 * 1024**2
 
   def _docker_run(self, docker_image_name, cmd, user=None, env=None):
     "Runs a command and returns the return code or None if it timed out."
@@ -346,7 +347,8 @@ class DockerExecutor(object):
     if env is None:
       env = {}
     docker_cmd = [
-      'docker', 'run', '--hostname', 'gradeoven', '--memory', '256m',
+      'docker', 'run', '--hostname', 'gradeoven',
+      '--memory', str(self.max_mem_bytes),
       # TODO: figure out why I need to set nproc so high
       #  If I didn't set nproc > 500 docker wouldn't even start
       '--ulimit', 'nproc=1000:1000',

@@ -1,13 +1,21 @@
+#include <cassert>
 #include <iostream>
 
+using std::cout;
+using std::endl;
 
-static const long chunk_size = 16 * 1024 * 1024 + 1234; // 16MB + 1234
+static const long chunk_size = 4 * 1024; // 4k
 
 int main() {
-  std::cout << "much_ram" << std::endl;
-  for(long i = 0; ; i++) {
+  cout << "much_ram" << endl;
+  for(long i = 0; i <= 2 * 100 * 1024 * 1024 / chunk_size; i++) {
     int * chunk = new int[chunk_size];
-    chunk[i % chunk_size] = 123;
+    assert(chunk);
+    chunk[0] = i;
+    if (i * chunk_size % (1024 * 1024) == 0) {
+      cout << "much_ram: Allocated " << i * chunk_size / (1024 * 1024)
+           << "MB." << endl;
+    }
   }
   return 0;
 }

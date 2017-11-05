@@ -77,15 +77,25 @@ class TestExecutor(unittest.TestCase):
       c = executor.DockerExecutor('test_evil', host_dir)
       c.init()
       c.timeout_seconds = 5
+      c.max_num_files = 100
+      c.max_mem_bytes = 64 * 1024**2
       stages = executor.Stages(stages_dir)
       output, errors = c.run_stages(code_path, stages)
       self.assertEqual(stages.stages['fork_bomb'].output.errors, [
         'Command "/grade_oven/fork_bomb/main" did not finish in '
         '5 seconds and timed out.'])
-      self.assertEqual(
-        stages.stages['many_open_files'].output.stdout, 'many_open_files\n')
-      self.assertEqual(
-        stages.stages['much_ram'].output.stdout, 'much_ram\n')
+      self.assertTrue(
+        'many_open_files: 80 files open' in
+        stages.stages['many_open_files'].output.stdout)
+      self.assertFalse(
+        'many_open_files: 120 files open' in
+        stages.stages['many_open_files'].output.stdout)
+      self.assertTrue(
+        'much_ram: Allocated 48MB.' in
+        stages.stages['much_ram'].output.stdout)
+      self.assertFalse(
+        'much_ram: Allocated 64MB.' in
+        stages.stages['much_ram'].output.stdout)
 
   def test_hello_world_cpp(self):
     host_dir = 'testdata/executor/HOST_DIR/score'
