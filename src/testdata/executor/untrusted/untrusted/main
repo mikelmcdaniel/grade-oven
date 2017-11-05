@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo 987 > /grade_oven/output/score

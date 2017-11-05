@@ -145,6 +145,22 @@ class TestExecutor(unittest.TestCase):
       with zipfile.ZipFile(fake_file2, 'r') as zf2:
         self.assertEqual(sorted(zf.namelist()), sorted(zf2.namelist()))
 
+  def test_untrusted(self):
+    host_dir = 'testdata/executor/HOST_DIR/untrusted'
+    stages_dir = 'testdata/executor/untrusted'
+    code_path = None
+    score_map = {}
+    with EphemeralDir(host_dir):
+      c = executor.DockerExecutor('test_unptrusted', host_dir)
+      c.init()
+      output, errors = c.run_stages(
+        code_path,
+        executor.Stages(stages_dir),
+        lambda stage: score_map.update({stage.name: stage.output.score}))
+      self.assertEqual(errors, [])
+      self.assertEqual(output.strip(), '')
+      self.assertEqual(score_map, {'trusted': 123, 'untrusted': None})
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -154,6 +154,16 @@ class Stage(object):
   def description(self):
     return self._raw_stage_json().get('description', '')
 
+  @property
+  def is_trusted_stage(self):
+    # TODO: Make this default to False since it's
+    # safer generally better to fail closed.
+    return self._raw_stage_json().get('is_trusted_stage', True)
+
+  def save_is_trusted_stage(self, is_trusted_stage):
+    self._raw_stage_json()['is_trusted_stage'] = is_trusted_stage
+    _save_stages_metadata(self._stages_path, self._raw_json)
+
   def save_description(self, desc):
     self._raw_stage_json()['description'] = desc
     _save_stages_metadata(self._stages_path, self._raw_json)
@@ -494,6 +504,9 @@ class DockerExecutor(object):
         os.path.join(self.host_dir, 'grade_oven/output'))
       stage.output.stdout = output
       stage.output.errors = errs
+      # If the stage is running untrusted code, remove the score.
+      if not stage.is_trusted_stage:
+        stage.output.score = None
       if stage_done_callback is not None:
         stage_done_callback(stage)
     return '\n'.join(outputs), errors
