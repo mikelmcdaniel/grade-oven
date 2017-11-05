@@ -250,6 +250,7 @@ class Stages(object):
 
   @classmethod
   def from_zip(cls, file_obj, stages_name, stages_root):
+    "Unpack zip from file_obj into os.path.join(stages_root, stages_name)."
     try:
       assignment_root = os.path.join(stages_root, stages_name)
       os.mkdir(assignment_root)

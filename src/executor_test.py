@@ -122,13 +122,13 @@ class TestExecutor(unittest.TestCase):
     fake_file = cStringIO.StringIO()
     stages.save_zip(fake_file)
     expected_files = [
-      'evil/', 'evil/metadata.json',
-      'evil/fork_bomb/', 'evil/fork_bomb/fork_bomb.cpp', 'evil/fork_bomb/main',
-      'evil/many_open_files/', 'evil/many_open_files/main',
-      'evil/many_open_files/many_open_files.cpp',
-      'evil/much_ram/', 'evil/much_ram/much_ram.cpp', 'evil/much_ram/main']
+      'metadata.json',
+      'fork_bomb/', 'fork_bomb/fork_bomb.cpp', 'fork_bomb/main',
+      'many_open_files/', 'many_open_files/main',
+      'many_open_files/many_open_files.cpp',
+      'much_ram/', 'much_ram/much_ram.cpp', 'much_ram/main']
     with zipfile.ZipFile(fake_file, 'r') as zf:
-      self.assertEqual(zf.namelist(), expected_files)
+      self.assertEqual(sorted(zf.namelist()), sorted(expected_files))
 
   def test_from_zip(self):
     # use the "evil" test case because it has multiple stages
@@ -136,10 +136,10 @@ class TestExecutor(unittest.TestCase):
     stages_dir = 'testdata/executor/evil'
     fake_file = cStringIO.StringIO()
     executor.Stages(stages_dir).save_zip(fake_file)
-    stages = executor.Stages.from_zip(fake_file, host_dir)
+    stages = executor.Stages.from_zip(fake_file, 'test_from_zip', host_dir)
     fake_file2 = cStringIO.StringIO()
-    executor.Stages(host_dir + '/evil').save_zip(fake_file2)
-    shutil.rmtree(host_dir + '/evil')
+    executor.Stages(host_dir + '/test_from_zip').save_zip(fake_file2)
+    shutil.rmtree(host_dir + '/test_from_zip')
 
     with zipfile.ZipFile(fake_file, 'r') as zf:
       with zipfile.ZipFile(fake_file2, 'r') as zf2:
