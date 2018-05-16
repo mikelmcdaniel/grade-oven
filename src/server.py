@@ -31,7 +31,7 @@ import threading
 import time
 import zipfile
 
-from flask.ext import login
+import flask_login as login
 import bcrypt
 import flask
 
@@ -95,7 +95,7 @@ def nothing_required(func):
 def login_required(func):
   @functools.wraps(func)
   def login_required_func(*args, **kwargs):
-    if login.current_user.is_authenticated():
+    if login.current_user.is_authenticated:
       logging.info(u'User "%s" accessed "%s"',
         login.current_user.get_id(), flask.request.url)
       return func(*args, **kwargs)
@@ -109,7 +109,7 @@ def login_required(func):
 def admin_required(func):
   @functools.wraps(func)
   def admin_required_func(*args, **kwargs):
-    if login.current_user.is_authenticated() and login.current_user.is_admin():
+    if login.current_user.is_authenticated and login.current_user.is_admin():
       logging.info(u'Admin "%s" accessed "%s"',
         login.current_user.get_id(), flask.request.url)
       return func(*args, **kwargs)
@@ -122,7 +122,7 @@ def admin_required(func):
 def monitor_required(func):
   @functools.wraps(func)
   def monitor_required_func(*args, **kwargs):
-    if login.current_user.is_authenticated() and login.current_user.is_monitor():
+    if login.current_user.is_authenticated and login.current_user.is_monitor():
       if login.current_user.get_id() != 'monitor':
         logging.info(u'Monitor "%s" accessed "%s"',
           login.current_user.get_id(), flask.request.url)
@@ -1036,7 +1036,7 @@ def settings():
 @app.route('/')
 @nothing_required
 def index():
-  if login.current_user.is_authenticated():
+  if login.current_user.is_authenticated:
     if login.current_user.is_admin():
       return flask.redirect('/admin')
     else:
