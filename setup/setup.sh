@@ -17,8 +17,16 @@ fi
 
 ./mount.sh
 
-sudo apt-get --assume-yes install python2.7 python-flask python-flask-login docker python-bcrypt python-leveldb authbind docker.io # for server.py
-sudo apt-get --assume-yes install python-mechanize # for monitor.py
+# for server.py
+if ! which docker; then  # if docker is not installed then install it
+    curl -sSL https://get.docker.com | sh
+fi
+sudo apt-get --assume-yes install python2.7 python-flask python-bcrypt python-leveldb authbind
+sudo apt-get --assume-yes install python-pip
+sudo pip install flask-login
+
+# for monitor.py
+sudo apt-get --assume-yes install python-mechanize
 
 sudo service docker start
 
