@@ -14,8 +14,6 @@ how to use it or look at this simple example:
 """
 
 import json
-import os
-import shutil
 import six
 import tempfile
 
@@ -109,30 +107,3 @@ class DataStore(object):
 
   def __delitem__(self, key):
     return self.remove(key)
-
-
-if __name__ == '__main__':
-  key1 = ('courses', six.unichr(9835), 'assignments', 'homework 1')
-  key2 = ('courses', six.unichr(9835), 'assignments', 'homework 2' + six.unichr(9835))
-  key3 = ('courses', 'python', 'assignments', 'homework 1')
-  temp_dir = tempfile.mkdtemp()
-  try:
-    store = DataStore(temp_dir)
-    store.put(key1, b'c++ 1')
-    store.put(key2, u'c++ 2')
-    store[key3] = 'python 1'
-    assert set(store.get_all(('courses',))) == set([six.unichr(9835), 'python'])
-    assert store.get(key1) == 'c++ 1'
-    assert store[key3] == 'python 1'
-    store.remove(('courses', six.unichr(9835)))
-    assert set(store.get_all(('courses',))) == set(['python'])
-    assert ('courses',) in store
-    assert ('courses', 'python') in store
-    assert ('courses', 'python', 'assignments', 'homework 1') in store
-    del store[('courses', 'python', 'assignments', 'homework 1')]
-    assert ('courses', 'python', 'assignments', 'homework 1') not in store
-    assert set(store.get_all(('courses', 'nothing'))) == set()
-    assert store.get(
-      ('does', 'not', 'exist' + six.unichr(9835)), 'DEFAULT VAL') == 'DEFAULT VAL'
-  finally:
-    shutil.rmtree(temp_dir)
