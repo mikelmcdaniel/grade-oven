@@ -21,6 +21,7 @@ import os
 import re
 import shlex
 import shutil
+import six
 import subprocess
 import time
 import zipfile
@@ -95,7 +96,7 @@ class StageOutput(object):
 def make_file_executable(path):
   mode = os.stat(path).st_mode
   # copy read bits to executable bits
-  mode |= (mode & 0444) >> 2
+  mode |= (mode & 0o444) >> 2
   os.chmod(path, mode)
 
 def _save_stages_metadata(stages_path, raw_json):
@@ -245,7 +246,7 @@ class Stages(object):
   def save_zip(self, file_obj):
     with zipfile.ZipFile(file_obj, 'a') as zf:
       zf.write(os.path.join(self.path, 'metadata.json'), 'metadata.json')
-      for stage in self.stages.itervalues():
+      for stage in self.stages.values():
         stage._save_zip(self.name, zf)
 
   @classmethod
@@ -266,7 +267,7 @@ class Stages(object):
         # to ensure that the main script is executable. Ideally, file
         # permissions would be preserved.
         stages = cls(assignment_root)
-        for stage in stages.stages.itervalues():
+        for stage in stages.stages.values():
           stage.save_main_script()
         return stages
     except (zipfile.BadZipfile, zipfile.LargeZipFile) as e:
@@ -307,7 +308,7 @@ def read_proc_summarized_stdout(proc, bufsize):
       'This function does not support unbuffered or line-buffered files '
       '(bufsize must be >= 2).')
   # between 128KB and 128KB + bufsize
-  output = collections.deque(maxlen=131072 / bufsize + 1)
+  output = collections.deque(maxlen=131072 // bufsize + 1)
   error = None
   try:
     while True:
@@ -318,7 +319,7 @@ def read_proc_summarized_stdout(proc, bufsize):
         break
   except EnvironmentError as e:
     error = str(e)
-  return ''.join(output), error
+  return b''.join(output), error
 
 
 class DockerExecutor(object):
@@ -363,10 +364,10 @@ class DockerExecutor(object):
     # If this code breaks, you can use 'grade_oven' in a --prod run but not
     # a --debug run.
     docker_cmd.extend(['--user', user or str(os.geteuid())])
-    for key, val in env.iteritems():
+    for key, val in env.items():
       docker_cmd.append('--env')
       try:
-        val = unicode(val, errors='replace')
+        val = six.text_type(val, errors='replace')
       except TypeError:
         pass
       docker_cmd.append('{}={}'.format(key, val.encode('utf-8')))
@@ -493,7 +494,7 @@ class DockerExecutor(object):
       submission_path, os.path.join(self.host_dir, 'grade_oven/submission'))
     outputs.append(output)
     errors.extend(errs)
-    for stage in stages.stages.itervalues():
+    for stage in stages.stages.values():
       output, errs = self._copy_and_extract_archive(
         stage.path,
         os.path.join(self.host_dir, 'grade_oven', stage.name))

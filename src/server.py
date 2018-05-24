@@ -9,7 +9,6 @@ code, such as input sanitazation (via escape_lib).
 # TODO: Validate course and assignment names
 # TODO: Restrict which users can see which pages more
 #   e.g. only admins, instructors, and enrolled students should see courses
-import cStringIO
 import cgi
 import collections
 import csv
@@ -26,6 +25,7 @@ import re
 import shlex
 import shutil
 import signal
+import six
 import tempfile
 import threading
 import time
@@ -142,19 +142,18 @@ login_manager.user_loader(grade_oven.user)
 @app.before_request
 def csrf_protect():
   if flask.request.method != 'GET' and flask.request.path != '/login':
-    token = flask.session.pop('_csrf_token', None)
-    if not token:
-      logging.warning(u'Missing _csrf_token for "%s"', flask.request.url)
-      flask.abort(403)
-    elif token != flask.request.form.get('_csrf_token'):
-      logging.warning(u'Invalid _csrf_token "%s" for "%s"',
-        flask.request.form.get('_csrf_token'), flask.request.url)
+    expected_token = flask.session.pop('_csrf_token', None)
+    received_token = flask.request.form.get('_csrf_token')
+    if expected_token != received_token:
+      logging.warning(
+        u'Invalid _csrf_token "%s" for "%s". Expected token "%s".',
+        expected_token, flask.request.url, received_token)
       flask.abort(403)
 
 def generate_csrf_token():
   if '_csrf_token' not in flask.session:
     # TODO: Verify that bcrypt.gensalt() is sufficient
-    flask.session['_csrf_token'] = bcrypt.gensalt()[7:]
+    flask.session['_csrf_token'] = bcrypt.gensalt()[7:].decode('utf-8')
   return flask.session['_csrf_token']
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
@@ -391,7 +390,7 @@ def courses_x_download_grades(course_name):
   takes_course = user.takes_course(course_name)
   if instructs_course:
     header_row, table = _make_grades_table(course, instructs_course)
-    buf = cStringIO.StringIO()
+    buf = six.BytesIO()
     writer = csv.writer(buf)
     writer.writerow(header_row)
     for row in table:
@@ -475,8 +474,8 @@ def _make_grades_table(course, show_real_names=False):
     row.append(user.display_name())
     for assignment in assignments:
       submission = assignment.student_submission(student_name)
-      row.append(unicode(submission.score()))
-      row.append(unicode(submission.past_due_date_score()))
+      row.append(six.text_type(submission.score()))
+      row.append(six.text_type(submission.past_due_date_score()))
     table.append(row)
   table = sorted(table)
   return header_row, table
@@ -540,7 +539,7 @@ def _edit_assignment(form, course_name, assignment_name, stages):
     else:
       errors.append(u'Could not split "{}" to delete it.'.format(delete_file))
       logging.warning(errors[-1])
-  for stage in stages.stages.itervalues():
+  for stage in stages.stages.values():
     description = form.get(u'description_{}'.format(stage.name))
     if description:
       stage.save_description(description)
@@ -679,7 +678,7 @@ def courses_x_assignments_x_download(course_name, assignment_name):
   if instructs_course:
     stages = executor.Stages(os.path.join(
       '../data/files/courses', course_name, 'assignments', assignment_name))
-    buf = cStringIO.StringIO()
+    buf = six.BytesIO()
     stages.save_zip(buf)
     response = flask.make_response(buf.getvalue())
     response.headers['Content-Disposition'] = (
@@ -699,7 +698,7 @@ def courses_x_assignments_x_download_submissions(course_name, assignment_name):
   if instructs_course:
     course = grade_oven.course(course_name)
     assignment = course.assignment(assignment_name)
-    buf = cStringIO.StringIO()
+    buf = six.BytesIO()
     assignment.save_submissions_zip(buf)
     response = flask.make_response(buf.getvalue())
     response.headers['Content-Disposition'] = (
@@ -719,7 +718,7 @@ def courses_x_assignments_x_download_previous_submission(course_name, assignment
   if takes_course:
     course = grade_oven.course(course_name)
     assignment = course.assignment(assignment_name)
-    buf = cStringIO.StringIO()
+    buf = six.BytesIO()
     submission = assignment.student_submission(user.username)
     submission.save_submissions_zip(buf)
     response = flask.make_response(buf.getvalue())
@@ -769,10 +768,7 @@ def _enqueue_student_submission(course_name, assignment_name, username, files):
   num_submissions = student_submission.num_submissions()
   submit_time = student_submission.submit_time() or 0
   cur_time = time.time()
-  if cur_time > assignment.due_date():
-    min_seconds_since_last_submission = 5.0
-  else:
-    min_seconds_since_last_submission = min(num_submissions**3, 5.0)
+  min_seconds_since_last_submission = min(num_submissions**3, 5.0)
   priority = (num_submissions, submit_time)
   stages = executor.Stages(os.path.join(
     '../data/files/courses', course_name, 'assignments', assignment_name))

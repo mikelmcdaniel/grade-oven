@@ -10,6 +10,6 @@ def random_name():
   return '{} {}'.format(random.choice(adjectives), random.choice(nouns))
 
 if __name__ == '__main__':
-  print len(adjectives) * len(nouns), 'possible names'
-  for _ in xrange(40):
-    print random_name()
+  print(len(adjectives) * len(nouns), 'possible names')
+  for _ in range(40):
+    print(random_name())

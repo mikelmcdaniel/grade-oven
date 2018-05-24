@@ -16,11 +16,12 @@ how to use it or look at this simple example:
 import json
 import os
 import shutil
+import six
 import tempfile
 
 import leveldb
 
-_JSON_NULL = json.dumps(None)
+_JSON_NULL = bytes(json.dumps(None).encode('utf-8'))
 
 # TODO: Allow keys to be arbitrary
 # TODO: Make concurrent deletions/puts atomic with respect to eachother
@@ -31,15 +32,20 @@ class DataStore(object):
     self.db = leveldb.LevelDB(dir_path, paranoid_checks=True)
 
   def put(self, key, value=None):
+    # TODO: Before moving to Python3, decoding bytes was not necessary.
+    # Add proper support for writing bytes.
+    if isinstance(value, bytes):
+      value = value.decode('utf-8')
+
     mods = leveldb.WriteBatch()
     partial_key = []
     for j, key_part in enumerate(key, 1):
       partial_key.append('\x00')
-      partial_key[0] = unichr(j)
+      partial_key[0] = six.unichr(j)
       partial_key.append(key_part)
       pk = bytearray(''.join(partial_key), 'utf-8')
       mods.Put(pk, _JSON_NULL)
-    mods.Put(pk, json.dumps(value))
+    mods.Put(pk, bytes(json.dumps(value).encode('utf-8')))
     self.db.Write(mods)
 
   def __setitem__(self, key, value):
@@ -50,7 +56,7 @@ class DataStore(object):
     for key_part in key:
       real_key.append('\x00')
       real_key.append(key_part)
-    real_key[0] = unichr(len(key))
+    real_key[0] = six.unichr(len(key))
     raw_value = self.db.Get(bytearray(''.join(real_key), 'utf-8'))
     value = json.loads(raw_value)
     return value
@@ -79,16 +85,16 @@ class DataStore(object):
     for sub_key in self.db.RangeIter(
         bytearray(start_key, 'utf-8'), bytearray(end_key, 'utf-8'),
         include_value=False):
-      sub_keys.append(sub_key[sub_key.rfind('\x00') + 1:].decode('utf-8'))
+      sub_keys.append(sub_key[sub_key.rfind(b'\x00') + 1:].decode('utf-8'))
     return sub_keys
 
   def remove(self, key):
     real_key = []
-    real_key.append(unichr(len(key)))
+    real_key.append(six.unichr(len(key)))
     real_key.append('\x00'.join(key))
     mods = leveldb.WriteBatch()
-    for j in xrange(len(key), 256):
-      real_key[0] = unichr(j)
+    for j in six.moves.xrange(len(key), 256):
+      real_key[0] = six.unichr(j)
       start_key = ''.join(real_key)
       end_key = start_key + '\x01'
       found_keys = False
@@ -106,19 +112,19 @@ class DataStore(object):
 
 
 if __name__ == '__main__':
-  key1 = ('courses', unichr(9835), 'assignments', 'homework 1')
-  key2 = ('courses', unichr(9835), 'assignments', 'homework 2' + unichr(9835))
+  key1 = ('courses', six.unichr(9835), 'assignments', 'homework 1')
+  key2 = ('courses', six.unichr(9835), 'assignments', 'homework 2' + six.unichr(9835))
   key3 = ('courses', 'python', 'assignments', 'homework 1')
   temp_dir = tempfile.mkdtemp()
   try:
     store = DataStore(temp_dir)
-    store.put(key1, 'c++ 1')
-    store.put(key2, 'c++ 2')
+    store.put(key1, b'c++ 1')
+    store.put(key2, u'c++ 2')
     store[key3] = 'python 1'
-    assert set(store.get_all(('courses',))) == set([unichr(9835), 'python'])
+    assert set(store.get_all(('courses',))) == set([six.unichr(9835), 'python'])
     assert store.get(key1) == 'c++ 1'
     assert store[key3] == 'python 1'
-    store.remove(('courses', unichr(9835)))
+    store.remove(('courses', six.unichr(9835)))
     assert set(store.get_all(('courses',))) == set(['python'])
     assert ('courses',) in store
     assert ('courses', 'python') in store
@@ -127,6 +133,6 @@ if __name__ == '__main__':
     assert ('courses', 'python', 'assignments', 'homework 1') not in store
     assert set(store.get_all(('courses', 'nothing'))) == set()
     assert store.get(
-      ('does', 'not', 'exist' + unichr(9835)), 'DEFAULT VAL') == 'DEFAULT VAL'
+      ('does', 'not', 'exist' + six.unichr(9835)), 'DEFAULT VAL') == 'DEFAULT VAL'
   finally:
     shutil.rmtree(temp_dir)

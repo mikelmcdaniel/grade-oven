@@ -29,6 +29,7 @@ import bcrypt
 import executor
 import itertools
 import os
+import six
 import time
 import zipfile
 
@@ -238,7 +239,7 @@ class GradeOvenStudentSubmission(object):
       self.set_past_due_date_score('__manual__', manual_score)
 
   def output_html(self):
-    return '\n'.join(itertools.ifilter(bool, (unicode(self._data_store.get(
+    return '\n'.join(filter(bool, (six.text_type(self._data_store.get(
       ('courses', self.course_name, 'assignments', self.assignment_name,
        'students', self.student_username, 'stages', stage_name, 'output_html'), ''))
                    for stage_name in self.stage_names())))
@@ -249,7 +250,7 @@ class GradeOvenStudentSubmission(object):
        'students', self.student_username, 'stages', stage_name, 'output_html'), output_html)
 
   def output(self):
-    return '\n'.join(unicode(self._data_store.get(
+    return '\n'.join(six.text_type(self._data_store.get(
       ('courses', self.course_name, 'assignments', self.assignment_name,
        'students', self.student_username, 'stages', stage_name, 'output'), '') or '')
                    for stage_name in self.stage_names())
@@ -260,7 +261,7 @@ class GradeOvenStudentSubmission(object):
        'students', self.student_username, 'stages', stage_name, 'output'), output)
 
   def errors(self):
-    return '\n'.join(unicode(self._data_store.get(
+    return '\n'.join(six.text_type(self._data_store.get(
       ('courses', self.course_name, 'assignments', self.assignment_name,
        'students', self.student_username, 'stages', stage_name, 'errors'), '') or '')
                    for stage_name in self.stage_names())

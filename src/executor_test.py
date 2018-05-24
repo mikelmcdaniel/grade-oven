@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-import cStringIO
 import errno
 import executor
 import os
 import re
 import shutil
+import six
 import unittest
 import zipfile
 
@@ -40,7 +40,7 @@ class TestExecutor(unittest.TestCase):
       stages = executor.Stages(stages_dir)
       output, errors = c.run_stages(code_path, stages)
       self.assertEqual(errors, [])
-      self.assertEqual(stages.stages['stage0'].output.stdout, 'HELLO WORLD\n')
+      self.assertEqual(stages.stages['stage0'].output.stdout, b'HELLO WORLD\n')
 
   def test_unicode_in_env(self):
     host_dir = 'testdata/executor/HOST_DIR/hello_world'
@@ -56,7 +56,7 @@ class TestExecutor(unittest.TestCase):
       }
       output, errors = c.run_stages(code_path, stages, env=env)
       self.assertEqual(errors, [])
-      self.assertEqual(stages.stages['stage0'].output.stdout, 'HELLO WORLD\n')
+      self.assertEqual(stages.stages['stage0'].output.stdout, b'HELLO WORLD\n')
 
   def test_hello_world_cpp(self):
     host_dir = 'testdata/executor/HOST_DIR/hello_world_cpp'
@@ -85,16 +85,16 @@ class TestExecutor(unittest.TestCase):
         'Command "/grade_oven/fork_bomb/main" did not finish in '
         '5 seconds and timed out.'])
       self.assertTrue(
-        'many_open_files: 80 files open' in
+        b'many_open_files: 80 files open' in
         stages.stages['many_open_files'].output.stdout)
       self.assertFalse(
-        'many_open_files: 120 files open' in
+        b'many_open_files: 120 files open' in
         stages.stages['many_open_files'].output.stdout)
       self.assertTrue(
-        'much_ram: Allocated 48MB.' in
+        b'much_ram: Allocated 48MB.' in
         stages.stages['much_ram'].output.stdout)
       self.assertFalse(
-        'much_ram: Allocated 64MB.' in
+        b'much_ram: Allocated 64MB.' in
         stages.stages['much_ram'].output.stdout)
 
   def test_hello_world_cpp(self):
@@ -129,7 +129,7 @@ class TestExecutor(unittest.TestCase):
     # use the "evil" test case because it has multiple stages
     stages_dir = 'testdata/executor/evil'
     stages = executor.Stages(stages_dir)
-    fake_file = cStringIO.StringIO()
+    fake_file = six.BytesIO()
     stages.save_zip(fake_file)
     expected_files = [
       'metadata.json',
@@ -144,10 +144,10 @@ class TestExecutor(unittest.TestCase):
     # use the "evil" test case because it has multiple stages
     host_dir = 'testdata/executor/HOST_DIR'
     stages_dir = 'testdata/executor/evil'
-    fake_file = cStringIO.StringIO()
+    fake_file = six.BytesIO()
     executor.Stages(stages_dir).save_zip(fake_file)
     stages = executor.Stages.from_zip(fake_file, 'test_from_zip', host_dir)
-    fake_file2 = cStringIO.StringIO()
+    fake_file2 = six.BytesIO()
     executor.Stages(host_dir + '/test_from_zip').save_zip(fake_file2)
     shutil.rmtree(host_dir + '/test_from_zip')
 

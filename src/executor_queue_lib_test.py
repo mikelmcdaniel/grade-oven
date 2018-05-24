@@ -41,10 +41,10 @@ class TestExecutor(unittest.TestCase):
   def test_submission_ordering(self):
     sorted_submissions = [
       executor_queue_lib.Submission(j, str(j), str(j))
-      for j in xrange(10)]
+      for j in range(10)]
     shuffled_submissions = [
       executor_queue_lib.Submission(j, str(j), str(j))
-      for j in xrange(10)]
+      for j in range(10)]
     random.shuffle(shuffled_submissions)
     self.assertEqual(sorted_submissions, sorted(shuffled_submissions))
 

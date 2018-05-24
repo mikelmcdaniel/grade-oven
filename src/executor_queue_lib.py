@@ -10,7 +10,7 @@ See executor_queue_lib_test.py for example usage.
 import collections
 import functools
 import threading
-import Queue as queue
+from six.moves import queue
 import logging
 
 @functools.total_ordering
