@@ -270,7 +270,7 @@ def admin_edit_user():
     errors.append('Password and password confirmation do not match.')
   else:  # password == password2:
     passwords = [password for _ in xrange(len(usernames))]
-  for username, password_ in itertools.izip(usernames, passwords):
+  for username, password_ in zip(usernames, passwords):
     _add_edit_user(username, password_, is_admin, is_monitor, is_instructor,
                    course, instructs_course, takes_course, True, msgs)
   return flask.render_template(
