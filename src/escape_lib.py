@@ -12,7 +12,6 @@ SAFE_ENTITY_CHARS = frozenset(
 
 BAD_ENTITY_NAMES = frozenset(['', ' ', '.', '..'])
 
-EMPTY_SET = frozenset()
 
 def is_safe_entity_name(entity):
   return (entity not in BAD_ENTITY_NAMES and

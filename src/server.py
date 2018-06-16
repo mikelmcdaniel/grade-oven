@@ -29,6 +29,7 @@ import six
 import tempfile
 import threading
 import time
+from typing import Dict, Text
 import zipfile
 
 import flask_login as login
@@ -53,7 +54,7 @@ login_manager.init_app(app)
 data_store = datastore_lib.DataStore(os.path.abspath('../data/db'))
 grade_oven = grade_oven_lib.GradeOven(data_store)
 executor_queue = executor_queue_lib.ExecutorQueue()
-monitor_variables = collections.defaultdict(int)
+monitor_variables = collections.defaultdict(int)  # type: Dict[Text, int]
 
 class ResourcePool(object):
   def __init__(self, resources):

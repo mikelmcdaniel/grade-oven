@@ -97,7 +97,7 @@ class TestExecutor(unittest.TestCase):
         b'much_ram: Allocated 64MB.' in
         stages.stages['much_ram'].output.stdout)
 
-  def test_hello_world_cpp(self):
+  def test_score(self):
     host_dir = 'testdata/executor/HOST_DIR/score'
     stages_dir = 'testdata/executor/score'
     code_path = None
