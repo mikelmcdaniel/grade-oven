@@ -35,7 +35,7 @@ import flask_login as login
 import bcrypt
 import flask
 
-import datastore as datastore_lib
+from datastore import datastore as datastore_lib
 import escape_lib
 import executor
 import executor_queue_lib
