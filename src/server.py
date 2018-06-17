@@ -47,7 +47,8 @@ SECONDS_PER_DAY = 24 * 60 * 60
 
 # globals
 app = flask.Flask(__name__)
-app.config['SECRET_KEY'] = open('../data/secret_key.txt').read()
+with open('../data/secret_key.txt') as f:
+  app.config['SECRET_KEY'] = f.read()
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 login_manager = login.LoginManager()
 login_manager.init_app(app)
@@ -1095,7 +1096,8 @@ def main():
     user.set_is_admin(True)
   if not data_store.get_all(('monitors',)):
     user = grade_oven.user('monitor')
-    user.set_password(open('../data/secret_key.txt').read())
+    with open('../data/secret_key.txt') as f:
+      user.set_password(f.read())
     user.set_is_monitor(True)
 
   context = ('../data/ssl/server.crt', '../data/ssl/server.key')

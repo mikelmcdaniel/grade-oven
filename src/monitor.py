@@ -63,7 +63,8 @@ def scrape_variables(host: Text, logs_file: IO) -> None:
   response = br.open(login_url)
   br.form = next(iter(br.forms()))
   br.form['username'] = 'monitor'
-  br.form['password'] = open('../data/secret_key.txt').read()
+  with open('../data/secret_key.txt') as f:
+    br.form['password'] = f.read()
   br.method = 'POST'
   br.submit()
   br.method = 'GET'
