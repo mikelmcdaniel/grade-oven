@@ -57,6 +57,7 @@ grade_oven = grade_oven_lib.GradeOven(data_store)
 executor_queue = executor_queue_lib.ExecutorQueue()
 monitor_variables = collections.defaultdict(int)  # type: Dict[Text, int]
 
+
 class ResourcePool(object):
   def __init__(self, resources):
     self._free_resources = collections.deque(resources)
@@ -82,7 +83,7 @@ class ResourcePool(object):
 
 
 temp_dirs = ResourcePool(
-  os.path.abspath(p) for p in glob.glob('../data/host_dirs/?'))
+    os.path.abspath(p) for p in glob.glob('../data/host_dirs/?'))
 assert len(temp_dirs) > 0
 
 
@@ -90,36 +91,42 @@ def nothing_required(func):
   @functools.wraps(func)
   def nothing_required_func(*args, **kwargs):
     logging.info(u'User "%s" accessed public page "%s"',
-      login.current_user.get_id(), flask.request.url)
+                 login.current_user.get_id(), flask.request.url)
     return func(*args, **kwargs)
+
   return nothing_required_func
+
 
 def login_required(func):
   @functools.wraps(func)
   def login_required_func(*args, **kwargs):
     if login.current_user.is_authenticated:
-      logging.info(u'User "%s" accessed "%s"',
-        login.current_user.get_id(), flask.request.url)
+      logging.info(u'User "%s" accessed "%s"', login.current_user.get_id(),
+                   flask.request.url)
       return func(*args, **kwargs)
     else:
       logging.info(u'Unknown user "%s" tried to access "%s"',
-        login.current_user.get_id(), flask.request.url)
+                   login.current_user.get_id(), flask.request.url)
       return flask.redirect(
-        u'/login?redirect={}'.format(flask.request.path), code=303)
+          u'/login?redirect={}'.format(flask.request.path), code=303)
+
   return login_required_func
+
 
 def admin_required(func):
   @functools.wraps(func)
   def admin_required_func(*args, **kwargs):
     if login.current_user.is_authenticated and login.current_user.is_admin():
-      logging.info(u'Admin "%s" accessed "%s"',
-        login.current_user.get_id(), flask.request.url)
+      logging.info(u'Admin "%s" accessed "%s"', login.current_user.get_id(),
+                   flask.request.url)
       return func(*args, **kwargs)
     else:
       logging.warning(u'Unknown user "%s" tried to access admin page "%s"',
-        login.current_user.get_id(), flask.request.url)
+                      login.current_user.get_id(), flask.request.url)
       return flask.abort(403)  # forbidden
+
   return admin_required_func
+
 
 def monitor_required(func):
   @functools.wraps(func)
@@ -127,12 +134,13 @@ def monitor_required(func):
     if login.current_user.is_authenticated and login.current_user.is_monitor():
       if login.current_user.get_id() != 'monitor':
         logging.info(u'Monitor "%s" accessed "%s"',
-          login.current_user.get_id(), flask.request.url)
+                     login.current_user.get_id(), flask.request.url)
       return func(*args, **kwargs)
     else:
       logging.warning(u'Unknown user "%s" tried to access monitor page "%s"',
-        login.current_user.get_id(), flask.request.url)
+                      login.current_user.get_id(), flask.request.url)
       return flask.abort(403)  # forbidden
+
   return monitor_required_func
 
 
@@ -148,9 +156,10 @@ def csrf_protect():
     received_token = flask.request.form.get('_csrf_token')
     if expected_token != received_token:
       logging.warning(
-        u'Invalid _csrf_token "%s" for "%s". Expected token "%s".',
-        expected_token, flask.request.url, received_token)
+          u'Invalid _csrf_token "%s" for "%s". Expected token "%s".',
+          expected_token, flask.request.url, received_token)
       flask.abort(403)
+
 
 def generate_csrf_token():
   if '_csrf_token' not in flask.session:
@@ -158,10 +167,11 @@ def generate_csrf_token():
     flask.session['_csrf_token'] = bcrypt.gensalt()[7:].decode('utf-8')
   return flask.session['_csrf_token']
 
+
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
-SIGNALS = dict((signal_name, getattr(signal, signal_name))
-               for signal_name in dir(signal))
+SIGNALS = dict(
+    (signal_name, getattr(signal, signal_name)) for signal_name in dir(signal))
 
 
 @app.route('/favicon.ico')
@@ -174,14 +184,15 @@ def favicon():
 @nothing_required
 def about():
   return flask.render_template(
-    'about.html', username=login.current_user.get_id())
+      'about.html', username=login.current_user.get_id())
 
 
 @app.route('/admin')
 @admin_required
 def admin():
   return flask.render_template(
-    'admin.html', username=login.current_user.get_id())
+      'admin.html', username=login.current_user.get_id())
+
 
 @app.route('/admin/kill/<string:sig>')
 @admin_required
@@ -195,6 +206,7 @@ def admin_kill_x(sig):
     pass
   os.kill(self_pid, sig)
 
+
 @app.route('/admin/add_user')
 @admin_required
 def admin_add_user():
@@ -207,6 +219,7 @@ def _select_to_bool(value):
   elif value == 'unset':
     return False
   return None
+
 
 def _add_edit_user(username, password, is_admin, is_monitor, is_instructor,
                    course, instructs_course, takes_course, add_defaults, msgs):
@@ -227,7 +240,8 @@ def _add_edit_user(username, password, is_admin, is_monitor, is_instructor,
   if course is not None:
     if instructs_course:
       user.set_instructs_course(course, instructs_course)
-      msgs.append('Set instructs_course {!r} == {!r}'.format(course, instructs_course))
+      msgs.append('Set instructs_course {!r} == {!r}'.format(
+          course, instructs_course))
     if takes_course:
       user.set_takes_course(course, takes_course)
       msgs.append('Set takes_course {!r} == {!r}'.format(course, takes_course))
@@ -236,14 +250,17 @@ def _add_edit_user(username, password, is_admin, is_monitor, is_instructor,
     user.set_display_name(name)
     user.set_real_name(name)
 
+
 @app.route('/admin/edit_user', methods=['GET', 'POST'])
 @admin_required
 def admin_edit_user():
   form = flask.request.form
   usernames = form.get('usernames')
   if usernames:
-    usernames = [escape_lib.safe_entity_name(u)
-                 for u in re.split('\s|,|;', usernames) if u]
+    usernames = [
+        escape_lib.safe_entity_name(u) for u in re.split('\s|,|;', usernames)
+        if u
+    ]
   else:
     usernames = []
   password = form.get('password')
@@ -276,7 +293,11 @@ def admin_edit_user():
     _add_edit_user(username, password_, is_admin, is_monitor, is_instructor,
                    course, instructs_course, takes_course, True, msgs)
   return flask.render_template(
-    'admin_edit_user.html', username=login.current_user.get_id(), errors=errors, msgs=msgs)
+      'admin_edit_user.html',
+      username=login.current_user.get_id(),
+      errors=errors,
+      msgs=msgs)
+
 
 @app.route('/admin/db/<path:key>')
 @admin_required
@@ -290,23 +311,30 @@ def admin_db(key):
   data = repr(data_store.get(key))
   sub_dirs = data_store.get_all(key)
   return flask.render_template(
-    'admin_db.html', username=login.current_user.get_id(), key=key_parts,
-    data=data, sub_dirs=sub_dirs)
+      'admin_db.html',
+      username=login.current_user.get_id(),
+      key=key_parts,
+      data=data,
+      sub_dirs=sub_dirs)
+
 
 @app.route('/monitor/variables')
 @monitor_required
 def monitor_variables_():
   monitor_variables['monitor_vars_gets'] += 1
-  return json.dumps(monitor_variables, sort_keys=True,
-                    indent=2, separators=(',', ': '))
+  return json.dumps(
+      monitor_variables, sort_keys=True, indent=2, separators=(',', ': '))
+
 
 @app.route('/monitor/logs')
 @monitor_required
 def monitor_logs():
   log_names = os.listdir('../data/logs')
   return flask.render_template(
-    'monitor_logs.html', username=login.current_user.get_id(),
-    log_names=log_names)
+      'monitor_logs.html',
+      username=login.current_user.get_id(),
+      log_names=log_names)
+
 
 @app.route('/monitor/logs/<string:log_name>')
 @monitor_required
@@ -315,7 +343,7 @@ def monitor_logs_x(log_name):
   safe_log_name = escape_lib.safe_entity_name(log_name)
   if safe_log_name != log_name:
     logging.error(u'User "%s" requsted bad log name "%s".',
-      login.current_user.get_id(), log_name)
+                  login.current_user.get_id(), log_name)
     return flask.redirect('/monitor/logs/' + safe_log_name)
 
   log_data = '<COULD NOT READ LOG>'
@@ -334,33 +362,44 @@ def monitor_logs_x(log_name):
       f.seek(max(0, f_size - max_bytes), os.SEEK_SET)
       log_data = f.read(max_bytes)
       if line_regex:
-        compiled_line_regex = re.compile(line_regex)  # This may raise an exception.
+        compiled_line_regex = re.compile(
+            line_regex)  # This may raise an exception.
         log_data = '\n'.join(
-          line for line in log_data.split('\n') if compiled_line_regex.match(line))
+            line for line in log_data.split('\n')
+            if compiled_line_regex.match(line))
   except (OSError, IOError) as e:
     errors.append(u'Could not read log:\n{!r}\n{}'.format(e, e))
     log_data = ''
   return flask.render_template(
-    'monitor_logs_x.html', username=login.current_user.get_id(),
-    log_name=log_name, log_data=log_data, errors=errors, max_bytes=max_bytes,
-    line_regex=line_regex)
+      'monitor_logs_x.html',
+      username=login.current_user.get_id(),
+      log_name=log_name,
+      log_data=log_data,
+      errors=errors,
+      max_bytes=max_bytes,
+      line_regex=line_regex)
+
 
 @app.route('/debug/logged_in')
 @login_required
 def debug_logged_in():
   return u'Logged in as {}.'.format(cgi.escape(login.current_user.get_id()))
 
+
 @app.route('/debug/ping')
 @nothing_required
 def debug_ping():
   return 'pong'
 
+
 @app.route('/courses')
 @login_required
 def courses():
   return flask.render_template(
-    'courses.html', username=login.current_user.get_id(),
-    courses=grade_oven.course_names())
+      'courses.html',
+      username=login.current_user.get_id(),
+      courses=grade_oven.course_names())
+
 
 def save_files_in_dir(flask_files, dir_path):
   errors = []
@@ -377,11 +416,12 @@ def save_files_in_dir(flask_files, dir_path):
       else:
         safe_base_filename = escape_lib.safe_entity_name(base_filename)
         errors.append(
-          u'Filename "{}" is unsafe.  File saved as "{}" instead.'.format(
-            base_filename, safe_base_filename))
+            u'Filename "{}" is unsafe.  File saved as "{}" instead.'.format(
+                base_filename, safe_base_filename))
         logging.warning(errors[-1])
         f.save(os.path.join(dir_path, safe_base_filename))
   return errors
+
 
 @app.route('/courses/<string:course_name>/download_grades', methods=['GET'])
 @login_required
@@ -403,6 +443,7 @@ def courses_x_download_grades(course_name):
   else:
     return flask.redirect(u'/courses/{}'.format(course_name), code=303)
 
+
 @app.route('/courses/<string:course_name>', methods=['GET', 'POST'])
 @login_required
 def courses_x(course_name):
@@ -419,13 +460,12 @@ def courses_x(course_name):
       if assignment_zips:
         for file_obj in assignment_zips:
           course.add_assignment_from_zip(
-            file_obj,
-            assignment_name,
-            '../data/files/courses/{}/assignments'.format(course_name))
+              file_obj, assignment_name,
+              '../data/files/courses/{}/assignments'.format(course_name))
       else:
         course.add_assignment(assignment_name)
-      return flask.redirect(
-        u'/courses/{}/assignments/{}'.format(course_name, assignment_name))
+      return flask.redirect(u'/courses/{}/assignments/{}'.format(
+          course_name, assignment_name))
     # Enroll students
     add_students = escape_lib.safe_entity_name(form.get('add_students'))
     if add_students:
@@ -438,19 +478,24 @@ def courses_x(course_name):
     psuedo_usernames = []
     for student_username in student_usernames:
       u = grade_oven.user(student_username)
-      psuedo_usernames.append(
-        u'{} ({})'.format(student_username, u.display_name()))
+      psuedo_usernames.append(u'{} ({})'.format(student_username,
+                                                u.display_name()))
     student_usernames = psuedo_usernames
   else:
     student_usernames = None
-  grades_header_row, grades_table = _make_grades_table(course, show_real_names=instructs_course)
+  grades_header_row, grades_table = _make_grades_table(
+      course, show_real_names=instructs_course)
   assignment_names = course.assignment_names()
   return flask.render_template(
-    'courses_x.html', username=login.current_user.get_id(),
-    instructs_course=instructs_course,
-    takes_course=takes_course,
-    assignments=assignment_names, course_name=course.name,
-    grades_header_row=grades_header_row, grades_table=grades_table)
+      'courses_x.html',
+      username=login.current_user.get_id(),
+      instructs_course=instructs_course,
+      takes_course=takes_course,
+      assignments=assignment_names,
+      course_name=course.name,
+      grades_header_row=grades_header_row,
+      grades_table=grades_table)
+
 
 def _make_grades_table(course, show_real_names=False):
   header_row = []
@@ -482,7 +527,9 @@ def _make_grades_table(course, show_real_names=False):
   table = sorted(table)
   return header_row, table
 
-@app.route('/courses/<string:course_name>/assignments', methods=['GET', 'POST'])
+
+@app.route(
+    '/courses/<string:course_name>/assignments', methods=['GET', 'POST'])
 @login_required
 def courses_x_assignments(course_name):
   user = login.current_user
@@ -491,15 +538,18 @@ def courses_x_assignments(course_name):
   takes_course = user.takes_course(course_name)
   assignment_names = course.assignment_names()
   return flask.render_template(
-    'courses_x_assignments.html', username=login.current_user.get_id(),
-    instructs_course=instructs_course,
-    takes_course=takes_course, assignments=assignment_names,
-    course_name=course.name)
+      'courses_x_assignments.html',
+      username=login.current_user.get_id(),
+      instructs_course=instructs_course,
+      takes_course=takes_course,
+      assignments=assignment_names,
+      course_name=course.name)
+
 
 def _edit_assignment(form, course_name, assignment_name, stages):
   errors = []
-  logging.info(u'Editing assignment "%s" in course "%s"',
-               assignment_name, course_name)
+  logging.info(u'Editing assignment "%s" in course "%s"', assignment_name,
+               course_name)
   course = grade_oven.course(course_name)
   course.add_assignment(assignment_name)
   assignment = course.assignment(assignment_name)
@@ -513,13 +563,14 @@ def _edit_assignment(form, course_name, assignment_name, stages):
   due_date = form.get('due_date')
   try:
     assignment.set_due_date(
-      time.mktime(time.strptime(due_date, '%Y-%m-%d %H:%M')))
+        time.mktime(time.strptime(due_date, '%Y-%m-%d %H:%M')))
   except TypeError:
-    pass # None passed in (no date)
+    pass  # None passed in (no date)
   except ValueError:
     if due_date:
       errors.append(
-        'Due date "{}" not formatted like "YYYY-MM-DD HH:MM".'.format(due_date))
+          'Due date "{}" not formatted like "YYYY-MM-DD HH:MM".'.format(
+              due_date))
   delete_files = form.getlist('delete_files')
   for delete_file in delete_files:
     parts = delete_file.split('/', 1)
@@ -536,7 +587,7 @@ def _edit_assignment(form, course_name, assignment_name, stages):
           logging.warning(errors[-1])
       except KeyError as e:
         errors.append(u'Could not find stage "{}" to delete "{}": {}'.format(
-                        df_stage_name, delete_file, e))
+            df_stage_name, delete_file, e))
         logging.warning(errors[-1])
     else:
       errors.append(u'Could not split "{}" to delete it.'.format(delete_file))
@@ -548,22 +599,21 @@ def _edit_assignment(form, course_name, assignment_name, stages):
     main_cmds = form.get(u'main_cmds_{}'.format(stage.name))
     if main_cmds:
       stage.save_main_script(main_cmds)
-    is_trusted_stage = form.get(
-      u'is_trusted_stage_{}'.format(stage.name)) is not None
+    is_trusted_stage = form.get(u'is_trusted_stage_{}'.format(
+        stage.name)) is not None
     stage.save_is_trusted_stage(is_trusted_stage)
     files = flask.request.files.getlist(u'files_{}[]'.format(stage.name))
     if files:
       save_files_in_dir(files, stage.path)
-  delete_stages  = form.getlist('delete_stages'.format(stage.name))
+  delete_stages = form.getlist('delete_stages'.format(stage.name))
   for delete_stage in delete_stages:
     stages.remove_stage(delete_stage)
   return errors
 
 
 class GradeOvenSubmission(executor_queue_lib.Submission):
-  def __init__(
-      self, priority, name, description, submission_dir, container_id, stages,
-      student_submission):
+  def __init__(self, priority, name, description, submission_dir, container_id,
+               stages, student_submission):
     super(GradeOvenSubmission, self).__init__(priority, name, description)
     self._temp_dir = None
     self.submission_dir = submission_dir
@@ -577,18 +627,19 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
   def _run_stages_callback(self, stage):
     logging.info(u'GradeOvenSubmission._run_stages_callback %s', stage.name)
     if self.student_submission.assignment.due_date() is None or (
-        self.student_submission.submit_time()
-        <= self.student_submission.assignment.due_date()):
+        self.student_submission.submit_time() <=
+        self.student_submission.assignment.due_date()):
       self.student_submission.set_score(stage.name, stage.output.score)
     else:
-      self.student_submission.set_past_due_date_score(stage.name, stage.output.score)
-    self.student_submission.set_output_html(
-      stage.name, stage.output.output_html)
+      self.student_submission.set_past_due_date_score(stage.name,
+                                                      stage.output.score)
+    self.student_submission.set_output_html(stage.name,
+                                            stage.output.output_html)
     self.student_submission.set_output(stage.name, stage.output.stdout)
     errors = '\n'.join(stage.output.errors)
     self.student_submission.set_errors(stage.name, errors)
-    self.student_submission.set_status(
-      u'running (finished {})'.format(stage.name))
+    self.student_submission.set_status(u'running (finished {})'.format(
+        stage.name))
 
   def before_run(self):
     logging.info(u'GradeOvenSubmission.before_run %s', self.description)
@@ -605,14 +656,14 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     username = self.student_submission.student_username
     user = grade_oven.user(username)
     env = {
-      'GRADEOVEN_USERNAME': username,
-      'GRADEOVEN_REAL_NAME': user.real_name(),
-      'GRADEOVEN_DISPLAY_NAME': user.display_name(),
-      'GRADEOVEN_COURSE_NAME': self.student_submission.course_name,
-      'GRADEOVEN_ASSIGNMENT_NAME': self.student_submission.assignment_name,
+        'GRADEOVEN_USERNAME': username,
+        'GRADEOVEN_REAL_NAME': user.real_name(),
+        'GRADEOVEN_DISPLAY_NAME': user.display_name(),
+        'GRADEOVEN_COURSE_NAME': self.student_submission.course_name,
+        'GRADEOVEN_ASSIGNMENT_NAME': self.student_submission.assignment_name,
     }
     output, errs = self.container.run_stages(
-      self.submission_dir, self.stages, self._run_stages_callback, env=env)
+        self.submission_dir, self.stages, self._run_stages_callback, env=env)
     self.outputs.append(output)
     self.errors.extend(errs)
 
@@ -622,16 +673,19 @@ class GradeOvenSubmission(executor_queue_lib.Submission):
     temp_dirs.free(self._temp_dir)
     self.student_submission.set_status('finished')
 
+
 def _int_or_0(x):
   try:
     return int(x)
   except ValueError:
     return 0
 
+
 def _make_grade_table(course, assignment, show_real_names=False):
   header_row = [
-    'Display Name', 'Score', 'Score (after due date)', 'Days Late',
-    'Submit Time', 'Attempts']
+      'Display Name', 'Score', 'Score (after due date)', 'Days Late',
+      'Submit Time', 'Attempts'
+  ]
   table = []
   due_date = assignment.due_date()
   if not due_date:
@@ -648,7 +702,8 @@ def _make_grade_table(course, assignment, show_real_names=False):
       row.append(user.display_name())
     submission = assignment.student_submission(username)
     submission_status = submission.status()
-    if submission_status and submission_status not in ('finished', 'never run'):
+    if submission_status and submission_status not in ('finished',
+                                                       'never run'):
       row.append(submission_status)
     else:
       row.append(submission.score())
@@ -662,37 +717,42 @@ def _make_grade_table(course, assignment, show_real_names=False):
         row.append('')
     if submit_time:
       row.append(
-        time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(submit_time)))
+          time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(submit_time)))
     else:
       row.append('')
     row.append(submission.num_submissions())
     table.append(row)
   table = sorted(
-    table, key=lambda row: (-_int_or_0(row[1]), row[-2], row[-1], row[0]))
+      table, key=lambda row: (-_int_or_0(row[1]), row[-2], row[-1], row[0]))
   return header_row, table
 
+
 @app.route(
-  '/courses/<string:course_name>/assignments/<string:assignment_name>/download')
+    '/courses/<string:course_name>/assignments/<string:assignment_name>/download'
+)
 @login_required
 def courses_x_assignments_x_download(course_name, assignment_name):
   user = login.current_user
   instructs_course = user.instructs_course(course_name)
   if instructs_course:
-    stages = executor.Stages(os.path.join(
-      '../data/files/courses', course_name, 'assignments', assignment_name))
+    stages = executor.Stages(
+        os.path.join('../data/files/courses', course_name, 'assignments',
+                     assignment_name))
     buf = six.BytesIO()
     stages.save_zip(buf)
     response = flask.make_response(buf.getvalue())
     response.headers['Content-Disposition'] = (
-      'attachment; filename={}.zip'.format(assignment_name))
+        'attachment; filename={}.zip'.format(assignment_name))
     return response
   else:
     return flask.redirect(
-      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
-      code=303)
+        u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+        code=303)
+
 
 @app.route(
-  '/courses/<string:course_name>/assignments/<string:assignment_name>/download_submissions')
+    '/courses/<string:course_name>/assignments/<string:assignment_name>/download_submissions'
+)
 @login_required
 def courses_x_assignments_x_download_submissions(course_name, assignment_name):
   user = login.current_user
@@ -704,17 +764,20 @@ def courses_x_assignments_x_download_submissions(course_name, assignment_name):
     assignment.save_submissions_zip(buf)
     response = flask.make_response(buf.getvalue())
     response.headers['Content-Disposition'] = (
-      'attachment; filename={} submissions.zip'.format(assignment_name))
+        'attachment; filename={} submissions.zip'.format(assignment_name))
     return response
   else:
     return flask.redirect(
-      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
-      code=303)
+        u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+        code=303)
+
 
 @app.route(
-  '/courses/<string:course_name>/assignments/<string:assignment_name>/download_previous_submission')
+    '/courses/<string:course_name>/assignments/<string:assignment_name>/download_previous_submission'
+)
 @login_required
-def courses_x_assignments_x_download_previous_submission(course_name, assignment_name):
+def courses_x_assignments_x_download_previous_submission(
+    course_name, assignment_name):
   user = login.current_user
   takes_course = user.takes_course(course_name)
   if takes_course:
@@ -725,29 +788,32 @@ def courses_x_assignments_x_download_previous_submission(course_name, assignment
     submission.save_submissions_zip(buf)
     response = flask.make_response(buf.getvalue())
     response.headers['Content-Disposition'] = (
-      'attachment; filename={} submission.zip'.format(assignment_name))
+        'attachment; filename={} submission.zip'.format(assignment_name))
     return response
   else:
     return flask.redirect(
-      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
-      code=303)
+        u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+        code=303)
+
 
 @app.route(
-  '/courses/<string:course_name>/assignments/<string:assignment_name>/edit',
-  methods=['POST'])
+    '/courses/<string:course_name>/assignments/<string:assignment_name>/edit',
+    methods=['POST'])
 @login_required
 def courses_x_assignments_x_edit(course_name, assignment_name):
   user = login.current_user
   instructs_course = user.instructs_course(course_name)
   if instructs_course:
-    stages = executor.Stages(os.path.join(
-      '../data/files/courses', course_name, 'assignments', assignment_name))
+    stages = executor.Stages(
+        os.path.join('../data/files/courses', course_name, 'assignments',
+                     assignment_name))
     form = flask.request.form
     for error in _edit_assignment(form, course_name, assignment_name, stages):
       flask.flash(error)
   return flask.redirect(
-    u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
-    code=303)
+      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+      code=303)
+
 
 def _enqueue_student_submission(course_name, assignment_name, username, files):
   user = grade_oven.user(username)
@@ -758,11 +824,11 @@ def _enqueue_student_submission(course_name, assignment_name, username, files):
   # if student_submission.num_submissions() == 0 and not files:
   #   return
   monitor_variables['assignment_attempts'] += 1
-  logging.info(u'Student "%s" is attempting assignment "%s/%s".',
-               username, course_name, assignment_name)
-  submission_dir = os.path.join(
-    '../data/files/courses', course_name, 'assignments', assignment_name,
-    'submissions', username)
+  logging.info(u'Student "%s" is attempting assignment "%s/%s".', username,
+               course_name, assignment_name)
+  submission_dir = os.path.join('../data/files/courses', course_name,
+                                'assignments', assignment_name, 'submissions',
+                                username)
   desc = u'{}_{}_{}'.format(course_name, assignment_name, username)
   # TODO: Fix the quick hack below.  It is only in place to avoid "escaped"
   # names that are not safe docker container names.
@@ -772,30 +838,29 @@ def _enqueue_student_submission(course_name, assignment_name, username, files):
   cur_time = time.time()
   min_seconds_since_last_submission = min(num_submissions**3, 5.0)
   priority = (num_submissions, submit_time)
-  stages = executor.Stages(os.path.join(
-    '../data/files/courses', course_name, 'assignments', assignment_name))
-  submission = GradeOvenSubmission(
-    priority, username, desc, submission_dir, container_id, stages,
-    student_submission)
+  stages = executor.Stages(
+      os.path.join('../data/files/courses', course_name, 'assignments',
+                   assignment_name))
+  submission = GradeOvenSubmission(priority, username, desc, submission_dir,
+                                   container_id, stages, student_submission)
   if submission in executor_queue:
     logging.warning(
-      u'Student "%s" submited assignment "%s/%s" while still in the queue.',
-      username, course_name, assignment_name)
+        u'Student "%s" submited assignment "%s/%s" while still in the queue.',
+        username, course_name, assignment_name)
     flask.flash(
-      u'{} cannot submit assignment {} for {} while in the queue.'.format(
-        username, assignment_name, course_name))
+        u'{} cannot submit assignment {} for {} while in the queue.'.format(
+            username, assignment_name, course_name))
   elif cur_time < submit_time + min_seconds_since_last_submission:
     seconds_left = min_seconds_since_last_submission - (cur_time - submit_time)
     formatted_time = time.strftime(
-      '%Y-%m-%d %H:%M:%S',
-      time.localtime(submit_time + min_seconds_since_last_submission))
-    logging.info(
-      u'Student "%s" submitted assignment "%s/%s" '
-      'but needs to wait until %s (%s seconds).',
-      username, course_name, assignment_name, formatted_time, seconds_left)
+        '%Y-%m-%d %H:%M:%S',
+        time.localtime(submit_time + min_seconds_since_last_submission))
+    logging.info(u'Student "%s" submitted assignment "%s/%s" '
+                 'but needs to wait until %s (%s seconds).', username,
+                 course_name, assignment_name, formatted_time, seconds_left)
     flask.flash(
-      u'Please wait until {} ({:.0f} seconds) to submit {} again.'.format(
-        formatted_time, seconds_left, assignment_name))
+        u'Please wait until {} ({:.0f} seconds) to submit {} again.'.format(
+            formatted_time, seconds_left, assignment_name))
   else:
     if files:
       try:
@@ -807,13 +872,14 @@ def _enqueue_student_submission(course_name, assignment_name, username, files):
       # If there are no files being uploaded, then this must be a resubmission.
       student_submission.set_submit_time()
       student_submission.set_num_submissions(
-        student_submission.num_submissions() + 1)
+          student_submission.num_submissions() + 1)
     student_submission.set_status('queued')
     executor_queue.enqueue(submission)
 
+
 @app.route(
-  '/courses/<string:course_name>/assignments/<string:assignment_name>/submit',
-  methods=['POST'])
+    '/courses/<string:course_name>/assignments/<string:assignment_name>/submit',
+    methods=['POST'])
 @login_required
 def courses_x_assignments_x_submit(course_name, assignment_name):
   user = login.current_user
@@ -821,17 +887,19 @@ def courses_x_assignments_x_submit(course_name, assignment_name):
   if takes_course:
     files = flask.request.files.getlist('submission_files[]')
     if files:
-      _enqueue_student_submission(course_name, assignment_name, user.username, files)
+      _enqueue_student_submission(course_name, assignment_name, user.username,
+                                  files)
   return flask.redirect(
-    u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
-    code=303)
+      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+      code=303)
+
 
 # TODO: This is very specific to Canvas as of 2017-03. Make it generic.
 # TODO: This function exposes too many internals. Encapsulate them.
 # TODO: This function reimplements logic that is elsewhere. Reuse code.
 @app.route(
-  '/courses/<string:course_name>/assignments/<string:assignment_name>/submit_all',
-  methods=['POST'])
+    '/courses/<string:course_name>/assignments/<string:assignment_name>/submit_all',
+    methods=['POST'])
 @login_required
 def courses_x_assignments_x_submit_all(course_name, assignment_name):
   user = login.current_user
@@ -839,7 +907,7 @@ def courses_x_assignments_x_submit_all(course_name, assignment_name):
   files = None
   if instructs_course:
     student_usernames = frozenset(
-      grade_oven.course(course_name).student_usernames())
+        grade_oven.course(course_name).student_usernames())
     # Build map of normalized_student_real_names to potential student_usernames
     normalized_student_real_names = collections.defaultdict(set)
     for student_username in student_usernames:
@@ -847,9 +915,10 @@ def courses_x_assignments_x_submit_all(course_name, assignment_name):
       real_name = student_user.real_name()
       normalized_student_real_names[real_name].add(student_username)
       real_name_parts = real_name.lower().split()
-      for name_parts in itertools.permutations(
-          real_name_parts, min(4, len(real_name_parts))):
-        normalized_student_real_names[''.join(name_parts)].add(student_username)
+      for name_parts in itertools.permutations(real_name_parts,
+                                               min(4, len(real_name_parts))):
+        normalized_student_real_names[''.join(name_parts)].add(
+            student_username)
     files = flask.request.files.getlist('all_submission_files[]')
     temp_dirname = tempfile.mkdtemp()
     if 1:
@@ -857,20 +926,21 @@ def courses_x_assignments_x_submit_all(course_name, assignment_name):
         with zipfile.ZipFile(f.stream, 'r') as zf:
           for filename in zf.namelist():
             normalized_real_name = filename.split('_', 1)[0]
-            student_usernames = normalized_student_real_names[normalized_real_name]
+            student_usernames = normalized_student_real_names[
+                normalized_real_name]
             if len(student_usernames) == 0:
               flask.flash(
-                'Zipped file "{}" could not be associated with any student.'.format(
-                  filename))
+                  'Zipped file "{}" could not be associated with any student.'.
+                  format(filename))
             elif len(student_usernames) > 1:
               flask.flash(
-                'Zipped file "{}" associated with multiple students: {}.'.format(
-                  filename, ', '.join(student_usernames)))
+                  'Zipped file "{}" associated with multiple students: {}.'.
+                  format(filename, ', '.join(student_usernames)))
             else:
               student_username = student_usernames.pop()
               submission_dir = os.path.join(
-                '../data/files/courses', course_name, 'assignments',
-                assignment_name, 'submissions', student_username)
+                  '../data/files/courses', course_name, 'assignments',
+                  assignment_name, 'submissions', student_username)
               try:
                 shutil.rmtree(submission_dir)
               except OSError as e:
@@ -881,16 +951,17 @@ def courses_x_assignments_x_submit_all(course_name, assignment_name):
               except OSError as e:
                 if e.errno != errno.EEXIST:
                   raise e
-              _enqueue_student_submission(
-                course_name, assignment_name, student_username, None)
+              _enqueue_student_submission(course_name, assignment_name,
+                                          student_username, None)
     shutil.rmtree(temp_dirname)
   return flask.redirect(
-    u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
-    code=303)
+      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+      code=303)
+
 
 @app.route(
-  '/courses/<string:course_name>/assignments/<string:assignment_name>/resubmit_all',
-  methods=['POST'])
+    '/courses/<string:course_name>/assignments/<string:assignment_name>/resubmit_all',
+    methods=['POST'])
 @login_required
 def courses_x_assignments_x_resubmit_all(course_name, assignment_name):
   user = login.current_user
@@ -898,12 +969,15 @@ def courses_x_assignments_x_resubmit_all(course_name, assignment_name):
   files = None
   if instructs_course:
     for username in grade_oven.course(course_name).student_usernames():
-      _enqueue_student_submission(course_name, assignment_name, username, files)
+      _enqueue_student_submission(course_name, assignment_name, username,
+                                  files)
   return flask.redirect(
-    u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
-    code=303)
+      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+      code=303)
 
-@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>')
+
+@app.route(
+    '/courses/<string:course_name>/assignments/<string:assignment_name>')
 @login_required
 def courses_x_assignments_x(course_name, assignment_name):
   user = login.current_user
@@ -912,8 +986,9 @@ def courses_x_assignments_x(course_name, assignment_name):
   student_submission = assignment.student_submission(user.username)
   instructs_course = user.instructs_course(course.name)
   takes_course = user.takes_course(course.name)
-  stages = executor.Stages(os.path.join(
-    '../data/files/courses', course.name, 'assignments', assignment.name))
+  stages = executor.Stages(
+      os.path.join('../data/files/courses', course.name, 'assignments',
+                   assignment.name))
   if takes_course:
     due_date = assignment.due_date()
     if due_date is None:
@@ -929,27 +1004,31 @@ def courses_x_assignments_x(course_name, assignment_name):
     submission_output, submission_errors = '', ''
     submission_has_output_html = False
   header_row, table = _make_grade_table(
-    course, assignment, show_real_names=instructs_course)
+      course, assignment, show_real_names=instructs_course)
   return flask.render_template(
-    'courses_x_assignments_x.html',
-    username=login.current_user.get_id(),
-    instructs_course=instructs_course,
-    takes_course=takes_course,
-    course_name=course.name,
-    assignment_name=assignment.name,
-    formatted_due_date=formatted_due_date,
-    stages=stages.stages.values(),
-    submission_output=submission_output,
-    submission_has_output_html=submission_has_output_html,
-    submission_errors=submission_errors,
-    stages_desc=stages.description,
-    header_row=header_row,
-    table=table)
+      'courses_x_assignments_x.html',
+      username=login.current_user.get_id(),
+      instructs_course=instructs_course,
+      takes_course=takes_course,
+      course_name=course.name,
+      assignment_name=assignment.name,
+      formatted_due_date=formatted_due_date,
+      stages=stages.stages.values(),
+      submission_output=submission_output,
+      submission_has_output_html=submission_has_output_html,
+      submission_errors=submission_errors,
+      stages_desc=stages.description,
+      header_row=header_row,
+      table=table)
 
-@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>/output_html/<string:username>')
+
+@app.route(
+    '/courses/<string:course_name>/assignments/<string:assignment_name>/output_html/<string:username>'
+)
 @login_required
-def courses_x_assignments_x_output_html_x(
-    course_name, assignment_name, username=None):
+def courses_x_assignments_x_output_html_x(course_name,
+                                          assignment_name,
+                                          username=None):
   user = login.current_user if username is None else grade_oven.user(username)
   if user.instructs_course(course_name) or user.takes_course(course_name):
     course = grade_oven.course(course_name)
@@ -957,20 +1036,26 @@ def courses_x_assignments_x_output_html_x(
     student_submission = assignment.student_submission(user.username)
     submission_output_html = student_submission.output_html()
     return flask.render_template(
-      'courses_x_assignments_x_output_html.html',
-      username=login.current_user.get_id(),
-      submission_output_html=submission_output_html)
+        'courses_x_assignments_x_output_html.html',
+        username=login.current_user.get_id(),
+        submission_output_html=submission_output_html)
   else:
     return flask.redirect(
-      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
-      code=303)
+        u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+        code=303)
 
-@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>/output_html')
+
+@app.route(
+    '/courses/<string:course_name>/assignments/<string:assignment_name>/output_html'
+)
 @login_required
 def courses_x_assignments_x_output_html(course_name, assignment_name):
   return courses_x_assignments_x_output_html_x(course_name, assignment_name)
 
-@app.route('/courses/<string:course_name>/assignments/<string:assignment_name>/submissions', methods=['GET', 'POST'])
+
+@app.route(
+    '/courses/<string:course_name>/assignments/<string:assignment_name>/submissions',
+    methods=['GET', 'POST'])
 @login_required
 def courses_x_assignments_x_submissions(course_name, assignment_name):
   user = login.current_user
@@ -987,16 +1072,19 @@ def courses_x_assignments_x_submissions(course_name, assignment_name):
       try:
         submission.set_manual_score_portion(int(manual_score))
       except ValueError:
-        flask.flash('Manual score "{}" is not an integer.'.format(manual_score))
+        flask.flash(
+            'Manual score "{}" is not an integer.'.format(manual_score))
     for student_username in course.student_usernames():
-      student_submissions.append(assignment.student_submission(student_username))
+      student_submissions.append(
+          assignment.student_submission(student_username))
   return flask.render_template(
-    'courses_x_assignments_x_submissions.html',
-    username=login.current_user.get_id(),
-    instructs_course=instructs_course,
-    course_name=course.name,
-    assignment_name=assignment.name,
-    student_submissions=student_submissions)
+      'courses_x_assignments_x_submissions.html',
+      username=login.current_user.get_id(),
+      instructs_course=instructs_course,
+      course_name=course.name,
+      assignment_name=assignment.name,
+      student_submissions=student_submissions)
+
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
@@ -1027,9 +1115,13 @@ def settings():
       errors.append('Passwords do not match.')
 
   return flask.render_template(
-    'settings.html', username=login.current_user.get_id(),
-    real_name=user.real_name(), display_name=user.display_name(),
-    prefers_anonymity=user.prefers_anonymity(), errors=errors)
+      'settings.html',
+      username=login.current_user.get_id(),
+      real_name=user.real_name(),
+      display_name=user.display_name(),
+      prefers_anonymity=user.prefers_anonymity(),
+      errors=errors)
+
 
 @app.route('/')
 @nothing_required
@@ -1042,6 +1134,7 @@ def index():
   else:
     return flask.redirect('/login')
 
+
 @app.route('/login', methods=['GET', 'POST'])
 @nothing_required
 def login_():
@@ -1050,7 +1143,7 @@ def login_():
   password = form.get('password')
   if username and password:
     user = grade_oven_lib.GradeOvenUser.load_and_authenticate_user(
-      data_store, username, password)
+        data_store, username, password)
     if user is None:
       monitor_variables['login_failures'] += 1
       return flask.abort(401)
@@ -1060,7 +1153,7 @@ def login_():
       redirect = flask.request.args.get('redirect', '/')
       return flask.redirect(redirect, code=303)
   return flask.render_template(
-    'login.html', username=login.current_user.get_id())
+      'login.html', username=login.current_user.get_id())
 
 
 @app.route('/logout')
@@ -1070,31 +1163,47 @@ def logout():
   login.logout_user()
   return flask.redirect('/')
 
+
 def get_command_line_options():
   parser = optparse.OptionParser()
-  parser.add_option('--debug',
-                    action='store_true', dest='debug', default=True,
-                    help='Run in debug mode (instead of production mode).')
-  parser.add_option('--prod',
-                    action='store_false', dest='debug', default=True,
-                    help='Run in production mode (instead of debug mode).')
-  parser.add_option('--port',
-                    action='store', dest='port', type='int', default=None,
-                    help='Port to listen to.')
-  parser.add_option('--host',
-                    action='store', dest='host', type='string', default=None,
-                    help='Host name to listen to.')
+  parser.add_option(
+      '--debug',
+      action='store_true',
+      dest='debug',
+      default=True,
+      help='Run in debug mode (instead of production mode).')
+  parser.add_option(
+      '--prod',
+      action='store_false',
+      dest='debug',
+      default=True,
+      help='Run in production mode (instead of debug mode).')
+  parser.add_option(
+      '--port',
+      action='store',
+      dest='port',
+      type='int',
+      default=None,
+      help='Port to listen to.')
+  parser.add_option(
+      '--host',
+      action='store',
+      dest='host',
+      type='string',
+      default=None,
+      help='Host name to listen to.')
 
   options, _ = parser.parse_args()
   return options
 
+
 def main():
   options = get_command_line_options()
-  if not data_store.get_all(('admins',)):
+  if not data_store.get_all(('admins', )):
     user = grade_oven.user('admin')
     user.set_password('admin')
     user.set_is_admin(True)
-  if not data_store.get_all(('monitors',)):
+  if not data_store.get_all(('monitors', )):
     user = grade_oven.user('monitor')
     with open('../data/secret_key.txt') as f:
       user.set_password(f.read())
@@ -1111,8 +1220,14 @@ def main():
   if options.host is None:
     options.host = 'localhost' if options.debug else '0.0.0.0'
   app.run(
-    host=options.host, port=options.port, debug=options.debug, use_reloader=False,
-    use_debugger=options.debug, ssl_context=context, use_evalex=False, threaded=True)
+      host=options.host,
+      port=options.port,
+      debug=options.debug,
+      use_reloader=False,
+      use_debugger=options.debug,
+      ssl_context=context,
+      use_evalex=False,
+      threaded=True)
 
 
 if __name__ == '__main__':

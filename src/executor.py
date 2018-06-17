@@ -31,6 +31,7 @@ import zipfile
 class Error(Exception):
   pass
 
+
 class SerializeError(Error):
   pass
 
@@ -67,7 +68,7 @@ def join_cmd_parts(cmd_parts: Iterable[Text]) -> Text:
   return ' '.join(escaped_parts)
 
 
-def file_contents_or(file_path: Text, default_contents: Text='') -> Text:
+def file_contents_or(file_path: Text, default_contents: Text = '') -> Text:
   try:
     with open(file_path) as f:
       return f.read()
@@ -76,6 +77,7 @@ def file_contents_or(file_path: Text, default_contents: Text='') -> Text:
       return default_contents
     else:
       raise Error(e)
+
 
 class StageOutput(object):
   SCORE_RE = re.compile(r'\s*(-?\d+)\s*/\s*(-?\d+)\s*')
@@ -90,9 +92,10 @@ class StageOutput(object):
     except (TypeError, ValueError):
       self.score = None
     self.output_html = file_contents_or(
-      os.path.join(output_path, 'output.html'), '')
+        os.path.join(output_path, 'output.html'), '')
     self.stdout = None  # type: Optional[Text]
     self.errors = None  # type: Optional[List[Text]]
+
 
 def make_file_executable(path: Text) -> None:
   mode = os.stat(path).st_mode
@@ -100,13 +103,17 @@ def make_file_executable(path: Text) -> None:
   mode |= (mode & 0o444) >> 2
   os.chmod(path, mode)
 
-def _save_stages_metadata(stages_path: Text, raw_json: Dict[Text, Any]) -> None:
+
+def _save_stages_metadata(stages_path: Text,
+                          raw_json: Dict[Text, Any]) -> None:
   maybe_makedirs(stages_path)
   with open(os.path.join(stages_path, 'metadata.json'), 'w') as f:
     f.write(json.dumps(raw_json))
 
+
 class Stage(object):
-  def __init__(self, stage_name: Text, stage_path: Text, stages_path: Text, raw_json: Dict[Text, Any]) -> None:
+  def __init__(self, stage_name: Text, stage_path: Text, stages_path: Text,
+               raw_json: Dict[Text, Any]) -> None:
     self.name = stage_name
     self.path = stage_path
     self._stages_path = stages_path
@@ -173,11 +180,12 @@ class Stage(object):
     _save_stages_metadata(self._stages_path, self._raw_json)
 
   def _save_zip(self, stages_name: Text, zip_file: zipfile.ZipFile) -> None:
-    zip_file.write(self.path, self.name) # directory
+    zip_file.write(self.path, self.name)  # directory
     for root, dirs, files in os.walk(self.path):
       for basename in files:
         path = os.path.join(root, basename)
         zip_file.write(path, os.path.join(self.name, basename))
+
 
 class Stages(object):
   def __init__(self, stages_path: Text) -> None:
@@ -192,8 +200,8 @@ class Stages(object):
     try:
       raw_json = json.loads(contents)  # type: Dict[Text, Any]
     except ValueError as e:
-      raise ValueError(
-        'Corrupt metadata: {}\n{}\n{!r}'.format(e, path, contents))
+      raise ValueError('Corrupt metadata: {}\n{}\n{!r}'.format(
+          e, path, contents))
     try:
       raw_json['stages']
     except KeyError:
@@ -205,11 +213,8 @@ class Stages(object):
     for stage in self._raw_json.get('stages', ()):
       # TODO: sanitize names so they can't be something like '/path/from/root'
       stage_name = stage['directory_name']
-      stages[stage_name] = Stage(
-        stage_name,
-        os.path.join(self.path, stage_name),
-        self.path,
-        self._raw_json)
+      stages[stage_name] = Stage(stage_name, os.path.join(
+          self.path, stage_name), self.path, self._raw_json)
     return stages
 
   @property
@@ -225,8 +230,8 @@ class Stages(object):
 
   def add_stage(self, stage_name: Text) -> Stage:
     stage_path = os.path.join(self.path, stage_name)
-    self.stages[stage_name] = Stage(
-      stage_name, self.path, stage_path, self._raw_json)
+    self.stages[stage_name] = Stage(stage_name, self.path, stage_path,
+                                    self._raw_json)
     self._raw_json['stages'].append({'directory_name': stage_name})
     self.save_stages()
     maybe_makedirs(stage_path)
@@ -253,8 +258,8 @@ class Stages(object):
         stage._save_zip(self.name, zf)
 
   @classmethod
-  def from_zip(
-      cls, file_obj: IO, stages_name: Text, stages_root: Text) -> "Stages":
+  def from_zip(cls, file_obj: IO, stages_name: Text,
+               stages_root: Text) -> "Stages":
     "Unpack zip from file_obj into os.path.join(stages_root, stages_name)."
     try:
       assignment_root = os.path.join(stages_root, stages_name)
@@ -277,6 +282,7 @@ class Stages(object):
     except (zipfile.BadZipfile, zipfile.LargeZipFile) as e:
       raise Error(e)
 
+
 def merge_tree(src: Text, dst: Text) -> List[Text]:
   "Like shutil.copytree, except it is not an error if the dst exists."
   errors = []
@@ -296,12 +302,12 @@ def merge_tree(src: Text, dst: Text) -> List[Text]:
       merge_tree(src_filename, dst_filename)
     else:
       raise Error('"{}" is not a file/directory and cannot be copied.'.format(
-        src_filename))
+          src_filename))
   return errors
 
 
-def read_proc_summarized_stdout(
-    proc: subprocess.Popen, bufsize: int) -> Tuple[bytes, Text]:
+def read_proc_summarized_stdout(proc: subprocess.Popen,
+                                bufsize: int) -> Tuple[bytes, Text]:
   """Given a subprocess.Popen object, read it's stdout until the process dies
   and return a summarized version of the output and an error string or None.
 
@@ -310,10 +316,11 @@ def read_proc_summarized_stdout(
   """
   if bufsize < 2:
     raise ValueError(
-      'This function does not support unbuffered or line-buffered files '
-      '(bufsize must be >= 2).')
+        'This function does not support unbuffered or line-buffered files '
+        '(bufsize must be >= 2).')
   # between 128KB and 128KB + bufsize
-  output = collections.deque(maxlen=131072 // bufsize + 1)  # type: collections.deque
+  output = collections.deque(
+      maxlen=131072 // bufsize + 1)  # type: collections.deque
   error = None
   try:
     while True:
@@ -346,27 +353,49 @@ class DockerExecutor(object):
     self.max_mem_bytes = 256 * 1024**2
 
   def _docker_run(
-      self, docker_image_name: Text, cmd: List[Text], user: Text=None,
-      env: Dict[Text, Text]=None) -> Tuple[int, Text, List[Text]]:
+      self,
+      docker_image_name: Text,
+      cmd: List[Text],
+      user: Text = None,
+      env: Dict[Text, Text] = None) -> Tuple[int, Text, List[Text]]:
     "Runs a command and returns the return code or None if it timed out."
     errors = []
     if user not in ('grade_oven', 'root', None):
-      raise ValueError('User "{}" must be "grade_oven" or "root".'.format(user))
+      raise ValueError(
+          'User "{}" must be "grade_oven" or "root".'.format(user))
     if env is None:
       env = {}
     docker_cmd = [
-      'docker', 'run', '--hostname', 'gradeoven',
-      '--memory', str(self.max_mem_bytes),
-      # TODO: figure out why I need to set nproc so high
-      #  If I didn't set nproc > 500 docker wouldn't even start
-      '--ulimit', 'nproc=1000:1000',
-      '--ulimit', 'nice=19:19',
-      '--ulimit', 'nofile={}:{}'.format(self.max_num_files, self.max_num_files),
-      '--name', self.container_id, '--net', 'none', '--read-only=true',
-      '--restart=no', '--detach',
-      '--volume', u'{}/grade_oven:/grade_oven'.format(self.host_dir),
-      '--volume', u'{}/tmp:/tmp'.format(self.host_dir),
-      '--workdir', '/grade_oven/submission', '--cpu-shares', '128']
+        'docker',
+        'run',
+        '--hostname',
+        'gradeoven',
+        '--memory',
+        str(self.max_mem_bytes),
+        # TODO: figure out why I need to set nproc so high
+        #  If I didn't set nproc > 500 docker wouldn't even start
+        '--ulimit',
+        'nproc=1000:1000',
+        '--ulimit',
+        'nice=19:19',
+        '--ulimit',
+        'nofile={}:{}'.format(self.max_num_files, self.max_num_files),
+        '--name',
+        self.container_id,
+        '--net',
+        'none',
+        '--read-only=true',
+        '--restart=no',
+        '--detach',
+        '--volume',
+        u'{}/grade_oven:/grade_oven'.format(self.host_dir),
+        '--volume',
+        u'{}/tmp:/tmp'.format(self.host_dir),
+        '--workdir',
+        '/grade_oven/submission',
+        '--cpu-shares',
+        '128'
+    ]
     # If a user is not specified, run as the effective user of this process.
     # If this code breaks, you can use 'grade_oven' in a --prod run but not
     # a --debug run.
@@ -382,35 +411,54 @@ class DockerExecutor(object):
     logging.info('Starting Docker container: %s', docker_cmd)
     empty_env = {}  # type: Dict[Text, Text]
     proc = subprocess.Popen(
-      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env=empty_env)
+        docker_cmd,
+        bufsize=-1,
+        close_fds=True,
+        cwd=self.host_dir,
+        env=empty_env)
     proc.wait()
 
     logging.info('Waiting for Docker container: %s', self.container_id)
     docker_cmd = [
-      'timeout', str(self.timeout_seconds), 'docker', 'wait', self.container_id]
+        'timeout',
+        str(self.timeout_seconds), 'docker', 'wait', self.container_id
+    ]
     proc = subprocess.Popen(
-      docker_cmd, stdout=subprocess.PIPE, bufsize=-1, close_fds=True,
-      cwd=self.host_dir, env=empty_env)
+        docker_cmd,
+        stdout=subprocess.PIPE,
+        bufsize=-1,
+        close_fds=True,
+        cwd=self.host_dir,
+        env=empty_env)
     return_code_raw, _ = proc.communicate()
     try:
       return_code = int(return_code_raw)
     except ValueError:
       errors.append(
-        'Command "{}" did not finish in {} seconds and timed out.'.format(
-          join_cmd_parts(cmd), self.timeout_seconds))
+          'Command "{}" did not finish in {} seconds and timed out.'.format(
+              join_cmd_parts(cmd), self.timeout_seconds))
       return_code = None
 
     logging.info('Stopping Docker container: %s', self.container_id)
     docker_cmd = ['docker', 'stop', '--time', '5', self.container_id]
     proc = subprocess.Popen(
-      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env=empty_env)
+        docker_cmd,
+        bufsize=-1,
+        close_fds=True,
+        cwd=self.host_dir,
+        env=empty_env)
     proc.wait()
 
     logging.info('Reading Docker logs from container: %s', self.container_id)
     docker_cmd = ['docker', 'logs', self.container_id]
     proc = subprocess.Popen(
-      docker_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=4096,
-      close_fds=True, cwd=self.host_dir, env=empty_env)
+        docker_cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=4096,
+        close_fds=True,
+        cwd=self.host_dir,
+        env=empty_env)
     output, err = read_proc_summarized_stdout(proc, 4096)
     proc.wait()
     if err:
@@ -419,38 +467,44 @@ class DockerExecutor(object):
     logging.info('Removing Docker container: %s', self.container_id)
     docker_cmd = ['docker', 'rm', '--force', self.container_id]
     proc = subprocess.Popen(
-      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env=empty_env)
+        docker_cmd,
+        bufsize=-1,
+        close_fds=True,
+        cwd=self.host_dir,
+        env=empty_env)
     proc.wait()
 
     # TODO: Refactor this function and related ones to work with bytes instead
     # of Text.
     return return_code, output.decode('utf-8'), errors
 
-  def _extract_archive(
-      self, archive_path: Text, user: Optional[Text]=None
-  ) -> Tuple[Text, List[Text]]:
+  def _extract_archive(self, archive_path: Text,
+                       user: Optional[Text] = None) -> Tuple[Text, List[Text]]:
     output = ''
     errors = []
     if archive_path is not None:
       unarchive_cmd = {
-        '.tar': ['/bin/tar', '-xf', '--'],
-        '.zip': ['/usr/bin/unzip', '--'],
-        '.gz': ['/bin/gunzip', '--'],
+          '.tar': ['/bin/tar', '-xf', '--'],
+          '.zip': ['/usr/bin/unzip', '--'],
+          '.gz': ['/bin/gunzip', '--'],
       }.get(os.path.splitext(archive_path)[-1])
       if unarchive_cmd is not None:
         unarchive_cmd.append(
-          os.path.join('/grade_oven', os.path.split(archive_path)[-1]))
+            os.path.join('/grade_oven',
+                         os.path.split(archive_path)[-1]))
         return_code, output, errs = self._docker_run(
-          'grade_oven/grade_oven_base', unarchive_cmd, user=user)
+            'grade_oven/grade_oven_base', unarchive_cmd, user=user)
         errors.extend(errs)
         if return_code:
           errors.append('Unarchiving command failed: "{}"'.format(
-            output.rsplit('\n', 1)[-1]))
+              output.rsplit('\n', 1)[-1]))
     return output, errors
 
   def _copy_and_extract_archive(
-      self, archive_path: Text, dst_path: Optional[Text]=None, user: Optional[Text]=None
-  ) -> Tuple[Text, List[Text]]:
+      self,
+      archive_path: Text,
+      dst_path: Optional[Text] = None,
+      user: Optional[Text] = None) -> Tuple[Text, List[Text]]:
     output = ''
     errors = []
     if archive_path is not None:
@@ -462,8 +516,8 @@ class DockerExecutor(object):
         output, errs = self._extract_archive(archive_path, user=user)
         errors.extend(errs)
       elif os.path.isdir(archive_path):
-        logging.info(
-          'Copying directory files "%s"/* to "%s"', archive_path, dst_path)
+        logging.info('Copying directory files "%s"/* to "%s"', archive_path,
+                     dst_path)
         try:
           errs = merge_tree(archive_path, dst_path)
           errors.extend(errs)
@@ -474,7 +528,8 @@ class DockerExecutor(object):
         errors.append('archive_path does not exist: "{}"'.format(archive_path))
         logging.error(errors[-1])
       else:
-        errors.append('archive_path is not a file/dir: "{}"'.format(archive_path))
+        errors.append(
+            'archive_path is not a file/dir: "{}"'.format(archive_path))
         logging.error(errors[-1])
     return output, errors
 
@@ -482,9 +537,8 @@ class DockerExecutor(object):
     """Remove any contaminated contents from self.host_dir in order
     to .run_stages(...) stages safely.
     """
-    for sub_dir in (
-        'tmp', 'grade_oven', 'grade_oven/output',
-        'grade_oven/submission'):
+    for sub_dir in ('tmp', 'grade_oven', 'grade_oven/output',
+                    'grade_oven/submission'):
       try:
         os.mkdir(os.path.join(self.host_dir, sub_dir))
       except OSError as e:
@@ -493,32 +547,34 @@ class DockerExecutor(object):
       shutil.rmtree(os.path.join(self.host_dir, sub_dir))
       os.mkdir(os.path.join(self.host_dir, sub_dir))
 
-  def run_stages(
-      self, submission_path: Text, stages: Stages,
-      stage_done_callback: Callable[[Stage], Any]=None, env: Dict[Text, Text]=None
-  ) -> Tuple[Text, List[Text]]:
+  def run_stages(self,
+                 submission_path: Text,
+                 stages: Stages,
+                 stage_done_callback: Callable[[Stage], Any] = None,
+                 env: Dict[Text, Text] = None) -> Tuple[Text, List[Text]]:
     """Run stages, copying submission_path to /grade_oven/submission inside the
     container.  When a stage is done running, stage_done_callback is called
     with the stage that has completed.
     """
     outputs = []
     errors = []
-    output, errs = self._copy_and_extract_archive(
-      submission_path, os.path.join(self.host_dir, 'grade_oven/submission'))
+    output, errs = self._copy_and_extract_archive(submission_path,
+                                                  os.path.join(
+                                                      self.host_dir,
+                                                      'grade_oven/submission'))
     outputs.append(output)
     errors.extend(errs)
     for stage in stages.stages.values():
       output, errs = self._copy_and_extract_archive(
-        stage.path,
-        os.path.join(self.host_dir, 'grade_oven', stage.name))
+          stage.path, os.path.join(self.host_dir, 'grade_oven', stage.name))
       outputs.append(output)
       errors.extend(errs)
       return_code, output, errs = self._docker_run(
-        'grade_oven/grade_oven',
-        [os.path.join('/grade_oven', stage.name, 'main')],
-        env=env)
+          'grade_oven/grade_oven',
+          [os.path.join('/grade_oven', stage.name, 'main')],
+          env=env)
       stage.output = StageOutput(
-        os.path.join(self.host_dir, 'grade_oven/output'))
+          os.path.join(self.host_dir, 'grade_oven/output'))
       stage.output.stdout = output
       stage.output.errors = errs
       # If the stage is running untrusted code, remove the score.

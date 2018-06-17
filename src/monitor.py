@@ -30,7 +30,7 @@ else:
   ssl._create_default_https_context = _create_unverified_https_context
 
 
-def ping(url: Text, expected_response: Text=None) -> bool:
+def ping(url: Text, expected_response: Text = None) -> bool:
   'Open a URL, with some retrying, and check the response.'
   resp = None
   for j in range(3):
@@ -40,8 +40,8 @@ def ping(url: Text, expected_response: Text=None) -> bool:
     except urllib2.URLError as e:
       logging.error(e)
       time.sleep(2**j)
-  return resp is not None and (
-    expected_response is None or resp.read() == expected_response)
+  return resp is not None and (expected_response is None
+                               or resp.read() == expected_response)
 
 
 def server_is_up(host: Text) -> bool:
@@ -87,14 +87,20 @@ def scrape_variables(host: Text, logs_file: IO) -> None:
 
 def get_command_line_options():
   parser = optparse.OptionParser()
-  parser.add_option('--server_address',
-                    action='store', dest='server_address', type='string',
-                    default='https://localhost:4321',
-                    help='Server URL to send requests to.')
-  parser.add_option('--log_file',
-                    action='store', dest='log_file', type='string',
-                    default='scrape_logs.txt',
-                    help='File to save raw scrape logs to.')
+  parser.add_option(
+      '--server_address',
+      action='store',
+      dest='server_address',
+      type='string',
+      default='https://localhost:4321',
+      help='Server URL to send requests to.')
+  parser.add_option(
+      '--log_file',
+      action='store',
+      dest='log_file',
+      type='string',
+      default='scrape_logs.txt',
+      help='File to save raw scrape logs to.')
 
   options, _ = parser.parse_args()
   return options

@@ -25,15 +25,16 @@ DataStoreValue = TypeVar('DataStoreValue', Text, int, float)
 
 _JSON_NULL = bytes(json.dumps(None).encode('utf-8'))
 
+
 # TODO: Allow keys to be arbitrary
 # TODO: Make concurrent deletions/puts atomic with respect to eachother
 class DataStore(object):
-  def __init__(self, dir_path: Text=None) -> None:
+  def __init__(self, dir_path: Text = None) -> None:
     if dir_path is None:
       dir_path = tempfile.mkdtemp()
     self.db = leveldb.LevelDB(dir_path, paranoid_checks=True)
 
-  def put(self, key: DataStoreKey, value: DataStoreValue=None) -> None:
+  def put(self, key: DataStoreKey, value: DataStoreValue = None) -> None:
     # TODO: Before moving to Python3, decoding bytes was not necessary.
     # Add proper support for writing bytes.
     if isinstance(value, bytes):
@@ -63,7 +64,7 @@ class DataStore(object):
     value = json.loads(raw_value)
     return value
 
-  def get(self, key: DataStoreKey, default_value: Any=None) -> Any:
+  def get(self, key: DataStoreKey, default_value: Any = None) -> Any:
     try:
       return self[key]
     except KeyError:
@@ -85,7 +86,8 @@ class DataStore(object):
     end_key = ''.join(real_key)
     sub_keys = []
     for sub_key in self.db.RangeIter(
-        bytearray(start_key, 'utf-8'), bytearray(end_key, 'utf-8'),
+        bytearray(start_key, 'utf-8'),
+        bytearray(end_key, 'utf-8'),
         include_value=False):
       sub_keys.append(sub_key[sub_key.rfind(b'\x00') + 1:].decode('utf-8'))
     return sub_keys
@@ -101,7 +103,8 @@ class DataStore(object):
       end_key = start_key + '\x01'
       found_keys = False
       for k in self.db.RangeIter(
-          bytearray(start_key, 'utf-8'), bytearray(end_key, 'utf-8'),
+          bytearray(start_key, 'utf-8'),
+          bytearray(end_key, 'utf-8'),
           include_value=False):
         mods.Delete(k)
         found_keys = True

@@ -14,15 +14,19 @@ from typing import Any, Callable, Set, Text
 from six.moves import queue
 import logging
 
+
 @functools.total_ordering
 class Submission(object):
   # Possible stages:
   QUEUED = 'queued'
   RUNNING = 'running'
   DONE = 'done'
-  def __init__(
-      self, priority, name: Text, description: Text,
-      closure: Callable[[], Any]=None) -> None:
+
+  def __init__(self,
+               priority,
+               name: Text,
+               description: Text,
+               closure: Callable[[], Any] = None) -> None:
     self.closure = closure
     self.priority = priority
     self.name = name
@@ -52,8 +56,8 @@ class Submission(object):
 
 
 class ExecutorThread(threading.Thread):
-  def __init__(
-      self, submission: Submission, release_func: Callable[[], Any]) -> None:
+  def __init__(self, submission: Submission,
+               release_func: Callable[[], Any]) -> None:
     super(ExecutorThread, self).__init__()
     self.daemon = False
     self.submission = submission
@@ -72,6 +76,7 @@ class ExecutorThread(threading.Thread):
       self.submission.status = Submission.DONE
       self.submission.after_run()
       self._release_func()
+
 
 class ExecutorQueue(object):
   def __init__(self, max_threads=3):

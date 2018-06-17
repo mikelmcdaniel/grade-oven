@@ -28,12 +28,18 @@ def maybe_makedirs(path: Text) -> None:
 
 def get_command_line_options():
   parser = optparse.OptionParser()
-  parser.add_option('--debug',
-                    action='store_true', dest='debug', default=True,
-                    help='Run in debug mode (instead of production mode).')
-  parser.add_option('--prod',
-                    action='store_false', dest='debug', default=True,
-                    help='Run in production mode (instead of debug mode).')
+  parser.add_option(
+      '--debug',
+      action='store_true',
+      dest='debug',
+      default=True,
+      help='Run in debug mode (instead of production mode).')
+  parser.add_option(
+      '--prod',
+      action='store_false',
+      dest='debug',
+      default=True,
+      help='Run in production mode (instead of debug mode).')
 
   options, _ = parser.parse_args()
   return options
@@ -59,20 +65,29 @@ def main() -> None:
   def run_server() -> subprocess.Popen:
     env = {}  # type: Dict[Text, Text]
     return subprocess.Popen(
-      ['authbind', 'python2', 'server.py', prod_debug_flag,
-       '--host', host, '--port', str(port)],
-      stdout=open('../data/logs/server-stdout.txt', 'a'),
-      stderr=open('../data/logs/server-stderr.txt', 'a'),
-      close_fds=True, shell=False, env=env)
+        [
+            'authbind', 'python2', 'server.py', prod_debug_flag, '--host',
+            host, '--port',
+            str(port)
+        ],
+        stdout=open('../data/logs/server-stdout.txt', 'a'),
+        stderr=open('../data/logs/server-stderr.txt', 'a'),
+        close_fds=True,
+        shell=False,
+        env=env)
 
   def run_monitor() -> subprocess.Popen:
     env = {}  # type: Dict[Text, Text]
     return subprocess.Popen(
-      ['python2', 'monitor.py', '--server_address', server_address,
-       '--log_file', '../data/logs/monitor-scrapes.txt'],
-      stdout=open('../data/logs/monitor-stdout.txt', 'a'),
-      stderr=open('../data/logs/monitor-stderr.txt', 'a'),
-      close_fds=True, shell=False, env=env)
+        [
+            'python2', 'monitor.py', '--server_address', server_address,
+            '--log_file', '../data/logs/monitor-scrapes.txt'
+        ],
+        stdout=open('../data/logs/monitor-stdout.txt', 'a'),
+        stderr=open('../data/logs/monitor-stderr.txt', 'a'),
+        close_fds=True,
+        shell=False,
+        env=env)
 
   server_proc = run_server()
   monitor_proc = run_monitor()

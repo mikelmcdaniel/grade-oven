@@ -51,8 +51,8 @@ class TestExecutor(unittest.TestCase):
       c.init()
       stages = executor.Stages(stages_dir)
       env = {
-        'DECODED': u'┻━┻ ︵﻿ ¯\(ツ)/¯ ︵ ┻━┻',
-        'ENCODED': '┻━┻ ︵﻿ ¯\(ツ)/¯ ︵ ┻━┻',
+          'DECODED': u'┻━┻ ︵﻿ ¯\(ツ)/¯ ︵ ┻━┻',
+          'ENCODED': '┻━┻ ︵﻿ ¯\(ツ)/¯ ︵ ┻━┻',
       }
       output, errors = c.run_stages(code_path, stages, env=env)
       self.assertEqual(errors, [])
@@ -82,20 +82,17 @@ class TestExecutor(unittest.TestCase):
       stages = executor.Stages(stages_dir)
       output, errors = c.run_stages(code_path, stages)
       self.assertEqual(stages.stages['fork_bomb'].output.errors, [
-        'Command "/grade_oven/fork_bomb/main" did not finish in '
-        '5 seconds and timed out.'])
-      self.assertTrue(
-        'many_open_files: 80 files open' in
-        stages.stages['many_open_files'].output.stdout)
-      self.assertFalse(
-        'many_open_files: 120 files open' in
-        stages.stages['many_open_files'].output.stdout)
-      self.assertTrue(
-        'much_ram: Allocated 48MB.' in
-        stages.stages['much_ram'].output.stdout)
-      self.assertFalse(
-        'much_ram: Allocated 64MB.' in
-        stages.stages['much_ram'].output.stdout)
+          'Command "/grade_oven/fork_bomb/main" did not finish in '
+          '5 seconds and timed out.'
+      ])
+      self.assertTrue('many_open_files: 80 files open' in stages.stages[
+          'many_open_files'].output.stdout)
+      self.assertFalse('many_open_files: 120 files open' in stages.stages[
+          'many_open_files'].output.stdout)
+      self.assertTrue('much_ram: Allocated 48MB.' in stages.stages['much_ram']
+                      .output.stdout)
+      self.assertFalse('much_ram: Allocated 64MB.' in stages.stages['much_ram']
+                       .output.stdout)
 
   def test_score(self):
     host_dir = 'testdata/executor/HOST_DIR/score'
@@ -122,8 +119,10 @@ class TestExecutor(unittest.TestCase):
       output, errors = c.run_stages(code_path, stages)
       self.assertEqual(errors, [])
       stage_output = stages.stages['make_output'].output.stdout
-      self.assertGreaterEqual(len(stage_output), 128 * 1024)  # >= than 128KB output
-      self.assertLessEqual(len(stage_output), 132 * 1024)  # <= than 128KB + 4KB output
+      self.assertGreaterEqual(len(stage_output),
+                              128 * 1024)  # >= than 128KB output
+      self.assertLessEqual(len(stage_output),
+                           132 * 1024)  # <= than 128KB + 4KB output
 
   def test_save_zip(self):
     # use the "evil" test case because it has multiple stages
@@ -132,11 +131,11 @@ class TestExecutor(unittest.TestCase):
     fake_file = six.BytesIO()
     stages.save_zip(fake_file)
     expected_files = [
-      'metadata.json',
-      'fork_bomb/', 'fork_bomb/fork_bomb.cpp', 'fork_bomb/main',
-      'many_open_files/', 'many_open_files/main',
-      'many_open_files/many_open_files.cpp',
-      'much_ram/', 'much_ram/much_ram.cpp', 'much_ram/main']
+        'metadata.json', 'fork_bomb/', 'fork_bomb/fork_bomb.cpp',
+        'fork_bomb/main', 'many_open_files/', 'many_open_files/main',
+        'many_open_files/many_open_files.cpp', 'much_ram/',
+        'much_ram/much_ram.cpp', 'much_ram/main'
+    ]
     with zipfile.ZipFile(fake_file, 'r') as zf:
       self.assertEqual(sorted(zf.namelist()), sorted(expected_files))
 
