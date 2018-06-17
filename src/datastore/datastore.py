@@ -13,6 +13,7 @@ how to use it or look at this simple example:
   assert set(store.get_all(('courses',))) == set(['python'])
 """
 
+import abc
 import json
 import six
 import tempfile
@@ -26,9 +27,47 @@ DataStoreValue = TypeVar('DataStoreValue', Text, int, float)
 _JSON_NULL = bytes(json.dumps(None).encode('utf-8'))
 
 
+class AbstractDataStore(object):
+  @abc.abstractmethod
+  def put(self, key: DataStoreKey, value: DataStoreValue = None) -> None:
+    self[key] = value
+
+  @abc.abstractmethod
+  def __getitem__(self, key: DataStoreKey) -> DataStoreValue:
+    pass
+
+  @abc.abstractmethod
+  def get_all(self, key: DataStoreKey) -> List[Text]:
+    pass
+
+  @abc.abstractmethod
+  def remove(self, key: DataStoreKey) -> None:
+    pass
+
+  # Methods below do not need to be overriden
+  def __setitem__(self, key: DataStoreKey, value: DataStoreValue) -> None:
+    self.put(key, value)
+
+  def get(self, key: DataStoreKey, default_value: Any = None) -> Any:
+    try:
+      return self[key]
+    except KeyError:
+      return default_value
+
+  def __contains__(self, key: DataStoreKey) -> bool:
+    try:
+      self[key]
+      return True
+    except KeyError:
+      return False
+
+  def __delitem__(self, key: DataStoreKey) -> None:
+    self.remove(key)
+
+
 # TODO: Allow keys to be arbitrary
 # TODO: Make concurrent deletions/puts atomic with respect to eachother
-class DataStore(object):
+class DataStore(AbstractDataStore):
   def __init__(self, dir_path: Text = None) -> None:
     if dir_path is None:
       dir_path = tempfile.mkdtemp()
@@ -51,9 +90,6 @@ class DataStore(object):
     mods.Put(pk, bytes(json.dumps(value).encode('utf-8')))
     self.db.Write(mods)
 
-  def __setitem__(self, key: DataStoreKey, value: DataStoreValue) -> None:
-    self.put(key, value)
-
   def __getitem__(self, key: DataStoreKey) -> DataStoreValue:
     real_key = []
     for key_part in key:
@@ -63,19 +99,6 @@ class DataStore(object):
     raw_value = self.db.Get(bytearray(''.join(real_key), 'utf-8'))
     value = json.loads(raw_value)
     return value
-
-  def get(self, key: DataStoreKey, default_value: Any = None) -> Any:
-    try:
-      return self[key]
-    except KeyError:
-      return default_value
-
-  def __contains__(self, key: DataStoreKey) -> bool:
-    try:
-      self[key]
-      return True
-    except KeyError:
-      return False
 
   def get_all(self, key: DataStoreKey) -> List[Text]:
     real_key = []
@@ -111,6 +134,3 @@ class DataStore(object):
       if not found_keys:
         break
     self.db.Write(mods)
-
-  def __delitem__(self, key: DataStoreKey) -> None:
-    self.remove(key)
