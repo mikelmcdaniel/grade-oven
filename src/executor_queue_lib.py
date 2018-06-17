@@ -16,7 +16,7 @@ import logging
 
 
 @functools.total_ordering
-class Submission(object):
+class ExecutorQueueTask(object):
   # Possible stages:
   QUEUED = 'queued'
   RUNNING = 'running'
@@ -56,7 +56,7 @@ class Submission(object):
 
 
 class ExecutorThread(threading.Thread):
-  def __init__(self, submission: Submission,
+  def __init__(self, submission: ExecutorQueueTask,
                release_func: Callable[[], Any]) -> None:
     super(ExecutorThread, self).__init__()
     self.daemon = False
@@ -66,14 +66,14 @@ class ExecutorThread(threading.Thread):
     self._release_func = release_func
 
   def run(self) -> None:
-    self.submission.status = Submission.RUNNING
+    self.submission.status = ExecutorQueueTask.RUNNING
     try:
       self.submission.before_run()
       self.submission.run()
     except Exception as e:
-      logging.error('Submission failed to run: {!r}'.format(e))
+      logging.error('ExecutorQueueTask failed to run: {!r}'.format(e))
     finally:
-      self.submission.status = Submission.DONE
+      self.submission.status = ExecutorQueueTask.DONE
       self.submission.after_run()
       self._release_func()
 
@@ -82,7 +82,7 @@ class ExecutorQueue(object):
   def __init__(self, max_threads=3):
     # priority queue picks things with a lesser value first
     self._submission_queue = queue.PriorityQueue()
-    self._submission_set = set()  # type: Set[Submission]
+    self._submission_set = set()  # type: Set[ExecutorQueueTask]
     self._threads_semaphore = threading.BoundedSemaphore(max_threads)
     self._thread = threading.Thread(None, self.__run, 'ExecutorQueue.__run')
     self._thread.daemon = True
@@ -96,15 +96,15 @@ class ExecutorQueue(object):
                          functools.partial(self.__release_func, submission))
       t.start()
 
-  def __release_func(self, submission: Submission) -> None:
+  def __release_func(self, submission: ExecutorQueueTask) -> None:
     self._submission_set.discard(submission)
     self._submission_queue.task_done()
     self._threads_semaphore.release()
 
-  def __contains__(self, submission: Submission) -> bool:
+  def __contains__(self, submission: ExecutorQueueTask) -> bool:
     return submission in self._submission_set
 
-  def enqueue(self, submission: Submission) -> bool:
+  def enqueue(self, submission: ExecutorQueueTask) -> bool:
     if submission not in self._submission_set:
       self._submission_set.add(submission)
       self._submission_queue.put((submission.priority, submission))

@@ -611,7 +611,7 @@ def _edit_assignment(form, course_name, assignment_name, stages):
   return errors
 
 
-class GradeOvenSubmission(executor_queue_lib.Submission):
+class GradeOvenSubmission(executor_queue_lib.ExecutorQueueTask):
   def __init__(self, priority, name, description, submission_dir, container_id,
                stages, student_submission):
     super(GradeOvenSubmission, self).__init__(priority, name, description)
