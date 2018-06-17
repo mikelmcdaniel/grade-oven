@@ -412,6 +412,7 @@ class DockerExecutor(object):
       docker_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=4096,
       close_fds=True, cwd=self.host_dir, env=empty_env)
     output, err = read_proc_summarized_stdout(proc, 4096)
+    proc.wait()
     if err:
       errors.append(err)
 

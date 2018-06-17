@@ -161,7 +161,7 @@ class TestExecutor(unittest.TestCase):
     code_path = None
     score_map = {}
     with EphemeralDir(host_dir):
-      c = executor.DockerExecutor('test_unptrusted', host_dir)
+      c = executor.DockerExecutor('test_untrusted', host_dir)
       c.init()
       output, errors = c.run_stages(
         code_path,
