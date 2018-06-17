@@ -3,6 +3,7 @@
 A safe entity is something that should be able to safely appear in a
 URI or HTML without being escaped.
 """
+from typing import Text
 
 # Note that '.' is ok becuase '/' is not
 SAFE_ENTITY_CHARS = frozenset(
@@ -13,11 +14,11 @@ SAFE_ENTITY_CHARS = frozenset(
 BAD_ENTITY_NAMES = frozenset(['', ' ', '.', '..'])
 
 
-def is_safe_entity_name(entity):
+def is_safe_entity_name(entity: Text) -> bool:
   return (entity not in BAD_ENTITY_NAMES and
           not frozenset(entity) - SAFE_ENTITY_CHARS)
 
-def safe_entity_name(entity):
+def safe_entity_name(entity: Text) -> Text:
   if entity is None:
     return None
   if entity == '':

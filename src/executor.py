@@ -24,6 +24,7 @@ import shutil
 import six
 import subprocess
 import time
+from typing import Any, Callable, Dict, Iterable, IO, List, Optional, Text, Tuple
 import zipfile
 
 
@@ -48,7 +49,7 @@ class JSONSerializable(object):
       raise SerializeError(e)
 
 
-def maybe_makedirs(path):
+def maybe_makedirs(path: Text) -> None:
   try:
     os.makedirs(path)
   except OSError as e:
@@ -56,7 +57,7 @@ def maybe_makedirs(path):
       raise Error(e)
 
 
-def join_cmd_parts(cmd_parts):
+def join_cmd_parts(cmd_parts: Iterable[Text]) -> Text:
   escaped_parts = []
   for part in cmd_parts:
     if len(shlex.split(part)) > 1:
@@ -66,7 +67,7 @@ def join_cmd_parts(cmd_parts):
   return ' '.join(escaped_parts)
 
 
-def file_contents_or(file_path, default_contents=''):
+def file_contents_or(file_path: Text, default_contents: Text='') -> Text:
   try:
     with open(file_path) as f:
       return f.read()
@@ -79,7 +80,7 @@ def file_contents_or(file_path, default_contents=''):
 class StageOutput(object):
   SCORE_RE = re.compile(r'\s*(-?\d+)\s*/\s*(-?\d+)\s*')
 
-  def __init__(self, output_path):
+  def __init__(self, output_path: Text) -> None:
     score_raw = file_contents_or(os.path.join(output_path, 'score'), '')
     # This is only for backwards compatibilty, when totals were also recorded.
     if '/' in score_raw:
@@ -90,32 +91,34 @@ class StageOutput(object):
       self.score = None
     self.output_html = file_contents_or(
       os.path.join(output_path, 'output.html'), '')
-    self.stdout = None
-    self.errors = None
+    self.stdout = None  # type: Optional[Text]
+    self.errors = None  # type: Optional[List[Text]]
 
-def make_file_executable(path):
+def make_file_executable(path: Text) -> None:
   mode = os.stat(path).st_mode
   # copy read bits to executable bits
   mode |= (mode & 0o444) >> 2
   os.chmod(path, mode)
 
-def _save_stages_metadata(stages_path, raw_json):
+def _save_stages_metadata(stages_path: Text, raw_json: Dict[Text, Any]) -> None:
   maybe_makedirs(stages_path)
   with open(os.path.join(stages_path, 'metadata.json'), 'w') as f:
     f.write(json.dumps(raw_json))
 
 class Stage(object):
-  def __init__(self, stage_name, stage_path, stages_path, raw_json):
+  def __init__(self, stage_name: Text, stage_path: Text, stages_path: Text, raw_json: Dict[Text, Any]) -> None:
     self.name = stage_name
     self.path = stage_path
     self._stages_path = stages_path
     self._raw_json = raw_json
-    self.output = None
+    self.output = None  # type: Optional[StageOutput]
 
-  def _raw_stage_json(self):
-    for stage in self._raw_json.get('stages', ()):
+  def _raw_stage_json(self) -> Dict[Text, Any]:
+    stages = self._raw_json.get('stages', ())
+    for stage in stages:
       if stage['directory_name'] == self.name:
         return stage
+    raise AssertionError('Stage {} not found in {}'.format(self.name, stages))
 
   def save_main_script(self, contents=None):
     """Save a main script to be run inside the Docker container.
@@ -132,15 +135,15 @@ class Stage(object):
     make_file_executable(path)
 
   @property
-  def main_script(self):
+  def main_script(self) -> Text:
     return file_contents_or(os.path.join(self.path, 'main'))
 
   @main_script.setter
-  def main_script(self, contents):
+  def main_script(self, contents: Text) -> None:
     return self.save_main_script(contents)
 
   @property
-  def filenames_except_meta(self):
+  def filenames_except_meta(self) -> List[Text]:
     try:
       filenames = set(os.listdir(self.path))
     except OSError as e:
@@ -152,42 +155,42 @@ class Stage(object):
     return sorted(filenames)
 
   @property
-  def description(self):
+  def description(self) -> Text:
     return self._raw_stage_json().get('description', '')
 
   @property
-  def is_trusted_stage(self):
+  def is_trusted_stage(self) -> bool:
     # TODO: Make this default to False since it's
     # safer generally better to fail closed.
     return self._raw_stage_json().get('is_trusted_stage', True)
 
-  def save_is_trusted_stage(self, is_trusted_stage):
+  def save_is_trusted_stage(self, is_trusted_stage: bool) -> None:
     self._raw_stage_json()['is_trusted_stage'] = is_trusted_stage
     _save_stages_metadata(self._stages_path, self._raw_json)
 
-  def save_description(self, desc):
+  def save_description(self, desc: Text) -> None:
     self._raw_stage_json()['description'] = desc
     _save_stages_metadata(self._stages_path, self._raw_json)
 
-  def _save_zip(self, stages_name, zip_file):
+  def _save_zip(self, stages_name: Text, zip_file: zipfile.ZipFile) -> None:
     zip_file.write(self.path, self.name) # directory
     for root, dirs, files in os.walk(self.path):
-        for basename in files:
-          path = os.path.join(root, basename)
-          zip_file.write(path, os.path.join(self.name, basename))
+      for basename in files:
+        path = os.path.join(root, basename)
+        zip_file.write(path, os.path.join(self.name, basename))
 
 class Stages(object):
-  def __init__(self, stages_path):
+  def __init__(self, stages_path: Text) -> None:
     self.path = stages_path
     _, self.name = os.path.split(stages_path)
     self._raw_json = self._load_raw_json()
     self.stages = self._load_stages()
 
-  def _load_raw_json(self):
+  def _load_raw_json(self) -> Dict[Text, Any]:
     path = os.path.realpath(os.path.join(self.path, 'metadata.json'))
     contents = file_contents_or(path, '{}')
     try:
-      raw_json = json.loads(contents)
+      raw_json = json.loads(contents)  # type: Dict[Text, Any]
     except ValueError as e:
       raise ValueError(
         'Corrupt metadata: {}\n{}\n{!r}'.format(e, path, contents))
@@ -197,8 +200,8 @@ class Stages(object):
       raw_json['stages'] = []
     return raw_json
 
-  def _load_stages(self):
-    stages = collections.OrderedDict()
+  def _load_stages(self) -> Dict[Text, Stage]:
+    stages = collections.OrderedDict()  # type: collections.OrderedDict
     for stage in self._raw_json.get('stages', ()):
       # TODO: sanitize names so they can't be something like '/path/from/root'
       stage_name = stage['directory_name']
@@ -210,17 +213,17 @@ class Stages(object):
     return stages
 
   @property
-  def description(self):
+  def description(self) -> Text:
     return self._raw_json.get('description', '')
 
-  def save_description(self, desc):
+  def save_description(self, desc: Text) -> None:
     self._raw_json['description'] = desc
     _save_stages_metadata(self.path, self._raw_json)
 
-  def save_stages(self):
+  def save_stages(self) -> None:
     _save_stages_metadata(self.path, self._raw_json)
 
-  def add_stage(self, stage_name):
+  def add_stage(self, stage_name: Text) -> Stage:
     stage_path = os.path.join(self.path, stage_name)
     self.stages[stage_name] = Stage(
       stage_name, self.path, stage_path, self._raw_json)
@@ -230,7 +233,7 @@ class Stages(object):
     return self.stages[stage_name]
 
   # TODO: return errors
-  def remove_stage(self, stage_name):
+  def remove_stage(self, stage_name: Text) -> None:
     stage = self.stages[stage_name]
     del self.stages[stage_name]
     for j, s in enumerate(self._raw_json.get('stages', ())):
@@ -243,14 +246,15 @@ class Stages(object):
     except (shutil.Error, OSError, IOError) as e:
       pass
 
-  def save_zip(self, file_obj):
+  def save_zip(self, file_obj: IO) -> None:
     with zipfile.ZipFile(file_obj, 'a') as zf:
       zf.write(os.path.join(self.path, 'metadata.json'), 'metadata.json')
       for stage in self.stages.values():
         stage._save_zip(self.name, zf)
 
   @classmethod
-  def from_zip(cls, file_obj, stages_name, stages_root):
+  def from_zip(
+      cls, file_obj: IO, stages_name: Text, stages_root: Text) -> "Stages":
     "Unpack zip from file_obj into os.path.join(stages_root, stages_name)."
     try:
       assignment_root = os.path.join(stages_root, stages_name)
@@ -273,7 +277,7 @@ class Stages(object):
     except (zipfile.BadZipfile, zipfile.LargeZipFile) as e:
       raise Error(e)
 
-def merge_tree(src, dst):
+def merge_tree(src: Text, dst: Text) -> List[Text]:
   "Like shutil.copytree, except it is not an error if the dst exists."
   errors = []
   src = os.path.abspath(src)
@@ -296,7 +300,8 @@ def merge_tree(src, dst):
   return errors
 
 
-def read_proc_summarized_stdout(proc, bufsize):
+def read_proc_summarized_stdout(
+    proc: subprocess.Popen, bufsize: int) -> Tuple[bytes, Text]:
   """Given a subprocess.Popen object, read it's stdout until the process dies
   and return a summarized version of the output and an error string or None.
 
@@ -308,7 +313,7 @@ def read_proc_summarized_stdout(proc, bufsize):
       'This function does not support unbuffered or line-buffered files '
       '(bufsize must be >= 2).')
   # between 128KB and 128KB + bufsize
-  output = collections.deque(maxlen=131072 // bufsize + 1)
+  output = collections.deque(maxlen=131072 // bufsize + 1)  # type: collections.deque
   error = None
   try:
     while True:
@@ -333,14 +338,16 @@ class DockerExecutor(object):
   See executor_test.py for examples.
   """
 
-  def __init__(self, container_id, host_dir):
+  def __init__(self, container_id: Text, host_dir: Text) -> None:
     self.container_id = container_id
     self.host_dir = os.path.abspath(host_dir)
     self.timeout_seconds = 60
     self.max_num_files = 1000
     self.max_mem_bytes = 256 * 1024**2
 
-  def _docker_run(self, docker_image_name, cmd, user=None, env=None):
+  def _docker_run(
+      self, docker_image_name: Text, cmd: List[Text], user: Text=None,
+      env: Dict[Text, Text]=None) -> Tuple[int, Text, List[Text]]:
     "Runs a command and returns the return code or None if it timed out."
     errors = []
     if user not in ('grade_oven', 'root', None):
@@ -366,10 +373,6 @@ class DockerExecutor(object):
     docker_cmd.extend(['--user', user or str(os.geteuid())])
     for key, val in env.items():
       docker_cmd.append('--env')
-      try:
-        val = six.text_type(val, errors='replace')
-      except TypeError:
-        pass
       docker_cmd.append('{}={}'.format(key, val.encode('utf-8')))
     if user == 'root':
       docker_cmd.append('--volume')
@@ -377,8 +380,9 @@ class DockerExecutor(object):
     docker_cmd.append(docker_image_name)
     docker_cmd.extend(cmd)
     logging.info('Starting Docker container: %s', docker_cmd)
+    empty_env = {}  # type: Dict[Text, Text]
     proc = subprocess.Popen(
-      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env={})
+      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env=empty_env)
     proc.wait()
 
     logging.info('Waiting for Docker container: %s', self.container_id)
@@ -386,7 +390,7 @@ class DockerExecutor(object):
       'timeout', str(self.timeout_seconds), 'docker', 'wait', self.container_id]
     proc = subprocess.Popen(
       docker_cmd, stdout=subprocess.PIPE, bufsize=-1, close_fds=True,
-      cwd=self.host_dir, env={})
+      cwd=self.host_dir, env=empty_env)
     return_code_raw, _ = proc.communicate()
     try:
       return_code = int(return_code_raw)
@@ -399,14 +403,14 @@ class DockerExecutor(object):
     logging.info('Stopping Docker container: %s', self.container_id)
     docker_cmd = ['docker', 'stop', '--time', '5', self.container_id]
     proc = subprocess.Popen(
-      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env={})
+      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env=empty_env)
     proc.wait()
 
     logging.info('Reading Docker logs from container: %s', self.container_id)
     docker_cmd = ['docker', 'logs', self.container_id]
     proc = subprocess.Popen(
       docker_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=4096,
-      close_fds=True, cwd=self.host_dir, env={})
+      close_fds=True, cwd=self.host_dir, env=empty_env)
     output, err = read_proc_summarized_stdout(proc, 4096)
     if err:
       errors.append(err)
@@ -414,12 +418,16 @@ class DockerExecutor(object):
     logging.info('Removing Docker container: %s', self.container_id)
     docker_cmd = ['docker', 'rm', '--force', self.container_id]
     proc = subprocess.Popen(
-      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env={})
+      docker_cmd, bufsize=-1, close_fds=True, cwd=self.host_dir, env=empty_env)
     proc.wait()
 
-    return return_code, output, errors
+    # TODO: Refactor this function and related ones to work with bytes instead
+    # of Text.
+    return return_code, output.decode('utf-8'), errors
 
-  def _extract_archive(self, archive_path, user=None):
+  def _extract_archive(
+      self, archive_path: Text, user: Optional[Text]=None
+  ) -> Tuple[Text, List[Text]]:
     output = ''
     errors = []
     if archive_path is not None:
@@ -439,7 +447,9 @@ class DockerExecutor(object):
             output.rsplit('\n', 1)[-1]))
     return output, errors
 
-  def _copy_and_extract_archive(self, archive_path, dst_path=None, user=None):
+  def _copy_and_extract_archive(
+      self, archive_path: Text, dst_path: Optional[Text]=None, user: Optional[Text]=None
+  ) -> Tuple[Text, List[Text]]:
     output = ''
     errors = []
     if archive_path is not None:
@@ -467,7 +477,7 @@ class DockerExecutor(object):
         logging.error(errors[-1])
     return output, errors
 
-  def init(self):
+  def init(self) -> None:
     """Remove any contaminated contents from self.host_dir in order
     to .run_stages(...) stages safely.
     """
@@ -483,7 +493,9 @@ class DockerExecutor(object):
       os.mkdir(os.path.join(self.host_dir, sub_dir))
 
   def run_stages(
-      self, submission_path, stages, stage_done_callback=None, env=None):
+      self, submission_path: Text, stages: Stages,
+      stage_done_callback: Callable[[Stage], Any]=None, env: Dict[Text, Text]=None
+  ) -> Tuple[Text, List[Text]]:
     """Run stages, copying submission_path to /grade_oven/submission inside the
     container.  When a stage is done running, stage_done_callback is called
     with the stage that has completed.
@@ -515,6 +527,6 @@ class DockerExecutor(object):
         stage_done_callback(stage)
     return '\n'.join(outputs), errors
 
-  def cleanup(self):
+  def cleanup(self) -> None:
     for sub_dir in ('tmp', 'grade_oven'):
       shutil.rmtree(os.path.join(self.host_dir, sub_dir))

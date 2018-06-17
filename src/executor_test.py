@@ -40,7 +40,7 @@ class TestExecutor(unittest.TestCase):
       stages = executor.Stages(stages_dir)
       output, errors = c.run_stages(code_path, stages)
       self.assertEqual(errors, [])
-      self.assertEqual(stages.stages['stage0'].output.stdout, b'HELLO WORLD\n')
+      self.assertEqual(stages.stages['stage0'].output.stdout, 'HELLO WORLD\n')
 
   def test_unicode_in_env(self):
     host_dir = 'testdata/executor/HOST_DIR/hello_world'
@@ -56,7 +56,7 @@ class TestExecutor(unittest.TestCase):
       }
       output, errors = c.run_stages(code_path, stages, env=env)
       self.assertEqual(errors, [])
-      self.assertEqual(stages.stages['stage0'].output.stdout, b'HELLO WORLD\n')
+      self.assertEqual(stages.stages['stage0'].output.stdout, 'HELLO WORLD\n')
 
   def test_hello_world_cpp(self):
     host_dir = 'testdata/executor/HOST_DIR/hello_world_cpp'
@@ -85,16 +85,16 @@ class TestExecutor(unittest.TestCase):
         'Command "/grade_oven/fork_bomb/main" did not finish in '
         '5 seconds and timed out.'])
       self.assertTrue(
-        b'many_open_files: 80 files open' in
+        'many_open_files: 80 files open' in
         stages.stages['many_open_files'].output.stdout)
       self.assertFalse(
-        b'many_open_files: 120 files open' in
+        'many_open_files: 120 files open' in
         stages.stages['many_open_files'].output.stdout)
       self.assertTrue(
-        b'much_ram: Allocated 48MB.' in
+        'much_ram: Allocated 48MB.' in
         stages.stages['much_ram'].output.stdout)
       self.assertFalse(
-        b'much_ram: Allocated 64MB.' in
+        'much_ram: Allocated 64MB.' in
         stages.stages['much_ram'].output.stdout)
 
   def test_score(self):

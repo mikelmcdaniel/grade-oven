@@ -16,20 +16,24 @@ how to use it or look at this simple example:
 import json
 import six
 import tempfile
+from typing import Any, List, Text, Tuple, TypeVar
 
 import leveldb
+
+DataStoreKey = Tuple[Text]
+DataStoreValue = TypeVar('DataStoreValue', Text, int, float)
 
 _JSON_NULL = bytes(json.dumps(None).encode('utf-8'))
 
 # TODO: Allow keys to be arbitrary
 # TODO: Make concurrent deletions/puts atomic with respect to eachother
 class DataStore(object):
-  def __init__(self, dir_path=None):
+  def __init__(self, dir_path: Text=None) -> None:
     if dir_path is None:
       dir_path = tempfile.mkdtemp()
     self.db = leveldb.LevelDB(dir_path, paranoid_checks=True)
 
-  def put(self, key, value=None):
+  def put(self, key: DataStoreKey, value: DataStoreValue=None) -> None:
     # TODO: Before moving to Python3, decoding bytes was not necessary.
     # Add proper support for writing bytes.
     if isinstance(value, bytes):
@@ -46,10 +50,10 @@ class DataStore(object):
     mods.Put(pk, bytes(json.dumps(value).encode('utf-8')))
     self.db.Write(mods)
 
-  def __setitem__(self, key, value):
-    return self.put(key, value)
+  def __setitem__(self, key: DataStoreKey, value: DataStoreValue) -> None:
+    self.put(key, value)
 
-  def __getitem__(self, key):
+  def __getitem__(self, key: DataStoreKey) -> DataStoreValue:
     real_key = []
     for key_part in key:
       real_key.append('\x00')
@@ -59,20 +63,20 @@ class DataStore(object):
     value = json.loads(raw_value)
     return value
 
-  def get(self, key, default_value=None):
+  def get(self, key: DataStoreKey, default_value: Any=None) -> Any:
     try:
       return self[key]
     except KeyError:
       return default_value
 
-  def __contains__(self, key):
+  def __contains__(self, key: DataStoreKey) -> bool:
     try:
       self[key]
       return True
     except KeyError:
       return False
 
-  def get_all(self, key):
+  def get_all(self, key: DataStoreKey) -> List[Text]:
     real_key = []
     real_key.append(chr(len(key) + 1))
     real_key.append('\x00'.join(key))
@@ -86,7 +90,7 @@ class DataStore(object):
       sub_keys.append(sub_key[sub_key.rfind(b'\x00') + 1:].decode('utf-8'))
     return sub_keys
 
-  def remove(self, key):
+  def remove(self, key: DataStoreKey) -> None:
     real_key = []
     real_key.append(six.unichr(len(key)))
     real_key.append('\x00'.join(key))
@@ -105,5 +109,5 @@ class DataStore(object):
         break
     self.db.Write(mods)
 
-  def __delitem__(self, key):
-    return self.remove(key)
+  def __delitem__(self, key: DataStoreKey) -> None:
+    self.remove(key)

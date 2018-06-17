@@ -6,6 +6,7 @@ It's an incredibly simple and weak way to collect data for debugging.
 
 import collections
 import cookielib
+import io
 import json
 import logging
 import mechanize
@@ -13,6 +14,7 @@ import optparse
 import random
 import ssl
 import time
+from typing import IO, Text
 import urllib2
 import urlparse
 
@@ -28,10 +30,10 @@ else:
   ssl._create_default_https_context = _create_unverified_https_context
 
 
-def ping(url, expected_response=None):
+def ping(url: Text, expected_response: Text=None) -> bool:
   'Open a URL, with some retrying, and check the response.'
   resp = None
-  for j in xrange(3):
+  for j in range(3):
     try:
       resp = urllib2.urlopen(url, timeout=3.0)
       break
@@ -42,11 +44,11 @@ def ping(url, expected_response=None):
     expected_response is None or resp.read() == expected_response)
 
 
-def server_is_up(host):
+def server_is_up(host: Text) -> bool:
   return ping(urlparse.urljoin(host, '/debug/ping'), 'pong')
 
 
-def scrape_variables(host, logs_file):
+def scrape_variables(host: Text, logs_file: IO) -> None:
   br = mechanize.Browser()
   cj = cookielib.LWPCookieJar()
   br.set_cookiejar(cj)
@@ -59,7 +61,7 @@ def scrape_variables(host, logs_file):
   login_url = urlparse.urljoin(host, '/login')
   logging.info('Starting login into %s', login_url)
   response = br.open(login_url)
-  br.form = iter(br.forms()).next()
+  br.form = next(iter(br.forms()))
   br.form['username'] = 'monitor'
   br.form['password'] = open('../data/secret_key.txt').read()
   br.method = 'POST'
@@ -97,7 +99,7 @@ def get_command_line_options():
   return options
 
 
-def main():
+def main() -> None:
   options = get_command_line_options()
   with open(options.log_file, 'a') as log_file:
     scrape_variables(options.server_address, log_file)

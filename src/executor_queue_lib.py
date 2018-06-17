@@ -10,6 +10,7 @@ See executor_queue_lib_test.py for example usage.
 import collections
 import functools
 import threading
+from typing import Any, Callable, Set, Text
 from six.moves import queue
 import logging
 
@@ -19,20 +20,22 @@ class Submission(object):
   QUEUED = 'queued'
   RUNNING = 'running'
   DONE = 'done'
-  def __init__(self, priority, name, description, closure=None):
+  def __init__(
+      self, priority, name: Text, description: Text,
+      closure: Callable[[], Any]=None) -> None:
     self.closure = closure
     self.priority = priority
     self.name = name
     self.description = description
     self.status = self.QUEUED
 
-  def before_run(self):
+  def before_run(self) -> None:
     pass
 
-  def run(self):
+  def run(self) -> None:
     self.closure()
 
-  def after_run(self):
+  def after_run(self) -> None:
     pass
 
   def __hash__(self):
@@ -49,7 +52,8 @@ class Submission(object):
 
 
 class ExecutorThread(threading.Thread):
-  def __init__(self, submission, release_func):
+  def __init__(
+      self, submission: Submission, release_func: Callable[[], Any]) -> None:
     super(ExecutorThread, self).__init__()
     self.daemon = False
     self.submission = submission
@@ -57,7 +61,7 @@ class ExecutorThread(threading.Thread):
                                               self.submission.description)
     self._release_func = release_func
 
-  def run(self):
+  def run(self) -> None:
     self.submission.status = Submission.RUNNING
     try:
       self.submission.before_run()
@@ -73,13 +77,13 @@ class ExecutorQueue(object):
   def __init__(self, max_threads=3):
     # priority queue picks things with a lesser value first
     self._submission_queue = queue.PriorityQueue()
-    self._submission_set = set()
+    self._submission_set = set()  # type: Set[Submission]
     self._threads_semaphore = threading.BoundedSemaphore(max_threads)
     self._thread = threading.Thread(None, self.__run, 'ExecutorQueue.__run')
     self._thread.daemon = True
     self._thread.start()
 
-  def __run(self):
+  def __run(self) -> None:
     while True:
       self._threads_semaphore.acquire()
       _, submission = self._submission_queue.get()
@@ -87,15 +91,15 @@ class ExecutorQueue(object):
                          functools.partial(self.__release_func, submission))
       t.start()
 
-  def __release_func(self, submission):
+  def __release_func(self, submission: Submission) -> None:
     self._submission_set.discard(submission)
     self._submission_queue.task_done()
     self._threads_semaphore.release()
 
-  def __contains__(self, submission):
+  def __contains__(self, submission: Submission) -> bool:
     return submission in self._submission_set
 
-  def enqueue(self, submission):
+  def enqueue(self, submission: Submission) -> bool:
     if submission not in self._submission_set:
       self._submission_set.add(submission)
       self._submission_queue.put((submission.priority, submission))
@@ -103,5 +107,5 @@ class ExecutorQueue(object):
     else:
       return False
 
-  def join(self):
+  def join(self) -> None:
     self._submission_queue.join()

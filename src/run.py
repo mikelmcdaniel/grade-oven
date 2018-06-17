@@ -12,17 +12,18 @@ import optparse
 import os
 import random
 import time
+from typing import Dict, Text
 import subprocess
 
 import monitor
 
 
-def maybe_makedirs(path):
+def maybe_makedirs(path: Text) -> None:
   try:
     os.makedirs(path)
   except OSError as e:
     if e.errno != errno.EEXIST:
-      raise Error(e)
+      raise e
 
 
 def get_command_line_options():
@@ -38,7 +39,7 @@ def get_command_line_options():
   return options
 
 
-def main():
+def main() -> None:
   options = get_command_line_options()
   prod_debug_flag = '--debug' if options.debug else '--prod'
 
@@ -55,21 +56,23 @@ def main():
 
   maybe_makedirs('../data/logs')
 
-  def run_server():
+  def run_server() -> subprocess.Popen:
+    env = {}  # type: Dict[Text, Text]
     return subprocess.Popen(
       ['authbind', 'python2', 'server.py', prod_debug_flag,
        '--host', host, '--port', str(port)],
       stdout=open('../data/logs/server-stdout.txt', 'a'),
       stderr=open('../data/logs/server-stderr.txt', 'a'),
-      close_fds=True, shell=False, env={})
+      close_fds=True, shell=False, env=env)
 
-  def run_monitor():
+  def run_monitor() -> subprocess.Popen:
+    env = {}  # type: Dict[Text, Text]
     return subprocess.Popen(
       ['python2', 'monitor.py', '--server_address', server_address,
        '--log_file', '../data/logs/monitor-scrapes.txt'],
       stdout=open('../data/logs/monitor-stdout.txt', 'a'),
       stderr=open('../data/logs/monitor-stderr.txt', 'a'),
-      close_fds=True, shell=False, env={})
+      close_fds=True, shell=False, env=env)
 
   server_proc = run_server()
   monitor_proc = run_monitor()
@@ -77,7 +80,7 @@ def main():
 
   while True:
     # Poll the processes frequently and do a proper ping infrequently.
-    for j in xrange(10):
+    for j in range(10):
       if server_proc.poll() is not None:
         logging.warning('Restarting server')
         server_proc = run_server()
