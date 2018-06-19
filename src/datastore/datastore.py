@@ -17,12 +17,12 @@ import abc
 import json
 import six
 import tempfile
-from typing import Any, List, Text, Tuple, TypeVar
+from typing import Any, Dict, List, Sequence, Text, Tuple, TypeVar, Union
 
 import leveldb
 
-DataStoreKey = Tuple[Text]
-DataStoreValue = TypeVar('DataStoreValue', Text, int, float)
+DataStoreKey = Sequence[Text]
+DataStoreValue = TypeVar('DataStoreValue', Text, int, float, bytes)
 
 _JSON_NULL = bytes(json.dumps(None).encode('utf-8'))
 
@@ -38,6 +38,7 @@ class AbstractDataStore(object):
 
   @abc.abstractmethod
   def get_all(self, key: DataStoreKey) -> List[Text]:
+    """Returns a sorted list of sub-keys prefixed by key."""
     pass
 
   @abc.abstractmethod
@@ -77,7 +78,7 @@ class DataStore(AbstractDataStore):
     # TODO: Before moving to Python3, decoding bytes was not necessary.
     # Add proper support for writing bytes.
     if isinstance(value, bytes):
-      value = value.decode('utf-8')
+      value = value.decode('utf-8')  # type: ignore
 
     mods = leveldb.WriteBatch()
     partial_key = []
@@ -134,3 +135,50 @@ class DataStore(AbstractDataStore):
       if not found_keys:
         break
     self.db.Write(mods)
+
+
+class FakeDataStore(AbstractDataStore):
+  """A 'fake' DataStore implementation meant for testing.
+
+  Internally, it is just a nested dict.
+  """
+  def __init__(self) -> None:
+    self._data = {}  # type: Dict[Text, Any]
+
+  def _raw_put(self, key: DataStoreKey, value: Any) -> None:
+    if key and key[:-1] not in self:
+      self._raw_put(key[:-1], {})  # type: ignore
+    self._raw_get(key[:-1])[key[-1]] = value  # type: ignore
+
+  def _raw_get(self, key: DataStoreKey) -> Any:
+    sub_data = self._data
+    for sub_key in key:
+      sub_data = sub_data[sub_key]
+    return sub_data  # type: ignore
+
+  def put(self, key: DataStoreKey, value: DataStoreValue = None) -> None:
+    # TODO: Before moving to Python3, decoding bytes was not necessary.
+    # Add proper support for writing bytes.
+    if isinstance(value, bytes):
+      value = value.decode('utf-8')  # type: ignore
+    self._raw_put(key, json.dumps(value))
+
+  def __contains__(self, key: DataStoreKey) -> bool:
+    try:
+      self._raw_get(key)
+      return True
+    except KeyError:
+      return False
+
+  def __getitem__(self, key: DataStoreKey) -> DataStoreValue:
+    raw_value = self._raw_get(key)
+    return json.loads(raw_value)
+
+  def get_all(self, key: DataStoreKey) -> List[Text]:
+    try:
+      return sorted(self._raw_get(key).keys())  # type: ignore
+    except KeyError:
+      return []
+
+  def remove(self, key: DataStoreKey) -> None:
+    del self._raw_get(key[:-1])[key[-1]]  # type: ignore
