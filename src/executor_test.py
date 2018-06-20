@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import errno
 import executor
+import io
 import os
 import re
 import shutil
@@ -169,6 +170,22 @@ class TestExecutor(unittest.TestCase):
       self.assertEqual(errors, [])
       self.assertEqual(output.strip(), '')
       self.assertEqual(score_map, {'trusted': 123, 'untrusted': None})
+
+  def test_save_file(self):
+    host_dir = 'testdata/executor/HOST_DIR/hello_world'
+    stages_dir = 'testdata/executor/hello_world'
+    code_path = None
+    score_map = {}
+    with EphemeralDir(host_dir):
+      shutil.rmtree(host_dir)
+      shutil.copytree(stages_dir, host_dir)
+      stages = executor.Stages(host_dir)
+      stage = stages.stages['stage0']
+      fake_file = io.StringIO('test_save_file contents')
+      stage.save_file('ignored/path/test_save_file.txt', fake_file)
+      with open(os.path.join(stage.path, 'test_save_file.txt')) as f:
+        contents = f.read()
+      self.assertEqual(contents, 'test_save_file contents')
 
 
 if __name__ == '__main__':

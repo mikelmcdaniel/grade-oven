@@ -428,6 +428,17 @@ def save_files_in_dir(flask_files: List[werkzeug.datastructures.FileStorage],
   return errors
 
 
+def save_files_in_stage(flask_files: List[werkzeug.datastructures.FileStorage],
+                        stage: executor.Stage) -> List[Text]:
+  errors = []
+  for f in flask_files:
+    try:
+      stage.save_file(f.filename, f.stream)
+    except executor.Error as e:
+      errors.append(str(e))
+  return errors
+
+
 @app.route('/courses/<string:course_name>/download_grades', methods=['GET'])
 @login_required
 def courses_x_download_grades(course_name):
@@ -613,7 +624,7 @@ def _edit_assignment(form: werkzeug.datastructures.ImmutableMultiDict,
     stage.save_is_trusted_stage(is_trusted_stage)
     files = flask.request.files.getlist(u'files_{}[]'.format(stage.name))
     if files:
-      save_files_in_dir(files, stage.path)
+      errors.extend(save_files_in_stage(files, stage))
   delete_stages = form.getlist('delete_stages'.format(stage.name))
   for delete_stage in delete_stages:
     stages.remove_stage(delete_stage)

@@ -27,6 +27,8 @@ import time
 from typing import Any, Callable, Dict, Iterable, IO, List, Optional, Text, Tuple
 import zipfile
 
+import escape_lib
+
 
 class Error(Exception):
   pass
@@ -166,6 +168,16 @@ class Stage(object):
   def save_description(self, desc: Text) -> None:
     self._raw_stage_json()['description'] = desc
     self._stages._save_raw_json()
+
+  def save_file(self, filename: Text, src_file: IO) -> None:
+    maybe_makedirs(self.path)
+    base_filename = os.path.basename(filename)
+    base_filename = escape_lib.safe_entity_name(base_filename)
+    try:
+      with open(os.path.join(self.path, base_filename), 'wb') as dst_file:
+        shutil.copyfileobj(src_file, dst_file)
+    except (shutil.Error, OSError) as e:
+      raise Error(e)
 
   def _save_zip(self, stages_name: Text, zip_file: zipfile.ZipFile) -> None:
     zip_file.write(self.path, self.name)  # directory
