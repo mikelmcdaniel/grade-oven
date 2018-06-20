@@ -601,7 +601,7 @@ def _edit_assignment(form: werkzeug.datastructures.ImmutableMultiDict,
       try:
         df_stage = stages.stages[df_stage_name]
         try:
-          os.remove(os.path.join(df_stage.path, df_filename))
+          df_stage.remove_file(df_filename)
         except OSError as e:
           errors.append(u'Could not delete "{}": {}'.format(delete_file, e))
           logging.warning(errors[-1])

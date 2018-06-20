@@ -179,6 +179,14 @@ class Stage(object):
     except (shutil.Error, OSError) as e:
       raise Error(e)
 
+  def remove_file(self, filename: Text) -> None:
+    base_filename = os.path.basename(filename)
+    base_filename = escape_lib.safe_entity_name(base_filename)
+    try:
+      os.remove(os.path.join(self.path, base_filename))
+    except OSError as e:
+      raise Error(e)
+
   def _save_zip(self, stages_name: Text, zip_file: zipfile.ZipFile) -> None:
     zip_file.write(self.path, self.name)  # directory
     for root, dirs, files in os.walk(self.path):

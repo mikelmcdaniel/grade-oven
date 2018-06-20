@@ -171,7 +171,7 @@ class TestExecutor(unittest.TestCase):
       self.assertEqual(output.strip(), '')
       self.assertEqual(score_map, {'trusted': 123, 'untrusted': None})
 
-  def test_save_file(self):
+  def test_save_and_remove_file(self):
     host_dir = 'testdata/executor/HOST_DIR/hello_world'
     stages_dir = 'testdata/executor/hello_world'
     code_path = None
@@ -181,11 +181,17 @@ class TestExecutor(unittest.TestCase):
       shutil.copytree(stages_dir, host_dir)
       stages = executor.Stages(host_dir)
       stage = stages.stages['stage0']
-      fake_file = io.StringIO('test_save_file contents')
+      # Test Stage.save_file
+      fake_file = io.BytesIO(b'test_save_file contents')
       stage.save_file('ignored/path/test_save_file.txt', fake_file)
-      with open(os.path.join(stage.path, 'test_save_file.txt')) as f:
+      test_file_path = os.path.join(stage.path, 'test_save_file.txt')
+      with open(test_file_path) as f:
         contents = f.read()
       self.assertEqual(contents, 'test_save_file contents')
+      # Test Stage.remove_file
+      self.assertTrue(os.path.exists(test_file_path))
+      stage.remove_file('ignored/path/test_save_file.txt')
+      self.assertFalse(os.path.exists(test_file_path))
 
 
 if __name__ == '__main__':
