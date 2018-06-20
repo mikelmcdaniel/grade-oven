@@ -45,30 +45,30 @@ class GradeOvenUser(object):
     self.username = username
     self._data_store = data_store
 
-  def check_password(self, password: bytes) -> bool:
+  def check_password(self, password: Text) -> bool:
     try:
       hashed_password = self._data_store['users', self.username,
                                          'hashed_password']
     except KeyError:
       return False
     try:
-      hashed_password = hashed_password.encode('utf-8')
-      return hashed_password == bcrypt.hashpw(
-          password.encode('utf-8'), hashed_password)
-    except (ValueError, TypeError) as e:
+      hashed_bytes = hashed_password.encode('utf-8')
+      password_bytes = password.encode('utf-8')
+    except UnicodeDecodeError:
       return False
+    return bcrypt.checkpw(password_bytes, hashed_bytes)
 
   @classmethod
   def load_and_authenticate_user(cls, data_store: datastore_lib.DataStore,
                                  username: Text,
-                                 password: bytes) -> Optional["GradeOvenUser"]:
+                                 password: Text) -> Optional["GradeOvenUser"]:
     user = cls(data_store, username)
     if user.check_password(password):
       user.set_is_authenticated(True)
       return user
     return None
 
-  def set_password(self, password: bytes) -> None:
+  def set_password(self, password: Text) -> None:
     hpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     self._data_store['users', self.username, 'hashed_password'] = hpw
 

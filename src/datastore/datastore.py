@@ -142,6 +142,7 @@ class FakeDataStore(AbstractDataStore):
 
   Internally, it is just a nested dict.
   """
+
   def __init__(self) -> None:
     self._data = {}  # type: Dict[Text, Any]
 

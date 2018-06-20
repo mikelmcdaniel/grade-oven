@@ -29,12 +29,13 @@ import six
 import tempfile
 import threading
 import time
-from typing import Dict, Text
+from typing import Any, Dict, Generic, Iterable, List, Optional, Set, Text, Tuple, TypeVar
 import zipfile
 
 import flask_login as login
 import bcrypt
 import flask
+import werkzeug.datastructures  # Only used for typing
 
 from datastore import datastore as datastore_lib
 import escape_lib
@@ -57,14 +58,16 @@ grade_oven = grade_oven_lib.GradeOven(data_store)
 executor_queue = executor_queue_lib.ExecutorQueue()
 monitor_variables = collections.defaultdict(int)  # type: Dict[Text, int]
 
+Resource = TypeVar('Resource')
 
-class ResourcePool(object):
-  def __init__(self, resources):
+
+class ResourcePool(Generic[Resource]):
+  def __init__(self, resources: Iterable[Resource]) -> None:
     self._free_resources = collections.deque(resources)
-    self._used_resources = set()
+    self._used_resources = set()  # type: Set[Resource]
     self._resources_lock = threading.Lock()
 
-  def get(self):
+  def get(self) -> Optional[Resource]:
     with self._resources_lock:
       try:
         resource = self._free_resources.popleft()
@@ -73,12 +76,12 @@ class ResourcePool(object):
       self._used_resources.add(resource)
       return resource
 
-  def free(self, resource):
+  def free(self, resource: Resource) -> None:
     with self._resources_lock:
       self._used_resources.remove(resource)
       self._free_resources.append(resource)
 
-  def __len__(self):
+  def __len__(self) -> int:
     return len(self._free_resources)
 
 
@@ -161,7 +164,7 @@ def csrf_protect():
       flask.abort(403)
 
 
-def generate_csrf_token():
+def generate_csrf_token() -> Text:
   if '_csrf_token' not in flask.session:
     # TODO: Verify that bcrypt.gensalt() is sufficient
     flask.session['_csrf_token'] = bcrypt.gensalt()[7:].decode('utf-8')
@@ -196,15 +199,14 @@ def admin():
 
 @app.route('/admin/kill/<string:sig>')
 @admin_required
-def admin_kill_x(sig):
+def admin_kill_x(sig: Text) -> None:
   self_pid = os.getpid()
   logging.warning('Sending signal (%s) to self (pid %s).', sig, self_pid)
   sig = SIGNALS.get(sig, sig)
   try:
-    sig = int(sig)
-  except ValueError:
-    pass
-  os.kill(self_pid, sig)
+    os.kill(self_pid, int(sig))
+  except ValueError as e:
+    logging.error('Unable to send signal: %s', e)
 
 
 @app.route('/admin/add_user')
@@ -221,8 +223,10 @@ def _select_to_bool(value):
   return None
 
 
-def _add_edit_user(username, password, is_admin, is_monitor, is_instructor,
-                   course, instructs_course, takes_course, add_defaults, msgs):
+def _add_edit_user(username: Text, password: Text, is_admin: bool,
+                   is_monitor: bool, is_instructor: bool, course: Text,
+                   instructs_course: bool, takes_course: bool,
+                   add_defaults: bool, msgs: List[Text]) -> None:
   user = grade_oven.user(username)
   msgs.append(u'Loaded user {!r}'.format(username))
   if password is not None:
@@ -401,7 +405,8 @@ def courses():
       courses=grade_oven.course_names())
 
 
-def save_files_in_dir(flask_files, dir_path):
+def save_files_in_dir(flask_files: List[werkzeug.datastructures.FileStorage],
+                      dir_path) -> List[Text]:
   errors = []
   try:
     os.makedirs(dir_path)
@@ -497,7 +502,9 @@ def courses_x(course_name):
       grades_table=grades_table)
 
 
-def _make_grades_table(course, show_real_names=False):
+def _make_grades_table(course: grade_oven_lib.GradeOvenCourse,
+                       show_real_names: bool = False
+                       ) -> Tuple[List[Text], List[List[Text]]]:
   header_row = []
   if show_real_names:
     header_row.append('Username')
@@ -546,7 +553,9 @@ def courses_x_assignments(course_name):
       course_name=course.name)
 
 
-def _edit_assignment(form, course_name, assignment_name, stages):
+def _edit_assignment(form: werkzeug.datastructures.ImmutableMultiDict,
+                     course_name: Text, assignment_name: Text,
+                     stages: executor.Stages) -> List[Text]:
   errors = []
   logging.info(u'Editing assignment "%s" in course "%s"', assignment_name,
                course_name)
@@ -612,19 +621,21 @@ def _edit_assignment(form, course_name, assignment_name, stages):
 
 
 class GradeOvenSubmission(executor_queue_lib.ExecutorQueueTask):
-  def __init__(self, priority, name, description, submission_dir, container_id,
-               stages, student_submission):
+  def __init__(
+      self, priority, name: Text, description: Text, submission_dir: Text,
+      container_id: Text, stages: executor.Stages,
+      student_submission: grade_oven_lib.GradeOvenStudentSubmission) -> None:
     super(GradeOvenSubmission, self).__init__(priority, name, description)
     self._temp_dir = None
     self.submission_dir = submission_dir
     self.container_id = container_id
     self.stages = stages
     self.student_submission = student_submission
-    self.container = None
-    self.outputs = []
-    self.errors = []
+    self.container = None  # type: Optional[executor.DockerExecutor]
+    self.outputs = []  # type: List[Text]
+    self.errors = []  # type: List[Text]
 
-  def _run_stages_callback(self, stage):
+  def _run_stages_callback(self, stage: executor.Stage) -> None:
     logging.info(u'GradeOvenSubmission._run_stages_callback %s', stage.name)
     if self.student_submission.assignment.due_date() is None or (
         self.student_submission.submit_time() <=
@@ -641,14 +652,16 @@ class GradeOvenSubmission(executor_queue_lib.ExecutorQueueTask):
     self.student_submission.set_status(u'running (finished {})'.format(
         stage.name))
 
-  def before_run(self):
+  def before_run(self) -> None:
     logging.info(u'GradeOvenSubmission.before_run %s', self.description)
     self.student_submission.set_status('setting up')
-    self._temp_dir = temp_dirs.get()
-    if self._temp_dir is None:
+    t = temp_dirs.get()
+    if t is None:
       raise RuntimeError('No temporary directories available.')
+    else:
+      self._temp_dir = t  # type: ignore
 
-  def run(self):
+  def run(self) -> None:
     logging.info(u'GradeOvenSubmission.run %s', self.description)
     self.container = executor.DockerExecutor(self.container_id, self._temp_dir)
     self.container.init()
@@ -667,21 +680,25 @@ class GradeOvenSubmission(executor_queue_lib.ExecutorQueueTask):
     self.outputs.append(output)
     self.errors.extend(errs)
 
-  def after_run(self):
+  def after_run(self) -> None:
+    global temp_dirs
     logging.info(u'GradeOvenSubmission.after_run %s', self.description)
     self.container.cleanup()
     temp_dirs.free(self._temp_dir)
     self.student_submission.set_status('finished')
 
 
-def _int_or_0(x):
+def _int_or_0(x: Text) -> int:
   try:
     return int(x)
   except ValueError:
     return 0
 
 
-def _make_grade_table(course, assignment, show_real_names=False):
+def _make_grade_table(
+    course: grade_oven_lib.GradeOvenCourse,
+    assignment: grade_oven_lib.GradeOvenAssignment,
+    show_real_names: bool = False) -> Tuple[List[Text], List[List[Any]]]:
   header_row = [
       'Display Name', 'Score', 'Score (after due date)', 'Days Late',
       'Submit Time', 'Attempts'
@@ -692,7 +709,7 @@ def _make_grade_table(course, assignment, show_real_names=False):
     header_row.remove('Score (after due date)')
     header_row.remove('Days Late')
   for username in course.student_usernames():
-    row = []
+    row = []  # type: List[Any]
     user = grade_oven.user(username)
     if not show_real_names and user.prefers_anonymity():
       continue
@@ -815,7 +832,9 @@ def courses_x_assignments_x_edit(course_name, assignment_name):
       code=303)
 
 
-def _enqueue_student_submission(course_name, assignment_name, username, files):
+def _enqueue_student_submission(
+    course_name: Text, assignment_name: Text, username: Text,
+    files: List[werkzeug.datastructures.FileStorage]) -> None:
   user = grade_oven.user(username)
   course = grade_oven.course(course_name)
   assignment = course.assignment(assignment_name)
@@ -1197,7 +1216,7 @@ def get_command_line_options():
   return options
 
 
-def main():
+def main() -> None:
   options = get_command_line_options()
   if not data_store.get_all(('admins', )):
     user = grade_oven.user('admin')

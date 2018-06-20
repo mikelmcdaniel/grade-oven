@@ -105,8 +105,8 @@ def make_file_executable(path: Text) -> None:
 
 
 class Stage(object):
-  def __init__(
-      self, stage_name: Text, stage_path: Text, stages: "Stages") -> None:
+  def __init__(self, stage_name: Text, stage_path: Text,
+               stages: "Stages") -> None:
     self.name = stage_name
     self.path = stage_path
     self._stages = stages
@@ -207,8 +207,8 @@ class Stages(object):
     for stage in self._raw_json.get('stages', ()):
       # TODO: sanitize names so they can't be something like '/path/from/root'
       stage_name = stage['directory_name']
-      stages[stage_name] = Stage(
-        stage_name, os.path.join(self.path, stage_name), self)
+      stages[stage_name] = Stage(stage_name, os.path.join(
+          self.path, stage_name), self)
     return stages
 
   @property
@@ -218,7 +218,6 @@ class Stages(object):
   def save_description(self, desc: Text) -> None:
     self._raw_json['description'] = desc
     self._save_raw_json()
-
 
   def add_stage(self, stage_name: Text) -> Stage:
     stage_path = os.path.join(self.path, stage_name)
