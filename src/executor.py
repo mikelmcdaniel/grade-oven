@@ -104,24 +104,16 @@ def make_file_executable(path: Text) -> None:
   os.chmod(path, mode)
 
 
-def _save_stages_metadata(stages_path: Text,
-                          raw_json: Dict[Text, Any]) -> None:
-  maybe_makedirs(stages_path)
-  with open(os.path.join(stages_path, 'metadata.json'), 'w') as f:
-    f.write(json.dumps(raw_json))
-
-
 class Stage(object):
-  def __init__(self, stage_name: Text, stage_path: Text, stages_path: Text,
-               raw_json: Dict[Text, Any]) -> None:
+  def __init__(
+      self, stage_name: Text, stage_path: Text, stages: "Stages") -> None:
     self.name = stage_name
     self.path = stage_path
-    self._stages_path = stages_path
-    self._raw_json = raw_json
+    self._stages = stages
     self.output = None  # type: Optional[StageOutput]
 
   def _raw_stage_json(self) -> Dict[Text, Any]:
-    stages = self._raw_json.get('stages', ())
+    stages = self._stages._raw_json.get('stages', ())
     for stage in stages:
       if stage['directory_name'] == self.name:
         return stage
@@ -169,11 +161,11 @@ class Stage(object):
 
   def save_is_trusted_stage(self, is_trusted_stage: bool) -> None:
     self._raw_stage_json()['is_trusted_stage'] = is_trusted_stage
-    _save_stages_metadata(self._stages_path, self._raw_json)
+    self._stages._save_raw_json()
 
   def save_description(self, desc: Text) -> None:
     self._raw_stage_json()['description'] = desc
-    _save_stages_metadata(self._stages_path, self._raw_json)
+    self._stages._save_raw_json()
 
   def _save_zip(self, stages_name: Text, zip_file: zipfile.ZipFile) -> None:
     zip_file.write(self.path, self.name)  # directory
@@ -189,6 +181,12 @@ class Stages(object):
     _, self.name = os.path.split(stages_path)
     self._raw_json = self._load_raw_json()
     self.stages = self._load_stages()
+
+  def _save_raw_json(self) -> None:
+    maybe_makedirs(self.path)
+    content = json.dumps(self._raw_json)
+    with open(os.path.join(self.path, 'metadata.json'), 'w') as f:
+      f.write(content)
 
   def _load_raw_json(self) -> Dict[Text, Any]:
     path = os.path.realpath(os.path.join(self.path, 'metadata.json'))
@@ -209,8 +207,8 @@ class Stages(object):
     for stage in self._raw_json.get('stages', ()):
       # TODO: sanitize names so they can't be something like '/path/from/root'
       stage_name = stage['directory_name']
-      stages[stage_name] = Stage(stage_name, os.path.join(
-          self.path, stage_name), self.path, self._raw_json)
+      stages[stage_name] = Stage(
+        stage_name, os.path.join(self.path, stage_name), self)
     return stages
 
   @property
@@ -219,17 +217,14 @@ class Stages(object):
 
   def save_description(self, desc: Text) -> None:
     self._raw_json['description'] = desc
-    _save_stages_metadata(self.path, self._raw_json)
+    self._save_raw_json()
 
-  def save_stages(self) -> None:
-    _save_stages_metadata(self.path, self._raw_json)
 
   def add_stage(self, stage_name: Text) -> Stage:
     stage_path = os.path.join(self.path, stage_name)
-    self.stages[stage_name] = Stage(stage_name, self.path, stage_path,
-                                    self._raw_json)
+    self.stages[stage_name] = Stage(stage_name, self.path, self)
     self._raw_json['stages'].append({'directory_name': stage_name})
-    self.save_stages()
+    self._save_raw_json()
     maybe_makedirs(stage_path)
     return self.stages[stage_name]
 
@@ -241,7 +236,7 @@ class Stages(object):
       if s['directory_name'] == stage_name:
         del self._raw_json['stages'][j]
         break
-    self.save_stages()
+    self._save_raw_json()
     try:
       shutil.rmtree(stage.path)
     except (shutil.Error, OSError, IOError) as e:
