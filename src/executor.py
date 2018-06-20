@@ -145,10 +145,6 @@ class Stage(object):
   def main_script(self) -> Text:
     return file_contents_or(os.path.join(self.path, 'main'))
 
-  @main_script.setter
-  def main_script(self, contents: Text) -> None:
-    return self.save_main_script(contents)
-
   @property
   def filenames_except_meta(self) -> List[Text]:
     try:
@@ -272,12 +268,11 @@ class Stages(object):
         archived_files = zf.namelist()
         for af in archived_files:
           zf.extract(af, assignment_root)
-        # TODO: The stage.save_main_script() code below is used as a workaround
-        # to ensure that the main script is executable. Ideally, file
-        # permissions would be preserved.
+        # Note: The code below is necessary because zip files do not store
+        # whether a file was executable or not.
         stages = cls(assignment_root)
         for stage in stages.stages.values():
-          stage.save_main_script()
+          make_file_executable(os.path.join(stage.path, 'main'))
         return stages
     except (zipfile.BadZipfile, zipfile.LargeZipFile) as e:
       raise Error(e)
