@@ -59,7 +59,6 @@ grade_oven = data_model_lib.GradeOven(data_store)
 executor_queue = executor_queue_lib.ExecutorQueue()
 monitor_variables = collections.defaultdict(int)  # type: Dict[Text, int]
 
-
 temp_dirs = controller_lib.ResourcePool(
     os.path.abspath(p) for p in glob.glob('../data/host_dirs/?'))
 assert len(temp_dirs) > 0
@@ -184,12 +183,6 @@ def admin_kill_x(sig: Text) -> None:
     logging.error('Unable to send signal: %s', e)
 
 
-@app.route('/admin/add_user')
-@admin_required
-def admin_add_user():
-  return flask.redirect('/admin/edit_user')
-
-
 def _select_to_bool(value):
   if value == 'set':
     return True
@@ -199,9 +192,9 @@ def _select_to_bool(value):
 
 
 def _add_edit_user(username: Text, password: Text, is_admin: bool,
-                   is_monitor: bool, is_instructor: bool, course: Text,
-                   instructs_course: bool, takes_course: bool,
-                   add_defaults: bool, msgs: List[Text]) -> None:
+                   is_monitor: bool, course: Text, instructs_course: bool,
+                   takes_course: bool, add_defaults: bool,
+                   msgs: List[Text]) -> None:
   user = grade_oven.user(username)
   msgs.append(u'Loaded user {!r}'.format(username))
   if password is not None:
@@ -213,9 +206,6 @@ def _add_edit_user(username: Text, password: Text, is_admin: bool,
   if is_monitor is not None:
     user.set_is_monitor(is_monitor)
     msgs.append('Set is_monitor == {!r}'.format(is_monitor))
-  if is_instructor is not None:
-    user.set_is_instructor(is_instructor)
-    msgs.append('Set is_instructor == {!r}'.format(is_instructor))
   if course is not None:
     if instructs_course:
       user.set_instructs_course(course, instructs_course)
@@ -246,7 +236,6 @@ def admin_edit_user():
   password2 = form.get('password2')
   is_admin = _select_to_bool(form.get('is_admin'))
   is_monitor = _select_to_bool(form.get('is_monitor'))
-  is_instructor = _select_to_bool(form.get('is_instructor'))
   course = form.get('course')
   instructs_course = _select_to_bool(form.get('instructs_course'))
   takes_course = _select_to_bool(form.get('takes_course'))
@@ -269,8 +258,8 @@ def admin_edit_user():
   else:  # password == password2:
     passwords = [password for _ in xrange(len(usernames))]
   for username, password_ in zip(usernames, passwords):
-    _add_edit_user(username, password_, is_admin, is_monitor, is_instructor,
-                   course, instructs_course, takes_course, True, msgs)
+    _add_edit_user(username, password_, is_admin, is_monitor, course,
+                   instructs_course, takes_course, True, msgs)
   return flask.render_template(
       'admin_edit_user.html',
       username=login.current_user.get_id(),
@@ -779,8 +768,8 @@ def _enqueue_student_submission(
       os.path.join('../data/files/courses', course_name, 'assignments',
                    assignment_name))
   submission = controller_lib.GradeOvenSubmissionTask(
-    priority, username, desc, submission_dir, container_id, stages,
-    student_submission, grade_oven, temp_dirs)
+      priority, username, desc, submission_dir, container_id, stages,
+      student_submission, grade_oven, temp_dirs)
   if submission in executor_queue:
     logging.warning(
         u'Student "%s" submited assignment "%s/%s" while still in the queue.',

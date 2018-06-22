@@ -25,7 +25,7 @@ class ResourcePool(Generic[Resource]):
 
     if len(self._free_resources) != len(set(self._free_resources)):
       raise ValueError(
-        'resources argument to ResourcePool includes non-unique elements.')
+          'resources argument to ResourcePool includes non-unique elements.')
 
   def get(self) -> Optional[Resource]:
     with self._resources_lock:
@@ -46,12 +46,12 @@ class ResourcePool(Generic[Resource]):
 
 
 class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
-  def __init__(
-      self, priority, name: Text, description: Text, submission_dir: Text,
-      container_id: Text, stages: executor.Stages,
-      student_submission: data_model_lib.GradeOvenStudentSubmission,
-      grade_oven: data_model_lib.GradeOven,
-      temp_dirs: ResourcePool[Resource]) -> None:
+  def __init__(self, priority, name: Text, description: Text,
+               submission_dir: Text, container_id: Text,
+               stages: executor.Stages,
+               student_submission: data_model_lib.GradeOvenStudentSubmission,
+               grade_oven: data_model_lib.GradeOven,
+               temp_dirs: ResourcePool[Resource]) -> None:
     super(GradeOvenSubmissionTask, self).__init__(priority, name, description)
     self._temp_dir = None
     self.submission_dir = submission_dir

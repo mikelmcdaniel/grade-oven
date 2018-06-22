@@ -94,15 +94,6 @@ class GradeOvenUser(object):
     else:
       del self._data_store['monitors', self.username]
 
-  def set_is_instructor(self, is_instructor: bool) -> None:
-    if is_instructor:
-      self._data_store.put(('instructors', self.username))
-    else:
-      del self._data_store['instructors', self.username]
-
-  def is_instructor(self) -> bool:
-    return ('instructors', self.username) in self._data_store
-
   def set_instructs_course(self, course: Text, instructs_course: bool) -> None:
     if instructs_course:
       self._data_store.put(('courses', course, 'instructors', self.username))
