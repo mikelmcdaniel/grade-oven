@@ -37,6 +37,7 @@ import bcrypt
 import flask
 import werkzeug.datastructures  # Only used for typing
 
+import controller_lib
 from datastore import datastore as datastore_lib
 import escape_lib
 import executor
@@ -58,34 +59,8 @@ grade_oven = data_model_lib.GradeOven(data_store)
 executor_queue = executor_queue_lib.ExecutorQueue()
 monitor_variables = collections.defaultdict(int)  # type: Dict[Text, int]
 
-Resource = TypeVar('Resource')
 
-
-class ResourcePool(Generic[Resource]):
-  def __init__(self, resources: Iterable[Resource]) -> None:
-    self._free_resources = collections.deque(resources)
-    self._used_resources = set()  # type: Set[Resource]
-    self._resources_lock = threading.Lock()
-
-  def get(self) -> Optional[Resource]:
-    with self._resources_lock:
-      try:
-        resource = self._free_resources.popleft()
-      except IndexError:
-        return None
-      self._used_resources.add(resource)
-      return resource
-
-  def free(self, resource: Resource) -> None:
-    with self._resources_lock:
-      self._used_resources.remove(resource)
-      self._free_resources.append(resource)
-
-  def __len__(self) -> int:
-    return len(self._free_resources)
-
-
-temp_dirs = ResourcePool(
+temp_dirs = controller_lib.ResourcePool(
     os.path.abspath(p) for p in glob.glob('../data/host_dirs/?'))
 assert len(temp_dirs) > 0
 
@@ -631,74 +606,6 @@ def _edit_assignment(form: werkzeug.datastructures.ImmutableMultiDict,
   return errors
 
 
-class GradeOvenSubmission(executor_queue_lib.ExecutorQueueTask):
-  def __init__(
-      self, priority, name: Text, description: Text, submission_dir: Text,
-      container_id: Text, stages: executor.Stages,
-      student_submission: data_model_lib.GradeOvenStudentSubmission) -> None:
-    super(GradeOvenSubmission, self).__init__(priority, name, description)
-    self._temp_dir = None
-    self.submission_dir = submission_dir
-    self.container_id = container_id
-    self.stages = stages
-    self.student_submission = student_submission
-    self.container = None  # type: Optional[executor.DockerExecutor]
-    self.outputs = []  # type: List[Text]
-    self.errors = []  # type: List[Text]
-
-  def _run_stages_callback(self, stage: executor.Stage) -> None:
-    logging.info(u'GradeOvenSubmission._run_stages_callback %s', stage.name)
-    if self.student_submission.assignment.due_date() is None or (
-        self.student_submission.submit_time() <=
-        self.student_submission.assignment.due_date()):
-      self.student_submission.set_score(stage.name, stage.output.score)
-    else:
-      self.student_submission.set_past_due_date_score(stage.name,
-                                                      stage.output.score)
-    self.student_submission.set_output_html(stage.name,
-                                            stage.output.output_html)
-    self.student_submission.set_output(stage.name, stage.output.stdout)
-    errors = '\n'.join(stage.output.errors)
-    self.student_submission.set_errors(stage.name, errors)
-    self.student_submission.set_status(u'running (finished {})'.format(
-        stage.name))
-
-  def before_run(self) -> None:
-    logging.info(u'GradeOvenSubmission.before_run %s', self.description)
-    self.student_submission.set_status('setting up')
-    t = temp_dirs.get()
-    if t is None:
-      raise RuntimeError('No temporary directories available.')
-    else:
-      self._temp_dir = t  # type: ignore
-
-  def run(self) -> None:
-    logging.info(u'GradeOvenSubmission.run %s', self.description)
-    self.container = executor.DockerExecutor(self.container_id, self._temp_dir)
-    self.container.init()
-    self.student_submission.set_status('running')
-    username = self.student_submission.student_username
-    user = grade_oven.user(username)
-    env = {
-        'GRADEOVEN_USERNAME': username,
-        'GRADEOVEN_REAL_NAME': user.real_name(),
-        'GRADEOVEN_DISPLAY_NAME': user.display_name(),
-        'GRADEOVEN_COURSE_NAME': self.student_submission.course_name,
-        'GRADEOVEN_ASSIGNMENT_NAME': self.student_submission.assignment_name,
-    }
-    output, errs = self.container.run_stages(
-        self.submission_dir, self.stages, self._run_stages_callback, env=env)
-    self.outputs.append(output)
-    self.errors.extend(errs)
-
-  def after_run(self) -> None:
-    global temp_dirs
-    logging.info(u'GradeOvenSubmission.after_run %s', self.description)
-    self.container.cleanup()
-    temp_dirs.free(self._temp_dir)
-    self.student_submission.set_status('finished')
-
-
 def _int_or_0(x: Text) -> int:
   try:
     return int(x)
@@ -871,8 +778,9 @@ def _enqueue_student_submission(
   stages = executor.Stages(
       os.path.join('../data/files/courses', course_name, 'assignments',
                    assignment_name))
-  submission = GradeOvenSubmission(priority, username, desc, submission_dir,
-                                   container_id, stages, student_submission)
+  submission = controller_lib.GradeOvenSubmissionTask(
+    priority, username, desc, submission_dir, container_id, stages,
+    student_submission, grade_oven, temp_dirs)
   if submission in executor_queue:
     logging.warning(
         u'Student "%s" submited assignment "%s/%s" while still in the queue.',
@@ -922,7 +830,6 @@ def courses_x_assignments_x_submit(course_name, assignment_name):
   return flask.redirect(
       u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
       code=303)
-
 
 
 @app.route(
