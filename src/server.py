@@ -41,7 +41,7 @@ from datastore import datastore as datastore_lib
 import escape_lib
 import executor
 import executor_queue_lib
-import grade_oven_lib
+import data_model_lib
 import random_display_name_lib
 
 SECONDS_PER_DAY = 24 * 60 * 60
@@ -54,7 +54,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 login_manager = login.LoginManager()
 login_manager.init_app(app)
 data_store = datastore_lib.DataStore(os.path.abspath('../data/db'))
-grade_oven = grade_oven_lib.GradeOven(data_store)
+grade_oven = data_model_lib.GradeOven(data_store)
 executor_queue = executor_queue_lib.ExecutorQueue()
 monitor_variables = collections.defaultdict(int)  # type: Dict[Text, int]
 
@@ -513,7 +513,7 @@ def courses_x(course_name):
       grades_table=grades_table)
 
 
-def _make_grades_table(course: grade_oven_lib.GradeOvenCourse,
+def _make_grades_table(course: data_model_lib.GradeOvenCourse,
                        show_real_names: bool = False
                        ) -> Tuple[List[Text], List[List[Text]]]:
   header_row = []
@@ -635,7 +635,7 @@ class GradeOvenSubmission(executor_queue_lib.ExecutorQueueTask):
   def __init__(
       self, priority, name: Text, description: Text, submission_dir: Text,
       container_id: Text, stages: executor.Stages,
-      student_submission: grade_oven_lib.GradeOvenStudentSubmission) -> None:
+      student_submission: data_model_lib.GradeOvenStudentSubmission) -> None:
     super(GradeOvenSubmission, self).__init__(priority, name, description)
     self._temp_dir = None
     self.submission_dir = submission_dir
@@ -707,8 +707,8 @@ def _int_or_0(x: Text) -> int:
 
 
 def _make_grade_table(
-    course: grade_oven_lib.GradeOvenCourse,
-    assignment: grade_oven_lib.GradeOvenAssignment,
+    course: data_model_lib.GradeOvenCourse,
+    assignment: data_model_lib.GradeOvenAssignment,
     show_real_names: bool = False) -> Tuple[List[Text], List[List[Any]]]:
   header_row = [
       'Display Name', 'Score', 'Score (after due date)', 'Days Late',
@@ -1108,7 +1108,7 @@ def login_():
   username = escape_lib.safe_entity_name(form.get('username'))
   password = form.get('password')
   if username and password:
-    user = grade_oven_lib.GradeOvenUser.load_and_authenticate_user(
+    user = data_model_lib.GradeOvenUser.load_and_authenticate_user(
         data_store, username, password)
     if user is None:
       monitor_variables['login_failures'] += 1
