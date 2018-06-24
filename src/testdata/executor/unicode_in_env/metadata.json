@@ -1,0 +1,8 @@
+{
+    "stages": [
+        {
+            "directory_name": "print_env",
+            "description": "Prints all environment variables in sorted order."
+        }
+    ]
+}

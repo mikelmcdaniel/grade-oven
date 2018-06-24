@@ -411,7 +411,7 @@ class DockerExecutor(object):
     docker_cmd.extend(['--user', user or str(os.geteuid())])
     for key, val in env.items():
       docker_cmd.append('--env')
-      docker_cmd.append('{}={}'.format(key, val.encode('utf-8')))
+      docker_cmd.append('{}={}'.format(key, val))
     if user == 'root':
       docker_cmd.append('--volume')
       docker_cmd.append(u'{}/root:/root'.format(self.host_dir))

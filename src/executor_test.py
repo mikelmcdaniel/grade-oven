@@ -44,20 +44,22 @@ class TestExecutor(unittest.TestCase):
       self.assertEqual(stages.stages['stage0'].output.stdout, 'HELLO WORLD\n')
 
   def test_unicode_in_env(self):
-    host_dir = 'testdata/executor/HOST_DIR/hello_world'
-    stages_dir = 'testdata/executor/hello_world'
+    host_dir = 'testdata/executor/HOST_DIR/unicode_in_env'
+    stages_dir = 'testdata/executor/unicode_in_env'
     code_path = None
     with EphemeralDir(host_dir):
       c = executor.DockerExecutor('test_unicode_in_env', host_dir)
       c.init()
       stages = executor.Stages(stages_dir)
       env = {
-          'DECODED': u'┻━┻ ︵﻿ ¯\(ツ)/¯ ︵ ┻━┻',
-          'ENCODED': '┻━┻ ︵﻿ ¯\(ツ)/¯ ︵ ┻━┻',
+          'test': '🤬',
+          'thumbs_up': '👍🏾👍🏿👍🏻👍🏼👍🏽',
       }
       output, errors = c.run_stages(code_path, stages, env=env)
       self.assertEqual(errors, [])
-      self.assertEqual(stages.stages['stage0'].output.stdout, 'HELLO WORLD\n')
+      self.assertIn('test=🤬\n', stages.stages['print_env'].output.stdout)
+      self.assertIn('thumbs_up=👍🏾👍🏿👍🏻👍🏼👍🏽\n',
+                    stages.stages['print_env'].output.stdout)
 
   def test_hello_world_cpp(self):
     host_dir = 'testdata/executor/HOST_DIR/hello_world_cpp'
