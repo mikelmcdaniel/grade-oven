@@ -496,8 +496,7 @@ class DockerExecutor(object):
     return return_code, output.decode('utf-8'), errors
 
   def _extract_archive(self, archive_path: Text,
-                       user: Optional[Text] = None) -> Tuple[Text, List[Text]]:
-    output = ''
+                       user: Optional[Text] = None) -> List[Text]:
     errors = []
     if archive_path is not None:
       unarchive_cmd = {
@@ -515,14 +514,13 @@ class DockerExecutor(object):
         if return_code:
           errors.append('Unarchiving command failed: "{}"'.format(
               output.rsplit('\n', 1)[-1]))
-    return output, errors
+    return errors
 
   def _copy_and_extract_archive(
       self,
       archive_path: Text,
       dst_path: Optional[Text] = None,
-      user: Optional[Text] = None) -> Tuple[Text, List[Text]]:
-    output = ''
+      user: Optional[Text] = None) -> List[Text]:
     errors = []
     if archive_path is not None:
       if dst_path is None:
@@ -530,7 +528,7 @@ class DockerExecutor(object):
       if os.path.isfile(archive_path):
         logging.info('Copying file "%s" to "%s"', archive_path, dst_path)
         shutil.copy(archive_path, dst_path)
-        output, errs = self._extract_archive(archive_path, user=user)
+        errs = self._extract_archive(archive_path, user=user)
         errors.extend(errs)
       elif os.path.isdir(archive_path):
         logging.info('Copying directory files "%s"/* to "%s"', archive_path,
@@ -548,7 +546,7 @@ class DockerExecutor(object):
         errors.append(
             'archive_path is not a file/dir: "{}"'.format(archive_path))
         logging.error(errors[-1])
-    return output, errors
+    return errors
 
   def init(self) -> None:
     """Remove any contaminated contents from self.host_dir in order
@@ -573,18 +571,16 @@ class DockerExecutor(object):
     container.  When a stage is done running, stage_done_callback is called
     with the stage that has completed.
     """
-    outputs = []
+    outputs = []  # type: List[Text]
     errors = []
-    output, errs = self._copy_and_extract_archive(submission_path,
+    errs = self._copy_and_extract_archive(submission_path,
                                                   os.path.join(
                                                       self.host_dir,
                                                       'grade_oven/submission'))
-    outputs.append(output)
     errors.extend(errs)
     for stage in stages.stages.values():
-      output, errs = self._copy_and_extract_archive(
+      errs = self._copy_and_extract_archive(
           stage.path, os.path.join(self.host_dir, 'grade_oven', stage.name))
-      outputs.append(output)
       errors.extend(errs)
       return_code, output, errs = self._docker_run(
           'grade_oven/grade_oven',
