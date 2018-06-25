@@ -14,7 +14,7 @@ class TestDataStore(unittest.TestCase):
     key3 = ('courses', 'python', 'assignments', 'homework 1')
     temp_dir = tempfile.mkdtemp()
     store.put(key1, b'c++ 1')
-    store.put(key2, u'c++ 2')
+    store.put(key2, 'c++ 2')
     store[key3] = 'python 1'
     self.assertEqual(
         set(store.get_all(('courses', ))), set([six.unichr(9835), 'python']))

@@ -65,7 +65,7 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
     self.errors = []  # type: List[Text]
 
   def _process_stage_output(self, output: executor.StageOutput) -> None:
-    logging.info(u'GradeOvenSubmissionTask._process_stage_output %s',
+    logging.info('GradeOvenSubmissionTask._process_stage_output %s',
                  output.stage_name)
     if self.student_submission.assignment.due_date() is None or (
         self.student_submission.submit_time() <=
@@ -79,11 +79,11 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
     self.student_submission.set_output(output.stage_name, output.stdout)
     errors = '\n'.join(output.errors)
     self.student_submission.set_errors(output.stage_name, errors)
-    self.student_submission.set_status(u'running (finished {})'.format(
+    self.student_submission.set_status('running (finished {})'.format(
         output.stage_name))
 
   def before_run(self) -> None:
-    logging.info(u'GradeOvenSubmissionTask.before_run %s', self.description)
+    logging.info('GradeOvenSubmissionTask.before_run %s', self.description)
     self.student_submission.set_status('setting up')
     t = self.temp_dirs.get()
     if t is None:
@@ -92,7 +92,7 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
       self._temp_dir = t  # type: ignore
 
   def run(self) -> None:
-    logging.info(u'GradeOvenSubmissionTask.run %s', self.description)
+    logging.info('GradeOvenSubmissionTask.run %s', self.description)
     self.container = executor.DockerExecutor(self.container_id, self._temp_dir)
     self.container.init()
     self.student_submission.set_status('running')
@@ -112,7 +112,7 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
     self.errors.extend(stage_output.errors)
 
   def after_run(self) -> None:
-    logging.info(u'GradeOvenSubmissionTask.after_run %s', self.description)
+    logging.info('GradeOvenSubmissionTask.after_run %s', self.description)
     self.container.cleanup()
     self.temp_dirs.free(self._temp_dir)
     self.student_submission.set_status('finished')

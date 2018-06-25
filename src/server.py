@@ -67,7 +67,7 @@ assert len(temp_dirs) > 0
 def nothing_required(func: Callable) -> Callable:
   @functools.wraps(func)
   def nothing_required_func(*args, **kwargs):
-    logging.info(u'User "%s" accessed public page "%s"',
+    logging.info('User "%s" accessed public page "%s"',
                  login.current_user.get_id(), flask.request.url)
     return func(*args, **kwargs)
 
@@ -78,14 +78,14 @@ def login_required(func: Callable) -> Callable:
   @functools.wraps(func)
   def login_required_func(*args, **kwargs):
     if login.current_user.is_authenticated:
-      logging.info(u'User "%s" accessed "%s"', login.current_user.get_id(),
+      logging.info('User "%s" accessed "%s"', login.current_user.get_id(),
                    flask.request.url)
       return func(*args, **kwargs)
     else:
-      logging.info(u'Unknown user "%s" tried to access "%s"',
+      logging.info('Unknown user "%s" tried to access "%s"',
                    login.current_user.get_id(), flask.request.url)
       return flask.redirect(
-          u'/login?redirect={}'.format(flask.request.path), code=303)
+          '/login?redirect={}'.format(flask.request.path), code=303)
 
   return login_required_func
 
@@ -94,11 +94,11 @@ def admin_required(func: Callable) -> Callable:
   @functools.wraps(func)
   def admin_required_func(*args, **kwargs):
     if login.current_user.is_authenticated and login.current_user.is_admin():
-      logging.info(u'Admin "%s" accessed "%s"', login.current_user.get_id(),
+      logging.info('Admin "%s" accessed "%s"', login.current_user.get_id(),
                    flask.request.url)
       return func(*args, **kwargs)
     else:
-      logging.warning(u'Unknown user "%s" tried to access admin page "%s"',
+      logging.warning('Unknown user "%s" tried to access admin page "%s"',
                       login.current_user.get_id(), flask.request.url)
       return flask.abort(403)  # forbidden
 
@@ -110,11 +110,11 @@ def monitor_required(func: Callable) -> Callable:
   def monitor_required_func(*args, **kwargs):
     if login.current_user.is_authenticated and login.current_user.is_monitor():
       if login.current_user.get_id() != 'monitor':
-        logging.info(u'Monitor "%s" accessed "%s"',
+        logging.info('Monitor "%s" accessed "%s"',
                      login.current_user.get_id(), flask.request.url)
       return func(*args, **kwargs)
     else:
-      logging.warning(u'Unknown user "%s" tried to access monitor page "%s"',
+      logging.warning('Unknown user "%s" tried to access monitor page "%s"',
                       login.current_user.get_id(), flask.request.url)
       return flask.abort(403)  # forbidden
 
@@ -133,7 +133,7 @@ def csrf_protect() -> None:
     received_token = flask.request.form.get('_csrf_token')
     if expected_token != received_token:
       logging.warning(
-          u'Invalid _csrf_token "%s" for "%s". Expected token "%s".',
+          'Invalid _csrf_token "%s" for "%s". Expected token "%s".',
           expected_token, flask.request.url, received_token)
       flask.abort(403)
 
@@ -196,7 +196,7 @@ def _add_edit_user(username: Text, password: Text, is_admin: bool,
                    takes_course: bool, add_defaults: bool,
                    msgs: List[Text]) -> None:
   user = grade_oven.user(username)
-  msgs.append(u'Loaded user {!r}'.format(username))
+  msgs.append('Loaded user {!r}'.format(username))
   if password is not None:
     user.set_password(password)
     msgs.append('Set password')
@@ -310,7 +310,7 @@ def monitor_logs_x(log_name: Text) -> flask.Response:
   errors = []
   safe_log_name = escape_lib.safe_entity_name(log_name)
   if safe_log_name != log_name:
-    logging.error(u'User "%s" requsted bad log name "%s".',
+    logging.error('User "%s" requsted bad log name "%s".',
                   login.current_user.get_id(), log_name)
     return flask.redirect('/monitor/logs/' + safe_log_name)
 
@@ -319,7 +319,7 @@ def monitor_logs_x(log_name: Text) -> flask.Response:
   try:
     max_bytes = int(max_bytes)
   except ValueError as e:
-    errors.append(u'max_bytes "{}" is not an int: {}'.format(max_bytes, e))
+    errors.append('max_bytes "{}" is not an int: {}'.format(max_bytes, e))
     logging.error(errors[-1])
     max_bytes = 100 * 1024
   line_regex = flask.request.args.get('line_regex', '')
@@ -336,7 +336,7 @@ def monitor_logs_x(log_name: Text) -> flask.Response:
             line for line in log_data.split('\n')
             if compiled_line_regex.match(line))
   except (OSError, IOError) as e:
-    errors.append(u'Could not read log:\n{!r}\n{}'.format(e, e))
+    errors.append('Could not read log:\n{!r}\n{}'.format(e, e))
     log_data = ''
   return flask.render_template(
       'monitor_logs_x.html',
@@ -351,7 +351,7 @@ def monitor_logs_x(log_name: Text) -> flask.Response:
 @app.route('/debug/logged_in')
 @login_required
 def debug_logged_in() -> Text:
-  return u'Logged in as {}.'.format(cgi.escape(login.current_user.get_id()))
+  return 'Logged in as {}.'.format(cgi.escape(login.current_user.get_id()))
 
 
 @app.route('/debug/ping')
@@ -385,7 +385,7 @@ def save_files_in_dir(flask_files: List[werkzeug.datastructures.FileStorage],
       else:
         safe_base_filename = escape_lib.safe_entity_name(base_filename)
         errors.append(
-            u'Filename "{}" is unsafe.  File saved as "{}" instead.'.format(
+            'Filename "{}" is unsafe.  File saved as "{}" instead.'.format(
                 base_filename, safe_base_filename))
         logging.warning(errors[-1])
         f.save(os.path.join(dir_path, safe_base_filename))
@@ -421,7 +421,7 @@ def courses_x_download_grades(course_name: Text) -> flask.Response:
     response.headers['Content-Disposition'] = 'attachment; filename=grades.csv'
     return response
   else:
-    return flask.redirect(u'/courses/{}'.format(course_name), code=303)
+    return flask.redirect('/courses/{}'.format(course_name), code=303)
 
 
 @app.route('/courses/<string:course_name>', methods=['GET', 'POST'])
@@ -444,7 +444,7 @@ def courses_x(course_name):
               '../data/files/courses/{}/assignments'.format(course_name))
       else:
         course.add_assignment(assignment_name)
-      return flask.redirect(u'/courses/{}/assignments/{}'.format(
+      return flask.redirect('/courses/{}/assignments/{}'.format(
           course_name, assignment_name))
     # Enroll students
     add_students = escape_lib.safe_entity_name(form.get('add_students'))
@@ -458,7 +458,7 @@ def courses_x(course_name):
     psuedo_usernames = []
     for student_username in student_usernames:
       u = grade_oven.user(student_username)
-      psuedo_usernames.append(u'{} ({})'.format(student_username,
+      psuedo_usernames.append('{} ({})'.format(student_username,
                                                 u.display_name()))
     student_usernames = psuedo_usernames
   else:
@@ -532,7 +532,7 @@ def _edit_assignment(form: werkzeug.datastructures.ImmutableMultiDict,
                      course_name: Text, assignment_name: Text,
                      stages: executor.Stages) -> List[Text]:
   errors = []
-  logging.info(u'Editing assignment "%s" in course "%s"', assignment_name,
+  logging.info('Editing assignment "%s" in course "%s"', assignment_name,
                course_name)
   course = grade_oven.course(course_name)
   course.add_assignment(assignment_name)
@@ -567,26 +567,26 @@ def _edit_assignment(form: werkzeug.datastructures.ImmutableMultiDict,
         try:
           df_stage.remove_file(df_filename)
         except OSError as e:
-          errors.append(u'Could not delete "{}": {}'.format(delete_file, e))
+          errors.append('Could not delete "{}": {}'.format(delete_file, e))
           logging.warning(errors[-1])
       except KeyError as e:
-        errors.append(u'Could not find stage "{}" to delete "{}": {}'.format(
+        errors.append('Could not find stage "{}" to delete "{}": {}'.format(
             df_stage_name, delete_file, e))
         logging.warning(errors[-1])
     else:
-      errors.append(u'Could not split "{}" to delete it.'.format(delete_file))
+      errors.append('Could not split "{}" to delete it.'.format(delete_file))
       logging.warning(errors[-1])
   for stage in stages.stages.values():
-    description = form.get(u'description_{}'.format(stage.name))
+    description = form.get('description_{}'.format(stage.name))
     if description:
       stage.save_description(description)
-    main_cmds = form.get(u'main_cmds_{}'.format(stage.name))
+    main_cmds = form.get('main_cmds_{}'.format(stage.name))
     if main_cmds:
       stage.save_main_script(main_cmds)
-    is_trusted_stage = form.get(u'is_trusted_stage_{}'.format(
+    is_trusted_stage = form.get('is_trusted_stage_{}'.format(
         stage.name)) is not None
     stage.save_is_trusted_stage(is_trusted_stage)
-    files = flask.request.files.getlist(u'files_{}[]'.format(stage.name))
+    files = flask.request.files.getlist('files_{}[]'.format(stage.name))
     if files:
       errors.extend(save_files_in_stage(files, stage))
   delete_stages = form.getlist('delete_stages'.format(stage.name))
@@ -621,7 +621,7 @@ def _make_grade_table(
     if not show_real_names and user.prefers_anonymity():
       continue
     if show_real_names:
-      row.append(u'{} ({})'.format(user.display_name(), user.real_name()))
+      row.append('{} ({})'.format(user.display_name(), user.real_name()))
     else:
       row.append(user.display_name())
     submission = assignment.student_submission(username)
@@ -671,7 +671,7 @@ def courses_x_assignments_x_download(course_name: Text,
     return response
   else:
     return flask.redirect(
-        u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+        '/courses/{}/assignments/{}'.format(course_name, assignment_name),
         code=303)
 
 
@@ -694,7 +694,7 @@ def courses_x_assignments_x_download_submissions(
     return response
   else:
     return flask.redirect(
-        u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+        '/courses/{}/assignments/{}'.format(course_name, assignment_name),
         code=303)
 
 
@@ -718,7 +718,7 @@ def courses_x_assignments_x_download_previous_submission(
     return response
   else:
     return flask.redirect(
-        u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+        '/courses/{}/assignments/{}'.format(course_name, assignment_name),
         code=303)
 
 
@@ -738,7 +738,7 @@ def courses_x_assignments_x_edit(course_name: Text,
     for error in _edit_assignment(form, course_name, assignment_name, stages):
       flask.flash(error)
   return flask.redirect(
-      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+      '/courses/{}/assignments/{}'.format(course_name, assignment_name),
       code=303)
 
 
@@ -753,12 +753,12 @@ def _enqueue_student_submission(
   # if student_submission.num_submissions() == 0 and not files:
   #   return
   monitor_variables['assignment_attempts'] += 1
-  logging.info(u'Student "%s" is attempting assignment "%s/%s".', username,
+  logging.info('Student "%s" is attempting assignment "%s/%s".', username,
                course_name, assignment_name)
   submission_dir = os.path.join('../data/files/courses', course_name,
                                 'assignments', assignment_name, 'submissions',
                                 username)
-  desc = u'{}_{}_{}'.format(course_name, assignment_name, username)
+  desc = '{}_{}_{}'.format(course_name, assignment_name, username)
   # TODO: Fix the quick hack below.  It is only in place to avoid "escaped"
   # names that are not safe docker container names.
   container_id = str(abs(hash(desc)))[:32]
@@ -775,21 +775,21 @@ def _enqueue_student_submission(
       student_submission, grade_oven, temp_dirs)
   if submission in executor_queue:
     logging.warning(
-        u'Student "%s" submited assignment "%s/%s" while still in the queue.',
+        'Student "%s" submited assignment "%s/%s" while still in the queue.',
         username, course_name, assignment_name)
     flask.flash(
-        u'{} cannot submit assignment {} for {} while in the queue.'.format(
+        '{} cannot submit assignment {} for {} while in the queue.'.format(
             username, assignment_name, course_name))
   elif cur_time < submit_time + min_seconds_since_last_submission:
     seconds_left = min_seconds_since_last_submission - (cur_time - submit_time)
     formatted_time = time.strftime(
         '%Y-%m-%d %H:%M:%S',
         time.localtime(submit_time + min_seconds_since_last_submission))
-    logging.info(u'Student "%s" submitted assignment "%s/%s" '
+    logging.info('Student "%s" submitted assignment "%s/%s" '
                  'but needs to wait until %s (%s seconds).', username,
                  course_name, assignment_name, formatted_time, seconds_left)
     flask.flash(
-        u'Please wait until {} ({:.0f} seconds) to submit {} again.'.format(
+        'Please wait until {} ({:.0f} seconds) to submit {} again.'.format(
             formatted_time, seconds_left, assignment_name))
   else:
     if files:
@@ -821,7 +821,7 @@ def courses_x_assignments_x_submit(course_name: Text,
       _enqueue_student_submission(course_name, assignment_name, user.username,
                                   files)
   return flask.redirect(
-      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+      '/courses/{}/assignments/{}'.format(course_name, assignment_name),
       code=303)
 
 
@@ -839,7 +839,7 @@ def courses_x_assignments_x_resubmit_all(
       _enqueue_student_submission(course_name, assignment_name, username,
                                   files)
   return flask.redirect(
-      u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+      '/courses/{}/assignments/{}'.format(course_name, assignment_name),
       code=303)
 
 
@@ -909,7 +909,7 @@ def courses_x_assignments_x_output_html_x(course_name: Text,
         submission_output_html=submission_output_html)
   else:
     return flask.redirect(
-        u'/courses/{}/assignments/{}'.format(course_name, assignment_name),
+        '/courses/{}/assignments/{}'.format(course_name, assignment_name),
         code=303)
 
 
