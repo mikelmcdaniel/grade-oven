@@ -177,7 +177,7 @@ class TestExecutor(unittest.TestCase):
       self.assertEqual(score_map, {'trusted': 123, 'untrusted': None})
 
   def test_save_and_remove_file(self):
-    host_dir = 'testdata/executor/HOST_DIR/hello_world'
+    host_dir = 'testdata/executor/HOST_DIR/save_and_remove_files'
     stages_dir = 'testdata/executor/hello_world'
     code_path = None
     score_map = {}
@@ -199,7 +199,7 @@ class TestExecutor(unittest.TestCase):
       self.assertFalse(os.path.exists(test_file_path))
 
   def test_add_and_remove_stage(self):
-    host_dir = 'testdata/executor/HOST_DIR/hello_world'
+    host_dir = 'testdata/executor/HOST_DIR/add_and_remove_stage'
     stages_dir = 'testdata/executor/hello_world'
     code_path = None
     score_map = {}
