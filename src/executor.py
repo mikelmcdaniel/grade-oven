@@ -87,9 +87,6 @@ class StageOutput(object):
   def __init__(self, stage_name: Text, output_path: Text) -> None:
     self.stage_name = stage_name
     score_raw = file_contents_or(os.path.join(output_path, 'score'), '')
-    # This is only for backwards compatibilty, when totals were also recorded.
-    if '/' in score_raw:
-      score_raw = score_raw.split('/')[0]
     try:
       self.score = int(score_raw)
     except (TypeError, ValueError):
