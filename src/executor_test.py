@@ -195,6 +195,42 @@ class TestExecutor(unittest.TestCase):
       stage.remove_file('ignored/path/test_save_file.txt')
       self.assertFalse(os.path.exists(test_file_path))
 
+  def test_add_and_remove_stage(self):
+    host_dir = 'testdata/executor/HOST_DIR/hello_world'
+    stages_dir = 'testdata/executor/hello_world'
+    code_path = None
+    score_map = {}
+    with EphemeralDir(host_dir):
+      shutil.rmtree(host_dir)
+      shutil.copytree(stages_dir, host_dir)
+      # Add the stage
+      stages = executor.Stages(host_dir)
+      new_stage = stages.add_stage('new_stage_test')
+      self.assertEqual(new_stage, stages.stages['new_stage_test'])
+      self.assertEqual(new_stage.description, '')
+      new_stage.save_description('test description')
+      self.assertEqual(new_stage.description, 'test description')
+      del stages
+      del new_stage
+
+      # Load the stage and make sure the changes were persisted.
+      stages2 = executor.Stages(host_dir)
+      new_stage2 = stages2.stages['new_stage_test']
+      new_stage2_path = new_stage2.path
+      self.assertEqual(new_stage2.description, 'test description')
+      del new_stage2
+
+      # Remove the stage.
+      self.assertTrue(os.path.isdir(new_stage2_path))
+      stages2.remove_stage('new_stage_test')
+      self.assertFalse(os.path.isdir(new_stage2_path))
+      del stages2
+
+      # Make sure the stage was removed (by reloading).
+      stages3 = executor.Stages(host_dir)
+      with self.assertRaises(KeyError):
+        stages3.stages['new_stage_test']
+
 
 if __name__ == '__main__':
   unittest.main()

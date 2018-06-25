@@ -1,12 +1,10 @@
 {
     "stages": [
         {
-            "directory_name": "trusted",
-            "is_trusted_stage": true
+            "directory_name": "trusted"
         },
         {
-            "directory_name": "untrusted",
-            "is_trusted_stage": false
+            "directory_name": "untrusted"
         }
     ]
 }

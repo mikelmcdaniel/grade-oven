@@ -107,19 +107,27 @@ def make_file_executable(path: Text) -> None:
 
 
 class Stage(object):
-  def __init__(self, stage_name: Text, stage_path: Text,
-               stages: "Stages") -> None:
+  def __init__(self, stage_name: Text, stage_path: Text) -> None:
     self.name = stage_name
     self.path = stage_path
-    self._stages = stages
     self.output = None  # type: Optional[StageOutput]
+    self._raw_json = self._load_raw_json()
 
-  def _raw_stage_json(self) -> Dict[Text, Any]:
-    stages = self._stages._raw_json.get('stages', ())
-    for stage in stages:
-      if stage['directory_name'] == self.name:
-        return stage
-    raise AssertionError('Stage {} not found in {}'.format(self.name, stages))
+  def _save_raw_json(self) -> None:
+    maybe_makedirs(self.path)
+    content = json.dumps(self._raw_json)
+    with open(os.path.join(self.path, 'metadata.json'), 'w') as f:
+      f.write(content)
+
+  def _load_raw_json(self) -> Dict[Text, Any]:
+    path = os.path.realpath(os.path.join(self.path, 'metadata.json'))
+    contents = file_contents_or(path, '{}')
+    try:
+      raw_json = json.loads(contents)  # type: Dict[Text, Any]
+    except ValueError as e:
+      raise ValueError('Corrupt metadata: {}\n{}\n{!r}'.format(
+          e, path, contents))
+    return raw_json
 
   def save_main_script(self, contents=None):
     """Save a main script to be run inside the Docker container.
@@ -153,21 +161,21 @@ class Stage(object):
 
   @property
   def description(self) -> Text:
-    return self._raw_stage_json().get('description', '')
+    return self._raw_json.get('description', '')
 
   @property
   def is_trusted_stage(self) -> bool:
     # TODO: Make this default to False since it's
     # safer generally better to fail closed.
-    return self._raw_stage_json().get('is_trusted_stage', True)
+    return self._raw_json.get('is_trusted_stage', True)
 
   def save_is_trusted_stage(self, is_trusted_stage: bool) -> None:
-    self._raw_stage_json()['is_trusted_stage'] = is_trusted_stage
-    self._stages._save_raw_json()
+    self._raw_json['is_trusted_stage'] = is_trusted_stage
+    self._save_raw_json()
 
   def save_description(self, desc: Text) -> None:
-    self._raw_stage_json()['description'] = desc
-    self._stages._save_raw_json()
+    self._raw_json['description'] = desc
+    self._save_raw_json()
 
   def save_file(self, filename: Text, src_file: IO) -> None:
     maybe_makedirs(self.path)
@@ -194,6 +202,9 @@ class Stage(object):
         path = os.path.join(root, basename)
         zip_file.write(path, os.path.join(self.name, basename))
 
+  def remove_self(self):
+    shutil.rmtree(self.path)
+
 
 class Stages(object):
   def __init__(self, stages_path: Text) -> None:
@@ -210,16 +221,12 @@ class Stages(object):
 
   def _load_raw_json(self) -> Dict[Text, Any]:
     path = os.path.realpath(os.path.join(self.path, 'metadata.json'))
-    contents = file_contents_or(path, '{}')
+    contents = file_contents_or(path, '{ "stages": [] }')
     try:
       raw_json = json.loads(contents)  # type: Dict[Text, Any]
     except ValueError as e:
       raise ValueError('Corrupt metadata: {}\n{}\n{!r}'.format(
           e, path, contents))
-    try:
-      raw_json['stages']
-    except KeyError:
-      raw_json['stages'] = []
     return raw_json
 
   def _load_stages(self) -> Dict[Text, Stage]:
@@ -228,7 +235,7 @@ class Stages(object):
       # TODO: sanitize names so they can't be something like '/path/from/root'
       stage_name = stage['directory_name']
       stages[stage_name] = Stage(stage_name, os.path.join(
-          self.path, stage_name), self)
+          self.path, stage_name))
     return stages
 
   @property
@@ -241,11 +248,12 @@ class Stages(object):
 
   def add_stage(self, stage_name: Text) -> Stage:
     stage_path = os.path.join(self.path, stage_name)
-    self.stages[stage_name] = Stage(stage_name, self.path, self)
+    stage = Stage(stage_name, stage_path)
+    maybe_makedirs(stage_path)
     self._raw_json['stages'].append({'directory_name': stage_name})
     self._save_raw_json()
-    maybe_makedirs(stage_path)
-    return self.stages[stage_name]
+    self.stages[stage_name] = stage
+    return stage
 
   # TODO: return errors
   def remove_stage(self, stage_name: Text) -> None:
@@ -257,7 +265,7 @@ class Stages(object):
         break
     self._save_raw_json()
     try:
-      shutil.rmtree(stage.path)
+      stage.remove_self()
     except (shutil.Error, OSError, IOError) as e:
       pass
 
