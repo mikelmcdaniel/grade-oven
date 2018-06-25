@@ -24,7 +24,7 @@ import shutil
 import six
 import subprocess
 import time
-from typing import Any, Callable, Dict, Iterable, IO, List, Optional, Text, Tuple
+from typing import Any, Callable, Dict, Iterable, Iterator, IO, List, Optional, Text, Tuple
 import zipfile
 
 import escape_lib
@@ -84,7 +84,8 @@ def file_contents_or(file_path: Text, default_contents: Text = '') -> Text:
 class StageOutput(object):
   SCORE_RE = re.compile(r'\s*(-?\d+)\s*/\s*(-?\d+)\s*')
 
-  def __init__(self, output_path: Text) -> None:
+  def __init__(self, stage_name: Text, output_path: Text) -> None:
+    self.stage_name = stage_name
     score_raw = file_contents_or(os.path.join(output_path, 'score'), '')
     # This is only for backwards compatibilty, when totals were also recorded.
     if '/' in score_raw:
@@ -110,7 +111,6 @@ class Stage(object):
   def __init__(self, stage_name: Text, stage_path: Text) -> None:
     self.name = stage_name
     self.path = stage_path
-    self.output = None  # type: Optional[StageOutput]
     self._raw_json = self._load_raw_json()
 
   def _save_raw_json(self) -> None:
@@ -516,11 +516,10 @@ class DockerExecutor(object):
               output.rsplit('\n', 1)[-1]))
     return errors
 
-  def _copy_and_extract_archive(
-      self,
-      archive_path: Text,
-      dst_path: Optional[Text] = None,
-      user: Optional[Text] = None) -> List[Text]:
+  def _copy_and_extract_archive(self,
+                                archive_path: Text,
+                                dst_path: Optional[Text] = None,
+                                user: Optional[Text] = None) -> List[Text]:
     errors = []
     if archive_path is not None:
       if dst_path is None:
@@ -565,37 +564,34 @@ class DockerExecutor(object):
   def run_stages(self,
                  submission_path: Text,
                  stages: Stages,
-                 stage_done_callback: Callable[[Stage], Any] = None,
-                 env: Dict[Text, Text] = None) -> Tuple[Text, List[Text]]:
+                 env: Dict[Text, Text] = None) -> Iterator[StageOutput]:
     """Run stages, copying submission_path to /grade_oven/submission inside the
-    container.  When a stage is done running, stage_done_callback is called
-    with the stage that has completed.
+    container.  When a stage is done running, yield a StageOutput.
     """
-    outputs = []  # type: List[Text]
-    errors = []
-    errs = self._copy_and_extract_archive(submission_path,
-                                                  os.path.join(
-                                                      self.host_dir,
-                                                      'grade_oven/submission'))
-    errors.extend(errs)
+    errors = self._copy_and_extract_archive(submission_path,
+                                            os.path.join(
+                                                self.host_dir,
+                                                'grade_oven/submission'))
+    errors.extend(errors)
     for stage in stages.stages.values():
-      errs = self._copy_and_extract_archive(
-          stage.path, os.path.join(self.host_dir, 'grade_oven', stage.name))
-      errors.extend(errs)
-      return_code, output, errs = self._docker_run(
+      errors = self._copy_and_extract_archive(stage.path,
+                                              os.path.join(
+                                                  self.host_dir, 'grade_oven',
+                                                  stage.name))
+      errors.extend(errors)
+      return_code, output, errors = self._docker_run(
           'grade_oven/grade_oven',
           [os.path.join('/grade_oven', stage.name, 'main')],
           env=env)
-      stage.output = StageOutput(
-          os.path.join(self.host_dir, 'grade_oven/output'))
-      stage.output.stdout = output
-      stage.output.errors = errs
+      stage_output = StageOutput(stage.name,
+                                 os.path.join(self.host_dir,
+                                              'grade_oven/output'))
+      stage_output.stdout = output
+      stage_output.errors = errors
       # If the stage is running untrusted code, remove the score.
       if not stage.is_trusted_stage:
-        stage.output.score = None
-      if stage_done_callback is not None:
-        stage_done_callback(stage)
-    return '\n'.join(outputs), errors
+        stage_output.score = None
+      yield stage_output
 
   def cleanup(self) -> None:
     for sub_dir in ('tmp', 'grade_oven'):

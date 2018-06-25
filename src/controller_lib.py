@@ -64,23 +64,23 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
     self.outputs = []  # type: List[Text]
     self.errors = []  # type: List[Text]
 
-  def _run_stages_callback(self, stage: executor.Stage) -> None:
-    logging.info(u'GradeOvenSubmissionTask._run_stages_callback %s',
-                 stage.name)
+  def _process_stage_output(self, output: executor.StageOutput) -> None:
+    logging.info(u'GradeOvenSubmissionTask._process_stage_output %s',
+                 output.stage_name)
     if self.student_submission.assignment.due_date() is None or (
         self.student_submission.submit_time() <=
         self.student_submission.assignment.due_date()):
-      self.student_submission.set_score(stage.name, stage.output.score)
+      self.student_submission.set_score(output.stage_name, output.score)
     else:
-      self.student_submission.set_past_due_date_score(stage.name,
-                                                      stage.output.score)
-    self.student_submission.set_output_html(stage.name,
-                                            stage.output.output_html)
-    self.student_submission.set_output(stage.name, stage.output.stdout)
-    errors = '\n'.join(stage.output.errors)
-    self.student_submission.set_errors(stage.name, errors)
+      self.student_submission.set_past_due_date_score(output.stage_name,
+                                                      output.score)
+    self.student_submission.set_output_html(output.stage_name,
+                                            output.output_html)
+    self.student_submission.set_output(output.stage_name, output.stdout)
+    errors = '\n'.join(output.errors)
+    self.student_submission.set_errors(output.stage_name, errors)
     self.student_submission.set_status(u'running (finished {})'.format(
-        stage.name))
+        output.stage_name))
 
   def before_run(self) -> None:
     logging.info(u'GradeOvenSubmissionTask.before_run %s', self.description)
@@ -105,10 +105,11 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
         'GRADEOVEN_COURSE_NAME': self.student_submission.course_name,
         'GRADEOVEN_ASSIGNMENT_NAME': self.student_submission.assignment_name,
     }
-    output, errs = self.container.run_stages(
-        self.submission_dir, self.stages, self._run_stages_callback, env=env)
-    self.outputs.append(output)
-    self.errors.extend(errs)
+    for stage_output in self.container.run_stages(
+        self.submission_dir, self.stages, env=env):
+      self._process_stage_output(stage_output)
+    self.outputs.append(stage_output.stdout)
+    self.errors.extend(stage_output.errors)
 
   def after_run(self) -> None:
     logging.info(u'GradeOvenSubmissionTask.after_run %s', self.description)

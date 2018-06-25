@@ -39,9 +39,11 @@ class TestExecutor(unittest.TestCase):
       c = executor.DockerExecutor('test_hello_world', host_dir)
       c.init()
       stages = executor.Stages(stages_dir)
-      output, errors = c.run_stages(code_path, stages)
-      self.assertEqual(errors, [])
-      self.assertEqual(stages.stages['stage0'].output.stdout, 'HELLO WORLD\n')
+      outputs = {}
+      for stage_output in c.run_stages(code_path, stages):
+        outputs[stage_output.stage_name] = stage_output
+        self.assertEqual(stage_output.errors, [])
+      self.assertEqual(outputs['stage0'].stdout, 'HELLO WORLD\n')
 
   def test_unicode_in_env(self):
     host_dir = 'testdata/executor/HOST_DIR/unicode_in_env'
@@ -55,11 +57,12 @@ class TestExecutor(unittest.TestCase):
           'test': '🤬',
           'thumbs_up': '👍🏾👍🏿👍🏻👍🏼👍🏽',
       }
-      output, errors = c.run_stages(code_path, stages, env=env)
-      self.assertEqual(errors, [])
-      self.assertIn('test=🤬\n', stages.stages['print_env'].output.stdout)
-      self.assertIn('thumbs_up=👍🏾👍🏿👍🏻👍🏼👍🏽\n',
-                    stages.stages['print_env'].output.stdout)
+      outputs = {}
+      for stage_output in c.run_stages(code_path, stages, env=env):
+        outputs[stage_output.stage_name] = stage_output
+        self.assertEqual(stage_output.errors, [])
+      self.assertIn('test=🤬\n', outputs['print_env'].stdout)
+      self.assertIn('thumbs_up=👍🏾👍🏿👍🏻👍🏼👍🏽\n', outputs['print_env'].stdout)
 
   def test_hello_world_cpp(self):
     host_dir = 'testdata/executor/HOST_DIR/hello_world_cpp'
@@ -68,9 +71,9 @@ class TestExecutor(unittest.TestCase):
     with EphemeralDir(host_dir):
       c = executor.DockerExecutor('test_hello_world_cpp', host_dir)
       c.init()
-      output, errors = c.run_stages(code_path, executor.Stages(stages_dir))
-      self.assertEqual(errors, [])
-      self.assertEqual(output.strip(), '')
+      for stage_output in c.run_stages(code_path, executor.Stages(stages_dir)):
+        self.assertEqual(stage_output.errors, [])
+        self.assertEqual(stage_output.stdout.strip(), '')
 
   def test_evil_cpp(self):
     host_dir = 'testdata/executor/HOST_DIR/evil'
@@ -83,19 +86,19 @@ class TestExecutor(unittest.TestCase):
       c.max_num_files = 100
       c.max_mem_bytes = 64 * 1024**2
       stages = executor.Stages(stages_dir)
-      output, errors = c.run_stages(code_path, stages)
-      self.assertEqual(stages.stages['fork_bomb'].output.errors, [
+      outputs = {}
+      for stage_output in c.run_stages(code_path, stages):
+        outputs[stage_output.stage_name] = stage_output
+      self.assertEqual(outputs['fork_bomb'].errors, [
           'Command "/grade_oven/fork_bomb/main" did not finish in '
           '5 seconds and timed out.'
       ])
-      self.assertTrue('many_open_files: 80 files open' in stages.stages[
-          'many_open_files'].output.stdout)
-      self.assertFalse('many_open_files: 120 files open' in stages.stages[
-          'many_open_files'].output.stdout)
-      self.assertTrue('much_ram: Allocated 48MB.' in stages.stages['much_ram']
-                      .output.stdout)
-      self.assertFalse('much_ram: Allocated 64MB.' in stages.stages['much_ram']
-                       .output.stdout)
+      self.assertIn('many_open_files: 80 files open',
+                    outputs['many_open_files'].stdout)
+      self.assertNotIn('many_open_files: 120 files open',
+                       outputs['many_open_files'].stdout)
+      self.assertIn('much_ram: Allocated 48MB.', outputs['much_ram'].stdout)
+      self.assertNotIn('much_ram: Allocated 64MB.', outputs['much_ram'].stdout)
 
   def test_score(self):
     host_dir = 'testdata/executor/HOST_DIR/score'
@@ -105,11 +108,13 @@ class TestExecutor(unittest.TestCase):
       c = executor.DockerExecutor('test_score', host_dir)
       c.init()
       stages = executor.Stages(stages_dir)
-      output, errors = c.run_stages(code_path, stages)
-      self.assertEqual(errors, [])
-      self.assertEqual(output.strip(), '')
+      outputs = {}
+      for stage_output in c.run_stages(code_path, stages):
+        outputs[stage_output.stage_name] = stage_output
+        self.assertEqual(stage_output.errors, [])
+        self.assertEqual(stage_output.stdout.strip(), '')
       self.assertIn('score', stages.stages)
-      self.assertEqual(stages.stages['score'].output.score, 12345)
+      self.assertEqual(outputs['score'].score, 12345)
 
   def test_big_output(self):
     host_dir = 'testdata/executor/HOST_DIR/big_output'
@@ -119,13 +124,13 @@ class TestExecutor(unittest.TestCase):
       c = executor.DockerExecutor('test_big_output', host_dir)
       c.init()
       stages = executor.Stages(stages_dir)
-      output, errors = c.run_stages(code_path, stages)
-      self.assertEqual(errors, [])
-      stage_output = stages.stages['make_output'].output.stdout
-      self.assertGreaterEqual(len(stage_output),
-                              128 * 1024)  # >= than 128KB output
-      self.assertLessEqual(len(stage_output),
-                           132 * 1024)  # <= than 128KB + 4KB output
+      for stage_output in c.run_stages(code_path, stages):
+        self.assertEqual(stage_output.errors, [])
+        stdout = stage_output.stdout
+        # >= than 128KB output
+        self.assertGreaterEqual(len(stdout), 128 * 1024)
+        # <= than 128KB + 4KB output
+        self.assertLessEqual(len(stdout), 132 * 1024)
 
   def test_save_zip(self):
     # use the "evil" test case because it has multiple stages
@@ -165,12 +170,10 @@ class TestExecutor(unittest.TestCase):
     with EphemeralDir(host_dir):
       c = executor.DockerExecutor('test_untrusted', host_dir)
       c.init()
-      output, errors = c.run_stages(
-        code_path,
-        executor.Stages(stages_dir),
-        lambda stage: score_map.update({stage.name: stage.output.score}))
-      self.assertEqual(errors, [])
-      self.assertEqual(output.strip(), '')
+      for stage_output in c.run_stages(code_path, executor.Stages(stages_dir)):
+        score_map.update({stage_output.stage_name: stage_output.score})
+        self.assertEqual(stage_output.errors, [])
+        self.assertEqual(stage_output.stdout.strip(), '')
       self.assertEqual(score_map, {'trusted': 123, 'untrusted': None})
 
   def test_save_and_remove_file(self):
