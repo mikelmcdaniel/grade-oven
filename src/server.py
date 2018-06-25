@@ -110,8 +110,8 @@ def monitor_required(func: Callable) -> Callable:
   def monitor_required_func(*args, **kwargs):
     if login.current_user.is_authenticated and login.current_user.is_monitor():
       if login.current_user.get_id() != 'monitor':
-        logging.info('Monitor "%s" accessed "%s"',
-                     login.current_user.get_id(), flask.request.url)
+        logging.info('Monitor "%s" accessed "%s"', login.current_user.get_id(),
+                     flask.request.url)
       return func(*args, **kwargs)
     else:
       logging.warning('Unknown user "%s" tried to access monitor page "%s"',
@@ -369,29 +369,6 @@ def courses() -> flask.Response:
       courses=grade_oven.course_names())
 
 
-def save_files_in_dir(flask_files: List[werkzeug.datastructures.FileStorage],
-                      dir_path) -> List[Text]:
-  errors = []
-  try:
-    os.makedirs(dir_path)
-  except OSError as e:
-    if e.errno != errno.EEXIST:
-      raise e
-  for f in flask_files:
-    base_filename = os.path.basename(f.filename)
-    if base_filename:
-      if escape_lib.is_safe_entity_name(base_filename):
-        f.save(os.path.join(dir_path, base_filename))
-      else:
-        safe_base_filename = escape_lib.safe_entity_name(base_filename)
-        errors.append(
-            'Filename "{}" is unsafe.  File saved as "{}" instead.'.format(
-                base_filename, safe_base_filename))
-        logging.warning(errors[-1])
-        f.save(os.path.join(dir_path, safe_base_filename))
-  return errors
-
-
 def save_files_in_stage(flask_files: List[werkzeug.datastructures.FileStorage],
                         stage: executor.Stage) -> List[Text]:
   errors = []
@@ -459,7 +436,7 @@ def courses_x(course_name):
     for student_username in student_usernames:
       u = grade_oven.user(student_username)
       psuedo_usernames.append('{} ({})'.format(student_username,
-                                                u.display_name()))
+                                               u.display_name()))
     student_usernames = psuedo_usernames
   else:
     student_usernames = None
@@ -742,71 +719,6 @@ def courses_x_assignments_x_edit(course_name: Text,
       code=303)
 
 
-def _enqueue_student_submission(
-    course_name: Text, assignment_name: Text, username: Text,
-    files: List[werkzeug.datastructures.FileStorage]) -> None:
-  user = grade_oven.user(username)
-  course = grade_oven.course(course_name)
-  assignment = course.assignment(assignment_name)
-  student_submission = assignment.student_submission(username)
-  # If this is a resubmission, but there's no original submission, skip it.
-  # if student_submission.num_submissions() == 0 and not files:
-  #   return
-  monitor_variables['assignment_attempts'] += 1
-  logging.info('Student "%s" is attempting assignment "%s/%s".', username,
-               course_name, assignment_name)
-  submission_dir = os.path.join('../data/files/courses', course_name,
-                                'assignments', assignment_name, 'submissions',
-                                username)
-  desc = '{}_{}_{}'.format(course_name, assignment_name, username)
-  # TODO: Fix the quick hack below.  It is only in place to avoid "escaped"
-  # names that are not safe docker container names.
-  container_id = str(abs(hash(desc)))[:32]
-  num_submissions = student_submission.num_submissions()
-  submit_time = student_submission.submit_time() or 0
-  cur_time = time.time()
-  min_seconds_since_last_submission = min(num_submissions**3, 5.0)
-  priority = (num_submissions, submit_time)
-  stages = executor.Stages(
-      os.path.join('../data/files/courses', course_name, 'assignments',
-                   assignment_name))
-  submission = controller_lib.GradeOvenSubmissionTask(
-      priority, username, desc, submission_dir, container_id, stages,
-      student_submission, grade_oven, temp_dirs)
-  if submission in executor_queue:
-    logging.warning(
-        'Student "%s" submited assignment "%s/%s" while still in the queue.',
-        username, course_name, assignment_name)
-    flask.flash(
-        '{} cannot submit assignment {} for {} while in the queue.'.format(
-            username, assignment_name, course_name))
-  elif cur_time < submit_time + min_seconds_since_last_submission:
-    seconds_left = min_seconds_since_last_submission - (cur_time - submit_time)
-    formatted_time = time.strftime(
-        '%Y-%m-%d %H:%M:%S',
-        time.localtime(submit_time + min_seconds_since_last_submission))
-    logging.info('Student "%s" submitted assignment "%s/%s" '
-                 'but needs to wait until %s (%s seconds).', username,
-                 course_name, assignment_name, formatted_time, seconds_left)
-    flask.flash(
-        'Please wait until {} ({:.0f} seconds) to submit {} again.'.format(
-            formatted_time, seconds_left, assignment_name))
-  else:
-    if files:
-      try:
-        shutil.rmtree(submission_dir)
-      except OSError as e:
-        if e.errno != errno.ENOENT:
-          raise e
-      save_files_in_dir(files, submission_dir)
-      # If there are no files being uploaded, then this must be a resubmission.
-      student_submission.set_submit_time()
-      student_submission.set_num_submissions(
-          student_submission.num_submissions() + 1)
-    student_submission.set_status('queued')
-    executor_queue.enqueue(submission)
-
-
 @app.route(
     '/courses/<string:course_name>/assignments/<string:assignment_name>/submit',
     methods=['POST'])
@@ -818,8 +730,10 @@ def courses_x_assignments_x_submit(course_name: Text,
   if takes_course:
     files = flask.request.files.getlist('submission_files[]')
     if files:
-      _enqueue_student_submission(course_name, assignment_name, user.username,
-                                  files)
+      monitor_variables['assignment_attempts'] += 1
+      controller_lib._enqueue_student_submission(
+          course_name, assignment_name, user.username, grade_oven,
+          executor_queue, temp_dirs, files)
   return flask.redirect(
       '/courses/{}/assignments/{}'.format(course_name, assignment_name),
       code=303)
@@ -833,11 +747,11 @@ def courses_x_assignments_x_resubmit_all(
     course_name: Text, assignment_name: Text) -> flask.Response:
   user = login.current_user
   instructs_course = user.instructs_course(course_name)
-  files = None
   if instructs_course:
     for username in grade_oven.course(course_name).student_usernames():
-      _enqueue_student_submission(course_name, assignment_name, username,
-                                  files)
+      controller_lib._enqueue_student_submission(course_name, assignment_name,
+                                                 username, grade_oven,
+                                                 executor_queue, temp_dirs)
   return flask.redirect(
       '/courses/{}/assignments/{}'.format(course_name, assignment_name),
       code=303)

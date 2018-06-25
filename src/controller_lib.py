@@ -6,11 +6,19 @@ frontend would then call this library which will queue the submission and
 ultimately update the datastore via data_model_lib.
 """
 import collections
+import errno
 import logging
+import os
+import shutil
 import threading
+import time
 from typing import Iterable, Generic, Optional, List, Set, Text, TypeVar
 
+import flask
+import werkzeug
+
 import data_model_lib
+import escape_lib
 import executor
 import executor_queue_lib
 
@@ -116,3 +124,95 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
     self.container.cleanup()
     self.temp_dirs.free(self._temp_dir)
     self.student_submission.set_status('finished')
+
+
+def save_files_in_dir(flask_files: List[werkzeug.datastructures.FileStorage],
+                      dir_path) -> List[Text]:
+  errors = []
+  try:
+    os.makedirs(dir_path)
+  except OSError as e:
+    if e.errno != errno.EEXIST:
+      raise e
+  for f in flask_files:
+    base_filename = os.path.basename(f.filename)
+    if base_filename:
+      if escape_lib.is_safe_entity_name(base_filename):
+        f.save(os.path.join(dir_path, base_filename))
+      else:
+        safe_base_filename = escape_lib.safe_entity_name(base_filename)
+        errors.append(
+            'Filename "{}" is unsafe.  File saved as "{}" instead.'.format(
+                base_filename, safe_base_filename))
+        logging.warning(errors[-1])
+        f.save(os.path.join(dir_path, safe_base_filename))
+  return errors
+
+
+def _enqueue_student_submission(
+    course_name: Text,
+    assignment_name: Text,
+    username: Text,
+    grade_oven: data_model_lib.GradeOven,
+    executor_queue: executor_queue_lib.ExecutorQueue,
+    temp_dirs: ResourcePool[Resource],
+    files: Optional[List[werkzeug.datastructures.FileStorage]] = None) -> None:
+  user = grade_oven.user(username)
+  course = grade_oven.course(course_name)
+  assignment = course.assignment(assignment_name)
+  student_submission = assignment.student_submission(username)
+  # If this is a resubmission, but there's no original submission, skip it.
+  # if student_submission.num_submissions() == 0 and not files:
+  #   return
+  logging.info('Student "%s" is attempting assignment "%s/%s".', username,
+               course_name, assignment_name)
+  submission_dir = os.path.join('../data/files/courses', course_name,
+                                'assignments', assignment_name, 'submissions',
+                                username)
+  desc = '{}_{}_{}'.format(course_name, assignment_name, username)
+  # TODO: Fix the quick hack below.  It is only in place to avoid "escaped"
+  # names that are not safe docker container names.
+  container_id = str(abs(hash(desc)))[:32]
+  num_submissions = student_submission.num_submissions()
+  submit_time = student_submission.submit_time() or 0
+  cur_time = time.time()
+  min_seconds_since_last_submission = min(num_submissions**3, 5.0)
+  priority = (num_submissions, submit_time)
+  stages = executor.Stages(
+      os.path.join('../data/files/courses', course_name, 'assignments',
+                   assignment_name))
+  submission = GradeOvenSubmissionTask(
+      priority, username, desc, submission_dir, container_id, stages,
+      student_submission, grade_oven, temp_dirs)
+  if submission in executor_queue:
+    logging.warning(
+        'Student "%s" submited assignment "%s/%s" while still in the queue.',
+        username, course_name, assignment_name)
+    flask.flash(
+        '{} cannot submit assignment {} for {} while in the queue.'.format(
+            username, assignment_name, course_name))
+  elif cur_time < submit_time + min_seconds_since_last_submission:
+    seconds_left = min_seconds_since_last_submission - (cur_time - submit_time)
+    formatted_time = time.strftime(
+        '%Y-%m-%d %H:%M:%S',
+        time.localtime(submit_time + min_seconds_since_last_submission))
+    logging.info('Student "%s" submitted assignment "%s/%s" '
+                 'but needs to wait until %s (%s seconds).', username,
+                 course_name, assignment_name, formatted_time, seconds_left)
+    flask.flash(
+        'Please wait until {} ({:.0f} seconds) to submit {} again.'.format(
+            formatted_time, seconds_left, assignment_name))
+  else:
+    if files:
+      try:
+        shutil.rmtree(submission_dir)
+      except OSError as e:
+        if e.errno != errno.ENOENT:
+          raise e
+      save_files_in_dir(files, submission_dir)
+      # If there are no files being uploaded, then this must be a resubmission.
+      student_submission.set_submit_time()
+      student_submission.set_num_submissions(
+          student_submission.num_submissions() + 1)
+    student_submission.set_status('queued')
+    executor_queue.enqueue(submission)
