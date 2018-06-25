@@ -569,7 +569,8 @@ class DockerExecutor(object):
                                             os.path.join(
                                                 self.host_dir,
                                                 'grade_oven/submission'))
-    errors.extend(errors)
+    if errors:
+      raise Error('\n'.join(errors))
     for stage in stages.stages.values():
       errors = self._copy_and_extract_archive(stage.path,
                                               os.path.join(

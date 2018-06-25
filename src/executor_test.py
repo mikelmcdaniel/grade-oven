@@ -234,6 +234,18 @@ class TestExecutor(unittest.TestCase):
       with self.assertRaises(KeyError):
         stages3.stages['new_stage_test']
 
+  def test_run_stages_error(self):
+    host_dir = 'testdata/executor/HOST_DIR/run_stages_error'
+    stages_dir = 'testdata/executor/hello_world'
+    code_path = 'testdata/executor/HOST_DIR/DOES_NOT_EXIST'
+    with EphemeralDir(host_dir):
+      c = executor.DockerExecutor('test_run_stages_error', host_dir)
+      c.init()
+      stages = executor.Stages(stages_dir)
+      with self.assertRaises(executor.Error):
+        for stage_output in c.run_stages(code_path, stages):
+          pass
+
 
 if __name__ == '__main__':
   unittest.main()
