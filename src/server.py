@@ -731,9 +731,10 @@ def courses_x_assignments_x_submit(course_name: Text,
     files = flask.request.files.getlist('submission_files[]')
     if files:
       monitor_variables['assignment_attempts'] += 1
-      controller_lib._enqueue_student_submission(
+      for err in controller_lib._enqueue_student_submission(
           course_name, assignment_name, user.username, grade_oven,
-          executor_queue, temp_dirs, files)
+          executor_queue, temp_dirs, files):
+        flask.flash(err)
   return flask.redirect(
       '/courses/{}/assignments/{}'.format(course_name, assignment_name),
       code=303)
@@ -749,9 +750,10 @@ def courses_x_assignments_x_resubmit_all(
   instructs_course = user.instructs_course(course_name)
   if instructs_course:
     for username in grade_oven.course(course_name).student_usernames():
-      controller_lib._enqueue_student_submission(course_name, assignment_name,
-                                                 username, grade_oven,
-                                                 executor_queue, temp_dirs)
+      for err in controller_lib._enqueue_student_submission(
+          course_name, assignment_name, username, grade_oven, executor_queue,
+          temp_dirs):
+        flask.flash(err)
   return flask.redirect(
       '/courses/{}/assignments/{}'.format(course_name, assignment_name),
       code=303)

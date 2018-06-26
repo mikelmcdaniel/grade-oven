@@ -14,7 +14,6 @@ import threading
 import time
 from typing import Iterable, Generic, Optional, List, Set, Text, TypeVar
 
-import flask
 import werkzeug
 
 import data_model_lib
@@ -156,7 +155,9 @@ def _enqueue_student_submission(
     grade_oven: data_model_lib.GradeOven,
     executor_queue: executor_queue_lib.ExecutorQueue,
     temp_dirs: ResourcePool[Resource],
-    files: Optional[List[werkzeug.datastructures.FileStorage]] = None) -> None:
+    files: Optional[List[werkzeug.datastructures.FileStorage]] = None
+) -> List[Text]:
+  errors = []
   user = grade_oven.user(username)
   course = grade_oven.course(course_name)
   assignment = course.assignment(assignment_name)
@@ -188,7 +189,7 @@ def _enqueue_student_submission(
     logging.warning(
         'Student "%s" submited assignment "%s/%s" while still in the queue.',
         username, course_name, assignment_name)
-    flask.flash(
+    errors.append(
         '{} cannot submit assignment {} for {} while in the queue.'.format(
             username, assignment_name, course_name))
   elif cur_time < submit_time + min_seconds_since_last_submission:
@@ -199,7 +200,7 @@ def _enqueue_student_submission(
     logging.info('Student "%s" submitted assignment "%s/%s" '
                  'but needs to wait until %s (%s seconds).', username,
                  course_name, assignment_name, formatted_time, seconds_left)
-    flask.flash(
+    errors.append(
         'Please wait until {} ({:.0f} seconds) to submit {} again.'.format(
             formatted_time, seconds_left, assignment_name))
   else:
@@ -216,3 +217,4 @@ def _enqueue_student_submission(
           student_submission.num_submissions() + 1)
     student_submission.set_status('queued')
     executor_queue.enqueue(submission)
+  return errors
