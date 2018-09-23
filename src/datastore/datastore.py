@@ -98,7 +98,7 @@ class DataStore(AbstractDataStore):
       real_key.append(key_part)
     real_key[0] = six.unichr(len(key))
     raw_value = self.db.Get(bytearray(''.join(real_key), 'utf-8'))
-    value = json.loads(raw_value)
+    value = json.loads(raw_value.decode('utf-8'))
     return value
 
   def get_all(self, key: DataStoreKey) -> List[Text]:
