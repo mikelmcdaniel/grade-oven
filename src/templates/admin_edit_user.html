@@ -8,7 +8,7 @@
   </ul>
 {% endif %}
 
-<h2>And/Edit Multiple Users</h2>
+<h2>Add/Edit Multiple Users</h2>
 <form method="post">
 <input action="/admin/edit_user" autofocus="autofocus" autocapitalize="off" name="usernames" type="text" placeholder="usernames">
 <input name="password" type="password" placeholder="password (empty to autogenerate)">
@@ -37,4 +37,14 @@
 <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
 <input type="submit" value="Add Users">
 </form>
+
+<h2>Bulk Add/Edit Multiple Users</h2>
+<p>You can upload a CSV with any of the following column names: username, password, is_admin, is_monitor, course, instructs_course, takes_course, display_name, real_name. All other columns will be ignored.</p>
+<form method="post" enctype="multipart/form-data">
+  <label for="user_csvs[]">CSV File: </label>
+  <input type="file" multiple="multiple" name="user_csvs[]">
+  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+  <input type="submit" value="Upload CSV">
+</form>
+
 {% endblock %}

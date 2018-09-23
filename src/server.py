@@ -193,7 +193,7 @@ def _select_to_bool(value: Text) -> Optional[bool]:
 
 def _add_edit_user(username: Text, password: Text, is_admin: bool,
                    is_monitor: bool, course: Text, instructs_course: bool,
-                   takes_course: bool, add_defaults: bool,
+                   takes_course: bool, display_name: Text, real_name: Text,
                    msgs: List[Text]) -> None:
   user = grade_oven.user(username)
   msgs.append('Loaded user {!r}'.format(username))
@@ -214,10 +214,11 @@ def _add_edit_user(username: Text, password: Text, is_admin: bool,
     if takes_course:
       user.set_takes_course(course, takes_course)
       msgs.append('Set takes_course {!r} == {!r}'.format(course, takes_course))
-  if add_defaults:
-    name = random_display_name_lib.random_name()
-    user.set_display_name(name)
-    user.set_real_name(name)
+  name = random_display_name_lib.random_name()
+  if display_name is not None:
+    user.set_display_name(display_name or name)
+  if real_name is not None:
+    user.set_real_name(real_name or name)
 
 
 @app.route('/admin/edit_user', methods=['GET', 'POST'])
@@ -259,7 +260,32 @@ def admin_edit_user() -> flask.Response:
     passwords = [password for _ in range(len(usernames))]
   for username, password_ in zip(usernames, passwords):
     _add_edit_user(username, password_, is_admin, is_monitor, course,
-                   instructs_course, takes_course, True, msgs)
+                   instructs_course, takes_course, '', '', msgs)
+
+  for user_csv in flask.request.files.getlist('user_csvs[]'):
+    for csv_row in csv.DictReader(
+        map(lambda b: b.decode('utf-8', 'replace'), user_csv)):
+      try:
+        username = csv_row['username']
+      except KeyError:
+        errors.append('"username" field missing from CSV.')
+        continue
+      user = grade_oven.user(username)
+      try:
+        password = csv_row['password']
+      except KeyError:
+        password = None if user.has_password() else bcrypt.gensalt()[7:]
+      is_admin = _select_to_bool(csv_row.get('is_admin', ''))
+      is_monitor = _select_to_bool(csv_row.get('is_monitor', ''))
+      course = csv_row.get('course')
+      instructs_course = _select_to_bool(csv_row.get('instructs_course', ''))
+      takes_course = _select_to_bool(csv_row.get('takes_course', ''))
+      display_name = csv_row.get('display_name')
+      real_name = csv_row.get('real_name')
+      _add_edit_user(username, password, is_admin, is_monitor, course,
+                     instructs_course, takes_course, display_name, real_name,
+                     msgs)
+
   return flask.render_template(
       'admin_edit_user.html',
       username=login.current_user.get_id(),
