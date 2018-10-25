@@ -51,6 +51,7 @@ Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
 <br>
 <h3>Rerun Student Submissions</h3>
 <form method="post" action="/courses/{{ course_name|e }}/assignments/{{ assignment_name|e }}/resubmit_all">
+  <input name="username_regex" type="text" placeholder="Username Regex" value=".*">
   <input type="submit" value="Rerun All Student Submissions">
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
 </form>

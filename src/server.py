@@ -775,11 +775,13 @@ def courses_x_assignments_x_resubmit_all(
   user = login.current_user
   instructs_course = user.instructs_course(course_name)
   if instructs_course:
+    username_regex = flask.request.form.get('username_regex') or '.*'
     for username in grade_oven.course(course_name).student_usernames():
-      for err in controller_lib._enqueue_student_submission(
-          course_name, assignment_name, username, grade_oven, executor_queue,
-          temp_dirs):
-        flask.flash(err)
+      if re.match(username_regex, username):
+        for err in controller_lib._enqueue_student_submission(
+            course_name, assignment_name, username, grade_oven, executor_queue,
+            temp_dirs):
+          flask.flash(err)
   return flask.redirect(
       '/courses/{}/assignments/{}'.format(course_name, assignment_name),
       code=303)
