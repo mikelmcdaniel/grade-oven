@@ -207,11 +207,11 @@ def _add_edit_user(username: Text, password: Text, is_admin: bool,
     user.set_is_monitor(is_monitor)
     msgs.append('Set is_monitor == {!r}'.format(is_monitor))
   if course is not None:
-    if instructs_course:
+    if instructs_course is not None:
       user.set_instructs_course(course, instructs_course)
       msgs.append('Set instructs_course {!r} == {!r}'.format(
           course, instructs_course))
-    if takes_course:
+    if takes_course is not None:
       user.set_takes_course(course, takes_course)
       msgs.append('Set takes_course {!r} == {!r}'.format(course, takes_course))
   name = random_display_name_lib.random_name()
@@ -293,7 +293,7 @@ def admin_edit_user() -> flask.Response:
       msgs=msgs)
 
 
-@app.route('/admin/db/<path:key>')
+@app.route('/admin/db/<path:raw_key>')
 @admin_required
 def admin_db(raw_key: Text) -> flask.Response:
   key = raw_key.split('/')
