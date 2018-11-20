@@ -415,11 +415,11 @@ def courses_x_download_grades(course_name: Text) -> flask.Response:
   takes_course = user.takes_course(course_name)
   if instructs_course:
     header_row, table = _make_grades_table(course, instructs_course)
-    buf = six.BytesIO()
+    buf = six.StringIO()
     writer = csv.writer(buf)
     writer.writerow(header_row)
     for row in table:
-      writer.writerow([x.encode('utf-8') for x in row])
+      writer.writerow(row)
     response = flask.make_response(buf.getvalue())
     response.headers['Content-Disposition'] = 'attachment; filename=grades.csv'
     return response
