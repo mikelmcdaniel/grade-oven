@@ -106,11 +106,7 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
     username = self.student_submission.student_username
     user = self.grade_oven.user(username)
     env = {
-        'GRADEOVEN_USERNAME': username,
-        'GRADEOVEN_REAL_NAME': user.real_name(),
-        'GRADEOVEN_DISPLAY_NAME': user.display_name(),
-        'GRADEOVEN_COURSE_NAME': self.student_submission.course_name,
-        'GRADEOVEN_ASSIGNMENT_NAME': self.student_submission.assignment_name,
+        'GRADEOVEN_USERNAME': username
     }
     for stage_output in self.container.run_stages(
         self.submission_dir, self.stages, env=env):
