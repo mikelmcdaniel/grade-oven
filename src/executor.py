@@ -88,7 +88,7 @@ class StageOutput(object):
     self.stage_name = stage_name
     score_raw = file_contents_or(os.path.join(output_path, 'score'), '')
     try:
-      self.score = int(score_raw)
+      self.score = int(score_raw)  # type: Optional[int]
     except (TypeError, ValueError):
       self.score = None
     self.output_html = file_contents_or(
@@ -321,7 +321,7 @@ def merge_tree(src: Text, dst: Text) -> List[Text]:
 
 
 def read_proc_summarized_stdout(proc: subprocess.Popen,
-                                bufsize: int) -> Tuple[bytes, Text]:
+                                bufsize: int) -> Tuple[bytes, Optional[Text]]:
   """Given a subprocess.Popen object, read it's stdout until the process dies
   and return a summarized version of the output and an error string or None.
 
@@ -371,7 +371,7 @@ class DockerExecutor(object):
       docker_image_name: Text,
       cmd: List[Text],
       user: Text = None,
-      env: Dict[Text, Text] = None) -> Tuple[int, Text, List[Text]]:
+      env: Dict[Text, Text] = None) -> Tuple[Optional[int], Text, List[Text]]:
     "Runs a command and returns the return code or None if it timed out."
     errors = []
     if user not in ('grade_oven', 'root', None):
@@ -446,7 +446,7 @@ class DockerExecutor(object):
         env=empty_env)
     return_code_raw, _ = proc.communicate()
     try:
-      return_code = int(return_code_raw)
+      return_code = int(return_code_raw)  # type: Optional[int]
     except ValueError:
       errors.append(
           'Command "{}" did not finish in {} seconds and timed out.'.format(

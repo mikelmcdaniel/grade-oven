@@ -225,7 +225,9 @@ class GradeOvenStudentSubmission(object):
                                   'score'), 0) or 0)
         for stage_name in self.stage_names())
 
-  def set_score(self, stage_name: Text, score: int) -> None:
+  def set_score(self, stage_name: Text, score: Optional[int]) -> None:
+    if score is None:
+      score = 0
     self._data_store.put(
         ('courses', self.course_name, 'assignments', self.assignment_name,
          'students', self.student_username, 'stages', stage_name, 'score'),
@@ -241,7 +243,9 @@ class GradeOvenStudentSubmission(object):
         for stage_name in self.stage_names())
 
   def set_past_due_date_score(self, stage_name: Text,
-                              past_due_date_score: int) -> None:
+                              past_due_date_score: Optional[int]) -> None:
+    if past_due_date_score is None:
+      past_due_date_score = 0
     self._data_store.put(
         ('courses', self.course_name, 'assignments', self.assignment_name,
          'students', self.student_username, 'stages', stage_name,

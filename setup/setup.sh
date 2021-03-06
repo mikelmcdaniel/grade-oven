@@ -21,12 +21,12 @@ fi
 if ! which docker; then  # if docker is not installed then install it
     curl -sSL https://get.docker.com | sh
 fi
-sudo apt-get --assume-yes install python2.7 python-flask python-bcrypt python-leveldb authbind
-sudo apt-get --assume-yes install python-pip
-sudo pip install flask-login
+# for server.py
+sudo apt-get --assume-yes install python3-pip python3 python-bcrypt authbind
+sudo pip3 install flask leveldb flask-login
 
 # for monitor.py
-sudo apt-get --assume-yes install python-mechanize
+sudo pip3 install mechanize
 
 sudo service docker start
 
@@ -41,6 +41,3 @@ sudo chown gradeoven:gradeoven /etc/authbind/byport/443
 sudo chmod 755 /etc/authbind/byport/443
 
 sudo docker build --build-arg GRADE_OVEN_UID="$(id -u gradeoven)" -t grade_oven/grade_oven -f grade_oven.Dockerfile --rm --memory-swap=-1 .
-
-
-

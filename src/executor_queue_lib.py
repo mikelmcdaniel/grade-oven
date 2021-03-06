@@ -37,6 +37,7 @@ class ExecutorQueueTask(object):
     pass
 
   def run(self) -> None:
+    assert self.closure is not None
     self.closure()
 
   def after_run(self) -> None:

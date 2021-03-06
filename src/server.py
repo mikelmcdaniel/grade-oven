@@ -9,12 +9,12 @@ code, such as input sanitazation (via escape_lib).
 # TODO: Validate course and assignment names
 # TODO: Restrict which users can see which pages more
 #   e.g. only admins, instructors, and enrolled students should see courses
-import cgi
 import collections
 import csv
 import errno
 import functools
 import glob
+import html
 import itertools
 import json
 import logging
@@ -29,12 +29,13 @@ import six
 import tempfile
 import threading
 import time
-from typing import Any, Callable, Dict, Generic, Iterable, List, Optional, Set, Text, Tuple, TypeVar
+from typing import Any, Callable, Dict, Generic, Iterable, List, Optional, Set, Text, Tuple, TypeVar, Union
 import zipfile
 
 import flask_login as login
 import bcrypt
 import flask
+import werkzeug  # Only used for typing
 import werkzeug.datastructures  # Only used for typing
 
 import controller_lib
@@ -44,6 +45,9 @@ import executor
 import executor_queue_lib
 import data_model_lib
 import random_display_name_lib
+
+ResponseType = Union[werkzeug.Response, flask.Response, str]
+
 
 SECONDS_PER_DAY = 24 * 60 * 60
 
@@ -153,20 +157,20 @@ SIGNALS = dict(
 
 @app.route('/favicon.ico')
 @nothing_required
-def favicon() -> flask.Response:
+def favicon() -> ResponseType:
   return flask.send_file('static/favicon.ico', mimetype='image/x-icon')
 
 
 @app.route('/about')
 @nothing_required
-def about() -> flask.Response:
+def about() -> ResponseType:
   return flask.render_template(
       'about.html', username=login.current_user.get_id())
 
 
 @app.route('/admin')
 @admin_required
-def admin() -> flask.Response:
+def admin() -> ResponseType:
   return flask.render_template(
       'admin.html', username=login.current_user.get_id())
 
@@ -183,7 +187,7 @@ def admin_kill_x(sig: Text) -> None:
     logging.error('Unable to send signal: %s', e)
 
 
-def _select_to_bool(value: Text) -> Optional[bool]:
+def _select_to_bool(value: Optional[Text]) -> Optional[bool]:
   if value == 'set':
     return True
   elif value == 'unset':
@@ -191,10 +195,12 @@ def _select_to_bool(value: Text) -> Optional[bool]:
   return None
 
 
-def _add_edit_user(username: Text, password: Text, is_admin: bool,
-                   is_monitor: bool, course: Text, instructs_course: bool,
-                   takes_course: bool, display_name: Text, real_name: Text,
-                   msgs: List[Text]) -> None:
+def _add_edit_user(
+    username: Text, password: Optional[Text], is_admin: Optional[bool],
+    is_monitor: Optional[bool], course: Optional[Text],
+    instructs_course: Optional[bool], takes_course: Optional[bool],
+    display_name: Optional[Text], real_name: Optional[Text],
+    msgs: List[Text]) -> None:
   user = grade_oven.user(username)
   msgs.append('Loaded user {!r}'.format(username))
   if password is not None:
@@ -223,7 +229,7 @@ def _add_edit_user(username: Text, password: Text, is_admin: bool,
 
 @app.route('/admin/edit_user', methods=['GET', 'POST'])
 @admin_required
-def admin_edit_user() -> flask.Response:
+def admin_edit_user() -> ResponseType:
   form = flask.request.form
   usernames = form.get('usernames')
   if usernames:
@@ -295,7 +301,7 @@ def admin_edit_user() -> flask.Response:
 
 @app.route('/admin/db/<path:raw_key>')
 @admin_required
-def admin_db(raw_key: Text) -> flask.Response:
+def admin_db(raw_key: Text) -> ResponseType:
   key = raw_key.split('/')
   key_parts = []
   parts_so_far = []
@@ -314,7 +320,7 @@ def admin_db(raw_key: Text) -> flask.Response:
 
 @app.route('/monitor/variables')
 @monitor_required
-def monitor_variables_() -> flask.Response:
+def monitor_variables_() -> ResponseType:
   monitor_variables['monitor_vars_gets'] += 1
   return json.dumps(
       monitor_variables, sort_keys=True, indent=2, separators=(',', ': '))
@@ -322,7 +328,7 @@ def monitor_variables_() -> flask.Response:
 
 @app.route('/monitor/logs')
 @monitor_required
-def monitor_logs() -> flask.Response:
+def monitor_logs() -> ResponseType:
   log_names = os.listdir('../data/logs')
   return flask.render_template(
       'monitor_logs.html',
@@ -332,7 +338,7 @@ def monitor_logs() -> flask.Response:
 
 @app.route('/monitor/logs/<string:log_name>')
 @monitor_required
-def monitor_logs_x(log_name: Text) -> flask.Response:
+def monitor_logs_x(log_name: Text) -> ResponseType:
   errors = []
   safe_log_name = escape_lib.safe_entity_name(log_name)
   if safe_log_name != log_name:
@@ -377,7 +383,7 @@ def monitor_logs_x(log_name: Text) -> flask.Response:
 @app.route('/debug/logged_in')
 @login_required
 def debug_logged_in() -> Text:
-  return 'Logged in as {}.'.format(cgi.escape(login.current_user.get_id()))
+  return 'Logged in as {}.'.format(html.escape(login.current_user.get_id()))
 
 
 @app.route('/debug/ping')
@@ -388,7 +394,7 @@ def debug_ping() -> Text:
 
 @app.route('/courses')
 @login_required
-def courses() -> flask.Response:
+def courses() -> ResponseType:
   return flask.render_template(
       'courses.html',
       username=login.current_user.get_id(),
@@ -400,7 +406,7 @@ def save_files_in_stage(flask_files: List[werkzeug.datastructures.FileStorage],
   errors = []
   for f in flask_files:
     try:
-      stage.save_file(f.filename, f.stream)
+      stage.save_file(f.filename or 'file', f.stream)
     except executor.Error as e:
       errors.append(str(e))
   return errors
@@ -408,7 +414,7 @@ def save_files_in_stage(flask_files: List[werkzeug.datastructures.FileStorage],
 
 @app.route('/courses/<string:course_name>/download_grades', methods=['GET'])
 @login_required
-def courses_x_download_grades(course_name: Text) -> flask.Response:
+def courses_x_download_grades(course_name: Text) -> ResponseType:
   user = login.current_user
   course = grade_oven.course(course_name)
   instructs_course = user.instructs_course(course_name)
@@ -516,7 +522,7 @@ def _make_grades_table(course: data_model_lib.GradeOvenCourse,
 @app.route(
     '/courses/<string:course_name>/assignments', methods=['GET', 'POST'])
 @login_required
-def courses_x_assignments(course_name: Text) -> flask.Response:
+def courses_x_assignments(course_name: Text) -> ResponseType:
   user = login.current_user
   course = grade_oven.course(course_name)
   instructs_course = user.instructs_course(course_name)
@@ -547,7 +553,7 @@ def _edit_assignment(form: werkzeug.datastructures.ImmutableMultiDict,
   description = form.get('description')
   if description:
     stages.save_description(description)
-  due_date = form.get('due_date')
+  due_date = str(form.get('due_date'))
   try:
     assignment.set_due_date(
         time.mktime(time.strptime(due_date, '%Y-%m-%d %H:%M')))
@@ -592,7 +598,7 @@ def _edit_assignment(form: werkzeug.datastructures.ImmutableMultiDict,
     files = flask.request.files.getlist('files_{}[]'.format(stage.name))
     if files:
       errors.extend(save_files_in_stage(files, stage))
-  delete_stages = form.getlist('delete_stages'.format(stage.name))
+  delete_stages = form.getlist('delete_stages')
   for delete_stage in delete_stages:
     stages.remove_stage(delete_stage)
   return errors
@@ -659,7 +665,7 @@ def _make_grade_table(
 )
 @login_required
 def courses_x_assignments_x_download(course_name: Text,
-                                     assignment_name: Text) -> flask.Response:
+                                     assignment_name: Text) -> ResponseType:
   user = login.current_user
   instructs_course = user.instructs_course(course_name)
   if instructs_course:
@@ -683,7 +689,7 @@ def courses_x_assignments_x_download(course_name: Text,
 )
 @login_required
 def courses_x_assignments_x_download_submissions(
-    course_name: Text, assignment_name: Text) -> flask.Response:
+    course_name: Text, assignment_name: Text) -> ResponseType:
   user = login.current_user
   instructs_course = user.instructs_course(course_name)
   if instructs_course:
@@ -706,7 +712,7 @@ def courses_x_assignments_x_download_submissions(
 )
 @login_required
 def courses_x_assignments_x_download_previous_submission(
-    course_name: Text, assignment_name: Text) -> flask.Response:
+    course_name: Text, assignment_name: Text) -> ResponseType:
   user = login.current_user
   takes_course = user.takes_course(course_name)
   if takes_course:
@@ -730,7 +736,7 @@ def courses_x_assignments_x_download_previous_submission(
     methods=['POST'])
 @login_required
 def courses_x_assignments_x_edit(course_name: Text,
-                                 assignment_name: Text) -> flask.Response:
+                                 assignment_name: Text) -> ResponseType:
   user = login.current_user
   instructs_course = user.instructs_course(course_name)
   if instructs_course:
@@ -750,7 +756,7 @@ def courses_x_assignments_x_edit(course_name: Text,
     methods=['POST'])
 @login_required
 def courses_x_assignments_x_submit(course_name: Text,
-                                   assignment_name: Text) -> flask.Response:
+                                   assignment_name: Text) -> ResponseType:
   user = login.current_user
   takes_course = user.takes_course(course_name)
   if takes_course:
@@ -771,7 +777,7 @@ def courses_x_assignments_x_submit(course_name: Text,
     methods=['POST'])
 @login_required
 def courses_x_assignments_x_resubmit_all(
-    course_name: Text, assignment_name: Text) -> flask.Response:
+    course_name: Text, assignment_name: Text) -> ResponseType:
   user = login.current_user
   instructs_course = user.instructs_course(course_name)
   if instructs_course:
@@ -791,7 +797,7 @@ def courses_x_assignments_x_resubmit_all(
     '/courses/<string:course_name>/assignments/<string:assignment_name>')
 @login_required
 def courses_x_assignments_x(course_name: Text,
-                            assignment_name: Text) -> flask.Response:
+                            assignment_name: Text) -> ResponseType:
   user = login.current_user
   course = grade_oven.course(course_name)
   assignment = course.assignment(assignment_name)
@@ -840,7 +846,7 @@ def courses_x_assignments_x(course_name: Text,
 @login_required
 def courses_x_assignments_x_output_html_x(course_name: Text,
                                           assignment_name: Text,
-                                          username=None) -> flask.Response:
+                                          username=None) -> ResponseType:
   user = login.current_user if username is None else grade_oven.user(username)
   if user.instructs_course(course_name) or user.takes_course(course_name):
     course = grade_oven.course(course_name)
@@ -862,7 +868,7 @@ def courses_x_assignments_x_output_html_x(course_name: Text,
 )
 @login_required
 def courses_x_assignments_x_output_html(
-    course_name: Text, assignment_name: Text) -> flask.Response:
+    course_name: Text, assignment_name: Text) -> ResponseType:
   return courses_x_assignments_x_output_html_x(course_name, assignment_name)
 
 
@@ -871,7 +877,7 @@ def courses_x_assignments_x_output_html(
     methods=['GET', 'POST'])
 @login_required
 def courses_x_assignments_x_submissions(
-    course_name: Text, assignment_name: Text) -> flask.Response:
+    course_name: Text, assignment_name: Text) -> ResponseType:
   user = login.current_user
   course = grade_oven.course(course_name)
   assignment = course.assignment(assignment_name)
@@ -902,7 +908,7 @@ def courses_x_assignments_x_submissions(
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
-def settings() -> flask.Response:
+def settings() -> ResponseType:
   user = login.current_user
   errors = []
 
@@ -939,7 +945,7 @@ def settings() -> flask.Response:
 
 @app.route('/')
 @nothing_required
-def index() -> flask.Response:
+def index() -> ResponseType:
   if login.current_user.is_authenticated:
     if login.current_user.is_admin():
       return flask.redirect('/admin')
@@ -951,9 +957,9 @@ def index() -> flask.Response:
 
 @app.route('/login', methods=['GET', 'POST'])
 @nothing_required
-def login_() -> flask.Response:
+def login_() -> ResponseType:
   form = flask.request.form
-  username = escape_lib.safe_entity_name(form.get('username'))
+  username = escape_lib.safe_entity_name(str(form.get('username')))
   password = form.get('password')
   if username and password:
     user = data_model_lib.GradeOvenUser.load_and_authenticate_user(
@@ -972,7 +978,7 @@ def login_() -> flask.Response:
 
 @app.route('/logout')
 @login_required
-def logout() -> flask.Response:
+def logout() -> ResponseType:
   monitor_variables['logouts'] += 1
   login.logout_user()
   return flask.redirect('/')

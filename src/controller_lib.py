@@ -58,9 +58,9 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
                stages: executor.Stages,
                student_submission: data_model_lib.GradeOvenStudentSubmission,
                grade_oven: data_model_lib.GradeOven,
-               temp_dirs: ResourcePool[Resource]) -> None:
+               temp_dirs: ResourcePool[Text]) -> None:
     super(GradeOvenSubmissionTask, self).__init__(priority, name, description)
-    self._temp_dir = None
+    self._temp_dir = None  # type: Optional[Text]
     self.submission_dir = submission_dir
     self.container_id = container_id
     self.stages = stages
@@ -83,8 +83,8 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
                                                       output.score)
     self.student_submission.set_output_html(output.stage_name,
                                             output.output_html)
-    self.student_submission.set_output(output.stage_name, output.stdout)
-    errors = '\n'.join(output.errors)
+    self.student_submission.set_output(output.stage_name, output.stdout or '')
+    errors = '\n'.join(output.errors or '')
     self.student_submission.set_errors(output.stage_name, errors)
     self.student_submission.set_status('running (finished {})'.format(
         output.stage_name))
@@ -96,10 +96,11 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
     if t is None:
       raise RuntimeError('No temporary directories available.')
     else:
-      self._temp_dir = t  # type: ignore
+      self._temp_dir = t
 
   def run(self) -> None:
     logging.info('GradeOvenSubmissionTask.run %s', self.description)
+    assert self._temp_dir is not None
     self.container = executor.DockerExecutor(self.container_id, self._temp_dir)
     self.container.init()
     self.student_submission.set_status('running')
@@ -111,12 +112,16 @@ class GradeOvenSubmissionTask(executor_queue_lib.ExecutorQueueTask):
     for stage_output in self.container.run_stages(
         self.submission_dir, self.stages, env=env):
       self._process_stage_output(stage_output)
-    self.outputs.append(stage_output.stdout)
-    self.errors.extend(stage_output.errors)
+      if stage_output.stdout is not None:
+        self.outputs.append(stage_output.stdout)
+      if stage_output.errors is not None:
+        self.errors.extend(stage_output.errors)
 
   def after_run(self) -> None:
     logging.info('GradeOvenSubmissionTask.after_run %s', self.description)
+    assert self.container is not None
     self.container.cleanup()
+    assert self._temp_dir is not None
     self.temp_dirs.free(self._temp_dir)
     self.student_submission.set_status('finished')
 
@@ -130,7 +135,7 @@ def save_files_in_dir(flask_files: List[werkzeug.datastructures.FileStorage],
     if e.errno != errno.EEXIST:
       raise e
   for f in flask_files:
-    base_filename = os.path.basename(f.filename)
+    base_filename = os.path.basename(f.filename or 'file')
     if base_filename:
       if escape_lib.is_safe_entity_name(base_filename):
         f.save(os.path.join(dir_path, base_filename))
@@ -150,7 +155,7 @@ def _enqueue_student_submission(
     username: Text,
     grade_oven: data_model_lib.GradeOven,
     executor_queue: executor_queue_lib.ExecutorQueue,
-    temp_dirs: ResourcePool[Resource],
+    temp_dirs: ResourcePool[Text],
     files: Optional[List[werkzeug.datastructures.FileStorage]] = None
 ) -> List[Text]:
   errors = []
