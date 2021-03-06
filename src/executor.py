@@ -362,7 +362,7 @@ class DockerExecutor(object):
   def __init__(self, container_id: Text, host_dir: Text) -> None:
     self.container_id = container_id
     self.host_dir = os.path.abspath(host_dir)
-    self.timeout_seconds = 60
+    self.timeout_seconds = 300
     self.max_num_files = 1000
     self.max_mem_bytes = 256 * 1024**2
 
