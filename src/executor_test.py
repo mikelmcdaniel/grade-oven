@@ -89,8 +89,9 @@ class TestExecutor(unittest.TestCase):
       outputs = {}
       for stage_output in c.run_stages(code_path, stages):
         outputs[stage_output.stage_name] = stage_output
-      self.assertEqual(outputs['fork_bomb'].errors, [
-          'Command "/grade_oven/fork_bomb/main" did not finish in '
+      self.assertEqual(outputs['fork_bomb'].errors, [])
+      self.assertEqual(outputs['sleep'].errors, [
+          'Command "/grade_oven/sleep/main" did not finish in '
           '5 seconds and timed out.'
       ])
       self.assertIn('many_open_files: 80 files open',

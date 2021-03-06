@@ -1,0 +1,3 @@
+#!/bin/bash
+clang -Wall -Wextra -lstdc++ -o sleep /grade_oven/sleep/sleep.cpp
+./sleep

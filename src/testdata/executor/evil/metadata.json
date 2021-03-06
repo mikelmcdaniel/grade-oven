@@ -8,6 +8,9 @@
         },
         {
             "directory_name": "much_ram"
+        },
+        {
+            "directory_name": "sleep"
         }
     ]
 }

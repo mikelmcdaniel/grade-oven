@@ -433,10 +433,7 @@ class DockerExecutor(object):
     proc.wait()
 
     logging.info('Waiting for Docker container: %s', self.container_id)
-    docker_cmd = [
-        'timeout',
-        str(self.timeout_seconds), 'docker', 'wait', self.container_id
-    ]
+    docker_cmd = ['docker', 'wait', self.container_id]
     proc = subprocess.Popen(
         docker_cmd,
         stdout=subprocess.PIPE,
@@ -444,14 +441,15 @@ class DockerExecutor(object):
         close_fds=True,
         cwd=self.host_dir,
         env=empty_env)
-    return_code_raw, _ = proc.communicate()
+    return_code = None  # type: Optional[int]
     try:
-      return_code = int(return_code_raw)  # type: Optional[int]
-    except ValueError:
+      return_code, errs = proc.communicate(timeout=self.timeout_seconds)
+      if errs:
+        logging.error('%s: %s', docker_cmd, errs)
+    except subprocess.TimeoutExpired as e:
       errors.append(
           'Command "{}" did not finish in {} seconds and timed out.'.format(
-              join_cmd_parts(cmd), self.timeout_seconds))
-      return_code = None
+              join_cmd_parts(cmd), e.timeout))
 
     logging.info('Stopping Docker container: %s', self.container_id)
     docker_cmd = ['docker', 'stop', '--time', '5', self.container_id]
