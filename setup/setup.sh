@@ -22,8 +22,9 @@ if ! which docker; then  # if docker is not installed then install it
     curl -sSL https://get.docker.com | sh
 fi
 # for server.py
-sudo apt-get --assume-yes install python3-pip python3 python-bcrypt authbind
-sudo pip3 install flask leveldb flask-login
+# apt-utils was needed on a Ubuntu 20.04 Google Cloud VM
+sudo apt-get --assume-yes install python3-pip python3 authbind apt-utils
+sudo pip3 install flask leveldb flask-login bcrypt
 
 # for monitor.py
 sudo pip3 install mechanize
