@@ -624,11 +624,10 @@ def _make_grade_table(
   if not due_date:
     header_row.remove('Score (after due date)')
     header_row.remove('Days Late')
+  user_row = None
   for username in course.student_usernames():
     row = []  # type: List[Any]
     user = grade_oven.user(username)
-    if not show_real_names and user.prefers_anonymity():
-      continue
     if show_real_names:
       row.append('{} ({})'.format(user.display_name(), user.real_name()))
     else:
@@ -654,9 +653,15 @@ def _make_grade_table(
     else:
       row.append('')
     row.append(submission.num_submissions())
-    table.append(row)
+    if user.get_id() == username:
+      user_row = row
+    else:
+      if show_real_names or not user.prefers_anonymity():
+        table.append(row)
   table = sorted(
       table, key=lambda row: (-_int_or_0(row[1]), row[-2], row[-1], row[0]))
+  if user_row is not None:
+    table.insert(0, user_row)
   return header_row, table
 
 
