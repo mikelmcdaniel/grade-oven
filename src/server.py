@@ -840,6 +840,42 @@ def courses_x_assignments_x(course_name: Text,
       table=table)
 
 
+@app.context_processor
+def element_from_username():
+  def _element_from_username(some_list, nonce: Text=''):
+    user = login.current_user
+    username = user.get_id()
+    if user.is_admin():
+      username = flask.request.args.get(
+          'username',
+          default=username,
+          type=str)
+    sha224 = hashlib.sha224()
+    sha224.update(nonce.encode('utf-8'))
+    sha224.update(username.encode('utf-8'))
+    for element in some_list:
+      sha224.update(repr(element).encode('utf-8'))
+    hash = int(sha224.hexdigest(), 16)
+    return str(some_list[hash % len(some_list)])
+  return dict(element_from_username=_element_from_username)
+
+
+@app.route(
+    '/courses/<string:course_name>/page/<string:page_name>')
+@login_required
+def courses_x_page_x(course_name: Text, page_name: Text) -> ResponseType:
+  user = login.current_user
+  course = grade_oven.course(course_name)
+  instructs_course = user.instructs_course(course.name)
+  takes_course = user.takes_course(course.name)
+  if takes_course or instructs_course:
+    return flask.render_template(
+        os.path.join(course_name, page_name + '.html'),
+        username=login.current_user.get_id())
+  else:
+    return flask.abort(403)
+
+
 @app.route(
     '/courses/<string:course_name>/assignments/<string:assignment_name>/output_html/<string:username>'
 )
