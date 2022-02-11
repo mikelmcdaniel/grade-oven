@@ -14,6 +14,7 @@ import csv
 import errno
 import functools
 import glob
+import hashlib
 import html
 import itertools
 import json
