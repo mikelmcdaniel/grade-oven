@@ -166,14 +166,18 @@ def favicon() -> ResponseType:
 @nothing_required
 def about() -> ResponseType:
   return flask.render_template(
-      'about.html', username=login.current_user.get_id())
+      'about.html',
+      username=login.current_user.get_id(),
+      display_name=login.current_user.display_name())
 
 
 @app.route('/admin')
 @admin_required
 def admin() -> ResponseType:
   return flask.render_template(
-      'admin.html', username=login.current_user.get_id())
+      'admin.html',
+      username=login.current_user.get_id(),
+      display_name=login.current_user.display_name())
 
 
 @app.route('/admin/kill/<string:sig>')
@@ -296,6 +300,7 @@ def admin_edit_user() -> ResponseType:
   return flask.render_template(
       'admin_edit_user.html',
       username=login.current_user.get_id(),
+      display_name=login.current_user.display_name(),
       errors=errors,
       msgs=msgs)
 
@@ -314,6 +319,7 @@ def admin_db(raw_key: Text) -> ResponseType:
   return flask.render_template(
       'admin_db.html',
       username=login.current_user.get_id(),
+      display_name=login.current_user.display_name(),
       key=key_parts,
       data=data,
       sub_dirs=sub_dirs)
@@ -334,6 +340,7 @@ def monitor_logs() -> ResponseType:
   return flask.render_template(
       'monitor_logs.html',
       username=login.current_user.get_id(),
+      display_name=login.current_user.display_name(),
       log_names=log_names)
 
 
@@ -374,6 +381,7 @@ def monitor_logs_x(log_name: Text) -> ResponseType:
   return flask.render_template(
       'monitor_logs_x.html',
       username=login.current_user.get_id(),
+      display_name=login.current_user.display_name(),
       log_name=log_name,
       log_data=log_data,
       errors=errors,
@@ -399,6 +407,7 @@ def courses() -> ResponseType:
   return flask.render_template(
       'courses.html',
       username=login.current_user.get_id(),
+      display_name=login.current_user.display_name(),
       courses=grade_oven.course_names())
 
 
@@ -479,6 +488,7 @@ def courses_x(course_name):
   return flask.render_template(
       'courses_x.html',
       username=login.current_user.get_id(),
+      display_name=login.current_user.display_name(),
       instructs_course=instructs_course,
       takes_course=takes_course,
       assignments=assignment_names,
@@ -532,6 +542,7 @@ def courses_x_assignments(course_name: Text) -> ResponseType:
   return flask.render_template(
       'courses_x_assignments.html',
       username=login.current_user.get_id(),
+      display_name=login.current_user.display_name(),
       instructs_course=instructs_course,
       takes_course=takes_course,
       assignments=assignment_names,
@@ -836,6 +847,7 @@ def courses_x_assignments_x(course_name: Text,
   return flask.render_template(
       'courses_x_assignments_x.html',
       username=login.current_user.get_id(),
+      display_name=login.current_user.display_name(),
       instructs_course=instructs_course,
       takes_course=takes_course,
       course_name=course.name,
@@ -881,7 +893,8 @@ def courses_x_page_x(course_name: Text, page_name: Text) -> ResponseType:
   if takes_course or instructs_course:
     return flask.render_template(
         os.path.join(course_name, page_name + '.html'),
-        username=login.current_user.get_id())
+        username=login.current_user.get_id(),
+        display_name=login.current_user.display_name())
   else:
     return flask.abort(403)
 
@@ -902,6 +915,7 @@ def courses_x_assignments_x_output_html_x(course_name: Text,
     return flask.render_template(
         'courses_x_assignments_x_output_html.html',
         username=login.current_user.get_id(),
+        display_name=login.current_user.display_name(),
         submission_output_html=submission_output_html)
   else:
     return flask.redirect(
@@ -946,6 +960,7 @@ def courses_x_assignments_x_submissions(
   return flask.render_template(
       'courses_x_assignments_x_submissions.html',
       username=login.current_user.get_id(),
+      display_name=login.current_user.display_name(),
       instructs_course=instructs_course,
       course_name=course.name,
       assignment_name=assignment.name,
@@ -968,10 +983,7 @@ def settings() -> ResponseType:
     display_name = display_name[:30]
     user.set_display_name(display_name)
   prefers_anonymity = form.get('prefers_anonymity')
-  if prefers_anonymity:
-    user.set_prefers_anonymity(True)
-  else:
-    user.set_prefers_anonymity(False)
+  user.set_prefers_anonymity(bool(prefers_anonymity))
   password = form.get('password')
   password2 = form.get('password2')
   if password or password2:
@@ -982,7 +994,7 @@ def settings() -> ResponseType:
 
   return flask.render_template(
       'settings.html',
-      username=login.current_user.get_id(),
+      username=user.get_id(),
       real_name=user.real_name(),
       display_name=user.display_name(),
       prefers_anonymity=user.prefers_anonymity(),
@@ -1019,7 +1031,8 @@ def login_() -> ResponseType:
       redirect = flask.request.args.get('redirect', '/')
       return flask.redirect(redirect, code=303)
   return flask.render_template(
-      'login.html', username=login.current_user.get_id())
+      'login.html',
+      username=login.current_user.get_id())
 
 
 @app.route('/logout')
