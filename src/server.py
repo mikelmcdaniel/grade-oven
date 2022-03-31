@@ -974,14 +974,17 @@ def settings() -> ResponseType:
   errors = []
 
   form = flask.request.form
-  real_name = form.get('real_name')
-  if real_name:
-    real_name = real_name[:256]
-    user.set_real_name(real_name)
   display_name = form.get('display_name')
   if display_name:
     display_name = display_name[:30]
     user.set_display_name(display_name)
+  real_name = form.get('real_name')
+  if real_name:
+    if user.is_admin():
+      real_name = real_name[:256]
+      user.set_real_name(real_name)
+    else:
+      user.set_display_name('big dummy')
   prefers_anonymity = form.get('prefers_anonymity')
   user.set_prefers_anonymity(bool(prefers_anonymity))
   password = form.get('password')
@@ -998,6 +1001,7 @@ def settings() -> ResponseType:
       real_name=user.real_name(),
       display_name=user.display_name(),
       prefers_anonymity=user.prefers_anonymity(),
+      is_admin=user.is_admin(),
       errors=errors)
 
 
