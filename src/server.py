@@ -404,11 +404,21 @@ def debug_ping() -> Text:
 @app.route('/courses')
 @login_required
 def courses() -> ResponseType:
+  user = login.current_user
+  all_courses = grade_oven.course_names()
+  if user.is_admin():
+    courses = all_courses
+  else:
+    courses = []
+    for course_name in all_courses:
+      course = grade_oven.course(course_name)
+      if user.takes_course(course_name) or user.instructs_course(course_name):
+        courses.append(course_name)
   return flask.render_template(
       'courses.html',
-      username=login.current_user.get_id(),
-      display_name=login.current_user.display_name(),
-      courses=grade_oven.course_names())
+      username=user.get_id(),
+      display_name=user.display_name(),
+      courses=courses)
 
 
 def save_files_in_stage(flask_files: List[werkzeug.datastructures.FileStorage],
