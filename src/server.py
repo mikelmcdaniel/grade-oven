@@ -414,6 +414,9 @@ def courses() -> ResponseType:
       course = grade_oven.course(course_name)
       if user.takes_course(course_name) or user.instructs_course(course_name):
         courses.append(course_name)
+  # If there is only one relevant course to a user, redirect to that course.
+  if len(courses) == 1:
+    return flask.redirect('/courses/{}'.format(courses[0]), code=302)
   return flask.render_template(
       'courses.html',
       username=user.get_id(),
