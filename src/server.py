@@ -615,7 +615,8 @@ def _int_or_0(x: Text) -> int:
 def _make_grade_table(
     course: data_model_lib.GradeOvenCourse,
     assignment: data_model_lib.GradeOvenAssignment,
-    show_real_names: bool = False) -> Tuple[List[Text], List[List[Any]]]:
+    show_real_names: bool = False,
+    logged_in_username: Optional[Text] = None) -> Tuple[List[Text], List[List[Any]]]:
   header_row = [
       'Display Name', 'Score', 'Score (after due date)', 'Days Late',
       'Submit Time', 'Attempts'
@@ -654,7 +655,7 @@ def _make_grade_table(
     else:
       row.append('')
     row.append(submission.num_submissions())
-    if user.get_id() == username:
+    if user.get_id() == logged_in_username:
       user_row = row
     else:
       if show_real_names or not user.prefers_anonymity():
@@ -828,7 +829,10 @@ def courses_x_assignments_x(course_name: Text,
     submission_output, submission_errors = '', ''
     submission_has_output_html = False
   header_row, table = _make_grade_table(
-      course, assignment, show_real_names=instructs_course)
+      course,
+      assignment,
+      show_real_names=instructs_course,
+      logged_in_username=user.get_id())
   return flask.render_template(
       'courses_x_assignments_x.html',
       username=login.current_user.get_id(),
