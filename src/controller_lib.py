@@ -205,7 +205,7 @@ def _enqueue_student_submission(
         'Please wait until {} ({:.0f} seconds) to submit {} again.'.format(
             formatted_time, seconds_left, assignment_name))
   else:
-    if files:
+    if files:  # If this is NOT a resubmission:
       try:
         shutil.rmtree(submission_dir)
       except OSError as e:
@@ -217,5 +217,6 @@ def _enqueue_student_submission(
       student_submission.set_num_submissions(
           student_submission.num_submissions() + 1)
     student_submission.set_status('queued')
+    student_submission.clear_all_outputs()  # clear any previous output
     executor_queue.enqueue(submission)
   return errors

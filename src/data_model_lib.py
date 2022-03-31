@@ -211,6 +211,12 @@ class GradeOvenStudentSubmission(object):
     self.assignment = GradeOvenAssignment(self._data_store, course_name,
                                           assignment_name)
 
+  def clear_all_outputs(self):
+    for stage_name in self.stage_names():
+      self.set_output(stage_name, '')
+      self.set_output_html(stage_name, '')
+      self.set_errors(stage_name, '')
+
   def stage_names(self) -> List[Text]:
     return self._data_store.get_all(
         ('courses', self.course_name, 'assignments', self.assignment_name,
