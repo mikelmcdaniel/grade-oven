@@ -3,22 +3,22 @@
 <h2>Settings</h2>
 <form method="post">
   <div class="form-group">
-    <label for="display_name">Display Name:</label>
+    <label for="display_name">Display Name (what everyone sees):</label>
     <input type="text" class="form-control" placeholder="{{ display_name|e }}" id="display_name" maxlength="30" name="display_name" autofocus>
   </div>
   {% if is_admin %}
   <div class="form-group">
-    <label for="real_name">Real/Full Name:</label>
+    <label for="real_name">Real/Full Name (what instructors and admins see):</label>
     <input type="text" class="form-control" placeholder="{{ real_name|e }}" id="real_name" maxlength="256" name="real_name">
   </div>
   {% else %}
   <div class="form-group">
-    <label>Real/Full Name:</label>
+    <label>Real/Full Name (what instructors and admins see):</label>
     <input type="text" class="form-control" placeholder="{{ real_name|e }} (only admins can modify)" disabled="true">
   </div>
   {% endif %}
   <div class="form-group">
-    <label for="prefers_anonymity">Hide Score from Others:</label>
+    <label for="prefers_anonymity">Hide Score from other students:</label>
     <input type="checkbox" class="form-control" id="prefers_anonymity" name="prefers_anonymity" value="yes"{% if prefers_anonymity %}checked="checked"{% endif %}>
   </div>
   <div class="form-group">
