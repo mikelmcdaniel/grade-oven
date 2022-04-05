@@ -792,12 +792,14 @@ def courses_x_assignments_x_submit(course_name: Text,
   takes_course = user.takes_course(course_name)
   if takes_course:
     files = flask.request.files.getlist('submission_files[]')
-    if files:
+    if files and any(files):
       monitor_variables['assignment_attempts'] += 1
       for err in controller_lib._enqueue_student_submission(
           course_name, assignment_name, user.username, grade_oven,
           executor_queue, temp_dirs, files):
         flask.flash(err)
+    else:
+      flask.flash('No files submitted. Please select files before clicking Submit.')
   return flask.redirect(
       '/courses/{}/assignments/{}'.format(course_name, assignment_name),
       code=303)
