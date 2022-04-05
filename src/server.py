@@ -640,7 +640,7 @@ def _make_grade_table(
     course: data_model_lib.GradeOvenCourse,
     assignment: data_model_lib.GradeOvenAssignment,
     show_real_names: bool = False,
-    logged_in_username: Optional[Text] = None) -> Tuple[List[Text], List[List[Any]]]:
+    logged_in_username: Optional[Text] = None) -> Tuple[List[Text], Optional[List[Any]], List[List[Any]]]:
   header_row = [
       'Display Name', 'Score', 'Score (after due date)', 'Days Late',
       'Submit Time', 'Attempts'
@@ -681,14 +681,14 @@ def _make_grade_table(
     row.append(submission.num_submissions())
     if user.get_id() == logged_in_username:
       user_row = row
-    else:
-      if show_real_names or not user.prefers_anonymity():
-        table.append(row)
+      table.append(row)
+    elif show_real_names or not user.prefers_anonymity():
+      table.append(row)
   table = sorted(
       table, key=lambda row: (-_int_or_0(row[1]), row[-2], row[-1], row[0]))
-  if user_row is not None:
-    table.insert(0, user_row)
-  return header_row, table
+  if table and user_row == table[0]:
+    table.pop(0)
+  return header_row, user_row, table
 
 
 @app.route(
@@ -854,7 +854,7 @@ def courses_x_assignments_x(course_name: Text,
     formatted_due_date = ''
     submission_output, submission_errors = '', ''
     submission_has_output_html = False
-  header_row, table = _make_grade_table(
+  header_row, user_row, table = _make_grade_table(
       course,
       assignment,
       show_real_names=instructs_course,
@@ -874,6 +874,7 @@ def courses_x_assignments_x(course_name: Text,
       submission_errors=submission_errors,
       stages_desc=stages.description,
       header_row=header_row,
+      user_row=user_row,
       table=table)
 
 

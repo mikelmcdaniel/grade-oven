@@ -111,6 +111,13 @@ Due Date: {{ formatted_due_date|e }}{% endif %}</pre>
     </tr>
   </thead>
   <tbody>
+    {% if user_row %}
+    <tr style="background-color: #ffa;">
+      {% for col in user_row %}
+      <td>{{ col|e }}</td>
+      {% endfor %}
+    </tr>
+    {% endif %}
     {% for row in table %}
     <tr>
       {% for col in row %}
