@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
-<h2>Course {{course_name|e }} Assignments</h2>
+<h2>Course <a href="/courses/{{ course_name|e }}">{{ course_name|e }}</a> Assignments</h2>
 <h3>Assignments:</h3>
 <ul class="assignments">
   {% for assignment in assignments %}
