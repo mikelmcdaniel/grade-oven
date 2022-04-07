@@ -652,14 +652,17 @@ def _make_grade_table(
     header_row.remove('Days Late')
   user_row = None
   for username in course.student_usernames():
-    row = []  # type: List[Any]
     user = grade_oven.user(username)
+    submission = assignment.student_submission(username)
+    submission_status = submission.status()
+    num_submissions = submission.num_submissions()
+    if user.get_id() != logged_in_username and num_submissions == 0:
+      continue
+    row = []  # type: List[Any]
     if show_real_names:
       row.append('{} ({})'.format(user.display_name(), user.real_name()))
     else:
       row.append(user.display_name())
-    submission = assignment.student_submission(username)
-    submission_status = submission.status()
     if submission_status and submission_status not in ('finished',
                                                        'never run'):
       row.append(submission_status)
@@ -678,7 +681,7 @@ def _make_grade_table(
           time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(submit_time)))
     else:
       row.append('')
-    row.append(submission.num_submissions())
+    row.append(num_submissions)
     if user.get_id() == logged_in_username:
       user_row = row
       table.append(row)
