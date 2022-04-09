@@ -910,12 +910,17 @@ def courses_x_page_x(course_name: Text, page_name: Text) -> ResponseType:
   instructs_course = user.instructs_course(course.name)
   takes_course = user.takes_course(course.name)
   if takes_course or instructs_course:
-    return flask.render_template(
-        os.path.join(course_name, page_name + '.html'),
-        username=login.current_user.get_id(),
-        display_name=login.current_user.display_name())
-  else:
-    return flask.abort(403)
+    if '.' not in page_name:
+      page_name = page_name + '.html'
+      return flask.render_template(
+          os.path.join(course_name, page_name),
+          username=login.current_user.get_id(),
+          display_name=login.current_user.display_name())
+    elif not page_name.endswith('.html'):
+      return flask.send_from_directory(
+          os.path.join(app.template_folder, course_name),
+          page_name)
+  return flask.abort(403)
 
 
 @app.route(
