@@ -5,7 +5,8 @@
 {% for student_submission in student_submissions %}
 <div id="{{ student_submission.student_username|e }}" class="panel panel-primary">
   <div class="panel-heading">
-    <h3 class="panel-title">{{ student_submission.student_username|e }} Output</h3>
+    <h3 class="panel-title">{{ student_submission.student_username|e }} output</h3>
+    <p>({{ student_submission.student_user().real_name()|e }})</p>
   </div>
   <div class="panel-body">
     <form method="post" enctype="multipart/form-data" action="#{{ student_submission.student_username|e }}">

@@ -210,6 +210,12 @@ class GradeOvenStudentSubmission(object):
     self._data_store = data_store
     self.assignment = GradeOvenAssignment(self._data_store, course_name,
                                           assignment_name)
+    self._student_user = None
+
+  def student_user(self) -> GradeOvenUser:
+    if self._student_user is None:
+      self._student_user = GradeOvenUser(self._data_store, self.student_username)
+    return self._student_user
 
   def clear_all_outputs(self):
     for stage_name in self.stage_names():
