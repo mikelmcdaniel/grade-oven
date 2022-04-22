@@ -165,10 +165,14 @@ def favicon() -> ResponseType:
 @app.route('/about')
 @nothing_required
 def about() -> ResponseType:
+  try:
+    display_name = login.current_user.display_name()
+  except AttributeError:
+    display_name = None
   return flask.render_template(
       'about.html',
       username=login.current_user.get_id(),
-      display_name=login.current_user.display_name())
+      display_name=display_name)
 
 
 @app.route('/admin')
