@@ -1053,7 +1053,8 @@ def login_() -> ResponseType:
     # Check if a user is trying to login with their display_name instead of their username.
     if user is None and ('users', username) not in data_store:
       for u in data_store.get_all(('users',)):
-        if data_model_lib.GradeOvenUser(data_store, u).display_name() == username:
+        temp_user = data_model_lib.GradeOvenUser(data_store, u)
+        if temp_user.display_name() == username or temp_user.real_name() == username:
           user = data_model_lib.GradeOvenUser.load_and_authenticate_user(
             data_store, u, password)
           break
